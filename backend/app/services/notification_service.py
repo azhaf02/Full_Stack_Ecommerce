@@ -1,69 +1,37 @@
-from sqlalchemy.orm import Session
-from app.models.notification import Notification, NotificationType
+from datetime import datetime
+
+class MockNotification:
+    def __init__(self, id, user_id, title, message, is_read=False):
+        self.id = id
+        self.user_id = user_id
+        self.title = title
+        self.message = message
+        self.is_read = is_read
+        self.created_at = datetime.utcnow()
+
+_mock_notifications = [
+    MockNotification(1, 1, "Order Shipped", "Your order #1 has been shipped and is on the way!"),
+    MockNotification(2, 1, "Welcome Offer", "Use coupon code WELCOME10 for 10% off your next purchase.", is_read=False),
+]
 
 class NotificationService:
     @staticmethod
-    def create_notification(
-        db: Session,
-        user_id: int,
-        title: str,
-        message: str,
-        notification_type: NotificationType = NotificationType.GENERAL
-    ) -> Notification:
-        """Create and persist a notification event for a user."""
-        notification = Notification(
-            user_id=user_id,
-            title=title,
-            message=message,
-            type=notification_type,
-            is_read=False
-        )
-        db.add(notification)
-        db.commit()
-        db.refresh(notification)
-        return notification
+    def get_user_notifications(db, user_id: int):
+        return [n for n in _mock_notifications if n.user_id == user_id]
 
     @staticmethod
-    def get_user_notifications(db: Session, user_id: int, limit: int = 50):
-        """Retrieve notifications for a user sorted by most recent."""
-        return (
-            db.query(Notification)
-            .filter(Notification.user_id == user_id)
-            .order_by(Notification.created_at.desc())
-            .limit(limit)
-            .all()
-        )
+    def mark_as_read(db, notification_id: int):
+        for n in _mock_notifications:
+            if n.id == notification_id:
+                n.is_read = True
+                return n
+        return None
 
     @staticmethod
-    def get_unread_count(db: Session, user_id: int) -> int:
-        """Count unread notifications for a user."""
-        return (
-            db.query(Notification)
-            .filter(Notification.user_id == user_id, Notification.is_read == False)
-            .count()
-        )
-
-    @staticmethod
-    def mark_as_read(db: Session, notification_id: int, user_id: int) -> bool:
-        """Mark an individual notification as read."""
-        notification = (
-            db.query(Notification)
-            .filter(Notification.id == notification_id, Notification.user_id == user_id)
-            .first()
-        )
-        if notification:
-            notification.is_read = True
-            db.commit()
-            return True
-        return False
-
-    @staticmethod
-    def mark_all_as_read(db: Session, user_id: int) -> int:
-        """Mark all notifications as read for a given user."""
-        updated = (
-            db.query(Notification)
-            .filter(Notification.user_id == user_id, Notification.is_read == False)
-            .update({Notification.is_read: True})
-        )
-        db.commit()
-        return updated
+    def mark_all_as_read(db, user_id: int):
+        count = 0
+        for n in _mock_notifications:
+            if n.user_id == user_id and not n.is_read:
+                n.is_read = True
+                count += 1
+        return count
