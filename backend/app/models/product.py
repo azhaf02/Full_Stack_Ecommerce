@@ -49,6 +49,12 @@ class Product(Base):
         "ProductImage",
         back_populates="product"
     )
-
+    
+    variants = relationship(
+    "ProductVariant",
+    back_populates="product",
+    cascade="all, delete-orphan"
+    )
+    
     def __repr__(self):
         return f"<Product(id={self.id}, name={self.name}, price={self.price}, status={self.status})>"
