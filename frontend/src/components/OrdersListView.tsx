@@ -1,10 +1,25 @@
 import React, { useState } from 'react';
 import ReviewSubmissionModal from './ReviewSubmissionModal';
 
-export default function OrdersListView() {
-  const [selectedOrder, setSelectedOrder] = useState(null);
+interface OrderItem {
+  id: number;
+  product_id: number;
+  product_name: string;
+  image: string;
+  date: string;
+  status: string;
+  total: string;
+  canReview: boolean;
+}
 
-  const orders = [
+interface OrdersListViewProps {
+  onReviewSubmitted?: () => void;
+}
+
+export default function OrdersListView({ onReviewSubmitted }: OrdersListViewProps) {
+  const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
+
+  const orders: OrderItem[] = [
     {
       id: 9821,
       product_id: 1,
@@ -126,9 +141,10 @@ export default function OrdersListView() {
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
           onSuccess={() => {
-            alert('Review submitted successfully!');
             setSelectedOrder(null);
+            if (onReviewSubmitted) onReviewSubmitted();
           }}
+          onReviewSubmitted={onReviewSubmitted}
         />
       )}
     </div>
