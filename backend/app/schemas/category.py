@@ -1,9 +1,10 @@
-from pydantic import BaseModel
 from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CategoryBase(BaseModel):
-    name: str
+    name: str = Field(min_length=2, max_length=100)
     description: Optional[str] = None
 
 
@@ -12,7 +13,7 @@ class CategoryCreate(CategoryBase):
 
 
 class CategoryUpdate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, min_length=2, max_length=100)
     description: Optional[str] = None
     is_active: Optional[bool] = None
 
@@ -21,5 +22,4 @@ class CategoryResponse(CategoryBase):
     id: int
     is_active: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
