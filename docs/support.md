@@ -241,3 +241,32 @@ Updated Docs:
   * `sender_role`: `text` (Evaluates strings for role authorization access tracking)
   * `message_body`: `text`
   * `sent_at`: `timestamptz`
+
+TASK DOCS:
+# 🎟️ Customer Support Module - Database Foundation
+
+This documentation outlines the database architecture designed to manage customer service tracking patterns and threaded message logs.
+
+## 📊 Database Schema Blueprint Definitions
+
+### 1. SupportTicket Table (`support_tickets`)
+- `id`: Integer (Primary Key, Auto-Increment)
+- `customer_id`: Integer (ForeignKey -> `users.id`, Cascade on Delete)
+- `order_id`: Integer (Nullable reference to order workflows tracking profiles)
+- `category`: String (Ticket taxonomy: Billing, Technical, Return, etc.)
+- `subject`: String (Brief statement of problem parameters)
+- `description`: Text (Detailed description text field data block)
+- `status`: String (Default: 'Open' tracking workflow status)
+- `created_at`: DateTime (Timestamp profile matching baseline schema updates)
+
+### 2. SupportMessage Table (`support_messages`)
+- `id`: Integer (Primary Key, Auto-Increment)
+- `ticket_id`: Integer (ForeignKey -> `support_tickets.id`, Cascade on Delete)
+- `sender_type`: String (Identity flag configuration: 'Customer' or 'Admin')
+- `message`: Text (Raw message string parameters matching thread logs)
+- `timestamp`: DateTime (Timeline synchronization checkpoint markers)
+
+## 🔗 Relationships & Migration Architecture
+- **Threaded Communication:** Linked `SupportTicket` and `SupportMessage` layers through a strict `One-to-Many` relationship layout using SQLAlchemy mapping structures. This enables full threaded conversation queues for support tickets.
+- **Alembic Database Versioning:** Generated baseline migration blueprint graph `0010_support.py` securely synchronized directly after the main global Order management schema sequence context (`0008_order_payment_method`).
+- **Cross-Module Linkage:** Properly maps `customer_id` directly against the shared Authentication user identity layout, ready for future API routing endpoints.
