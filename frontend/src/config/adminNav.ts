@@ -1,0 +1,15 @@
+import {
+  LayoutDashboard,
+  Users,
+  ShoppingCart,
+  CreditCard,
+  ShieldCheck,
+} from "lucide-react";
+
+export const adminNav = [
+  { label: "Dashboard", path: "/admin", icon: LayoutDashboard },
+  { label: "Customers", path: "/admin/customers", icon: Users },
+  { label: "Orders", path: "/admin/orders", icon: ShoppingCart },
+  { label: "Payments", path: "/admin/payments", icon: CreditCard },
+  { label: "Roles", path: "/admin/roles", icon: ShieldCheck },
+];

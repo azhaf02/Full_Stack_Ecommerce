@@ -1,0 +1,37 @@
+import axios from "axios";
+import { API_BASE_URL, getSession, logout } from "./authService";
+
+// One axios instance for every admin API call
+const api = axios.create({ baseURL: API_BASE_URL });
+
+// Send the logged-in admin's token with each request
+api.interceptors.request.use((config) => {
+  const session = getSession();
+  if (session) config.headers.Authorization = `Bearer ${session.token}`;
+  return config;
+});
+
+// 401 means the token is missing, invalid or expired: log out and go back to the login page
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      logout();
+      window.location.assign("/admin/login");
+    }
+    return Promise.reject(error);
+  }
+);
+
+export interface DashboardKpis {
+  totalRevenue: number;
+  ordersToday: number;
+  pendingOrders: number;
+  lowStockCount: number;
+}
+
+// Asks the backend for the four dashboard numbers
+export async function getDashboardSummary(): Promise<DashboardKpis> {
+  const response = await api.get("/api/admin/dashboard-summary");
+  return response.data.kpis;
+}

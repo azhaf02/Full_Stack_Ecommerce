@@ -1,6 +1,11 @@
 import os
+from pathlib import Path
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+
+# Load backend/.env so DATABASE_URL is available regardless of the working directory
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 # Uses your Supabase PostgreSQL connection string from environment variable,
 # or falls back to your local SQLite file if SUPABASE_DB_URL is not set.
