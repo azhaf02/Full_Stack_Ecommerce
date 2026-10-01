@@ -17,6 +17,7 @@ class Address(Base):
     state = Column(String(100), nullable=False)
     postal_code = Column(String(20), nullable=False)
     country = Column(String(100), nullable=False, default="India")
+    address_type = Column(String(20), nullable=False, default="both")  # shipping / billing / both
     is_default = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
