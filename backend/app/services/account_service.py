@@ -2,9 +2,30 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.security import hash_password, verify_password
 from app.models.address import Address
 from app.models.user import User
-from app.schemas.account import AddressCreate, AddressUpdate
+from app.schemas.account import AddressCreate, AddressUpdate, PasswordChange, ProfileUpdate
+
+
+# ---------- profile ----------
+def update_profile(db: Session, user: User, data: ProfileUpdate) -> User:
+    user.name = data.name.strip()
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def change_password(db: Session, user: User, data: PasswordChange) -> None:
+    if not verify_password(data.current_password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+    if data.current_password == data.new_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password must be different")
+    user.password_hash = hash_password(data.new_password)
+    db.commit()
+
+
+# ---------- addresses ----------
 
 
 def list_addresses(db: Session, user: User) -> list[Address]:

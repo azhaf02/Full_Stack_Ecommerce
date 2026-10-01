@@ -1,15 +1,37 @@
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.security import require_role
+from app.core.security import get_current_user, require_role
 from app.database import get_db
 from app.models.user import User
-from app.schemas.account import AddressCreate, AddressOut, AddressUpdate
-from app.services import account_service
+from app.schemas.account import AddressCreate, AddressOut, AddressUpdate, PasswordChange, ProfileUpdate
+from app.schemas.auth import UserOut
+from app.services import account_service, auth_service
 
 router = APIRouter(prefix="/api/account", tags=["Account"])
 
 customer_only = require_role("customer")
+
+
+# ---------- profile (any logged-in user) ----------
+@router.get("/profile", response_model=UserOut)
+def get_profile(user: User = Depends(get_current_user)):
+    return auth_service.to_user_out(user)
+
+
+@router.put("/profile", response_model=UserOut)
+def update_profile(data: ProfileUpdate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = account_service.update_profile(db, user, data)
+    return auth_service.to_user_out(user)
+
+
+@router.put("/password")
+def change_password(data: PasswordChange, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    account_service.change_password(db, user, data)
+    return {"message": "Password updated successfully"}
+
+
+# ---------- addresses (customers only) ----------
 
 
 @router.get("/addresses", response_model=list[AddressOut])
