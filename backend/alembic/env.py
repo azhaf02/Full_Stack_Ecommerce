@@ -1,4 +1,6 @@
 from logging.config import fileConfig
+import os
+from dotenv import load_dotenv
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
@@ -8,6 +10,9 @@ from alembic import context
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+load_dotenv()
+config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -22,6 +27,7 @@ from app.models.base import Base
 from app.models.category import Category
 from app.models.product import Product
 from app.models.product_image import ProductImage
+from app.models.product_variant import ProductVariant
 
 target_metadata = Base.metadata
 # other values from the config, defined by the needs of env.py,
@@ -69,10 +75,10 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-    connection=connection,
-    target_metadata=target_metadata,
-    compare_type=True,
-)
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+        )
 
         with context.begin_transaction():
             context.run_migrations()
