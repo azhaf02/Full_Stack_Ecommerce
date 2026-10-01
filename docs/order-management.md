@@ -61,7 +61,7 @@ A customer can cancel only while the order is `PLACED`, `CONFIRMED` or `PROCESSI
 
 Customer requests a return → admin approves or rejects → product returned → refund processed.
 
-- Only `DELIVERED` orders inside the return window can request a return.
+- Only `DELIVERED` orders inside the return window can request a return. The return window is **7 days from delivery**, counted from the time the order entered `DELIVERED` in `order_status_history`.
 - A rejected return puts the order back to `DELIVERED`; the decision is stored on the `returns` record.
 - `RETURNED` restocks inventory and starts the refund (`REFUND_PENDING` → `REFUNDED`).
 - The `returns` table is added in ORD-07.
@@ -84,7 +84,6 @@ Customer requests a return → admin approves or rejects → product returned �
 
 ## Open questions
 
-1. **COD acceptance.** Proposal: a COD order is confirmed straight away without an online `SUCCESS`; its payment stays `PENDING` until an admin marks it paid. The order needs to know the payment method, either via a `payment_method` column on `orders` or by looking it up in `payments`.
-2. **Return window.** Number of days after delivery a return can be requested (not yet defined).
-3. **Payment status values.** Confirm the six statuses above with Aaliya before adding a database check on `orders.payment_status`.
-4. **Foreign keys.** `user_id`, `address_id`, `coupon_id`, `product_id` and `variant_id` are plain integers until those tables exist.
+1. **COD acceptance.** COD is a supported payment option. Proposal, still to be confirmed with Aaliya: a COD order is confirmed straight away without an online `SUCCESS`; its payment stays `PENDING` until an admin marks it paid. The order needs to know the payment method, either via a `payment_method` column on `orders` or by looking it up in `payments`.
+2. **Payment status values.** Confirm the six statuses above with Aaliya before adding a database check on `orders.payment_status`.
+3. **Foreign keys.** `user_id`, `address_id`, `coupon_id`, `product_id` and `variant_id` are plain integers until those tables exist.
