@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from datetime import datetime
 from sqlalchemy.orm import relationship  
 from .Base import Base  
@@ -7,7 +7,7 @@ class SupportTicket(Base):
     __tablename__ = "support_tickets"
     
     id = Column(Integer, primary_key=True)
-    customer_id = Column(Integer, nullable=False)
+    customer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     order_id = Column(Integer, nullable=True) 
     category = Column(String(50), nullable=False)
     subject = Column(String(255), nullable=False)

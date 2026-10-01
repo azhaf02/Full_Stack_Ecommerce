@@ -16,11 +16,11 @@ branch_labels = None
 depends_on = None
 
 def upgrade():
-    
+    # support_tickets table blueprint
     op.create_table(
         'support_tickets',
         sa.Column('id', sa.Integer(), primary_key=True, nullable=False),
-        sa.Column('customer_id', sa.Integer(), nullable=False),
+        sa.Column('customer_id', sa.Integer(), sa.ForeignKey('users.id'), nullable=False),
         sa.Column('order_id', sa.Integer(), nullable=True),
         sa.Column('category', sa.String(length=50), nullable=False),
         sa.Column('subject', sa.String(length=255), nullable=False),
@@ -28,6 +28,7 @@ def upgrade():
         sa.Column('status', sa.String(length=50), server_default='Open', nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False)
     )
+
     
     
     op.create_table(
