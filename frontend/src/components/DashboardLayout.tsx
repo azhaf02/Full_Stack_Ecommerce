@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import OrdersListView from './OrdersListView';
 import NotificationCenter from './NotificationCenter';
+import ReviewsList from './ReviewsList';
 
 // SVG matching the circled VIORA icon (Shopping Bag with Leaf)
 function VioraLogo() {
@@ -25,7 +26,7 @@ function VioraLogo() {
         d="M12 14C12 14 15 14.5 15.5 17.5C16 20.5 13.5 22 12 22C10.5 22 8 20.5 8.5 17.5C9 14.5 12 14 12 14Z" 
         fill="#a3b899" 
         stroke="#ffffff" 
-        strokeWidth="1.2"
+        strokeWidth="1.2" 
       />
       <path 
         d="M12 16V22" 
@@ -40,6 +41,12 @@ function VioraLogo() {
 export default function DashboardLayout() {
   const [activeTab, setActiveTab] = useState('overview');
   const [unreadCount, setUnreadCount] = useState(1);
+  const [reviewsVersion, setReviewsVersion] = useState(0);
+
+  const handleReviewSubmitted = () => {
+    setReviewsVersion((prev) => prev + 1);
+    setActiveTab('reviews');
+  };
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f7f5f0', fontFamily: "'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif", color: '#1e241e' }}>
@@ -185,6 +192,7 @@ export default function DashboardLayout() {
                 { id: 'overview', label: 'Dashboard Overview', icon: '📊' },
                 { id: 'orders', label: 'My Orders', icon: '📦' },
                 { id: 'notifications', label: 'Notifications', icon: '🔔', badge: unreadCount },
+                { id: 'reviews', label: 'Product Reviews', icon: '⭐' },
               ].map((tab) => {
                 const isActive = activeTab === tab.id;
                 return (
@@ -274,14 +282,26 @@ export default function DashboardLayout() {
               </div>
 
               {/* Recent Orders Preview */}
-              <OrdersListView />
+              <OrdersListView onReviewSubmitted={handleReviewSubmitted} />
             </div>
           )}
 
-          {activeTab === 'orders' && <OrdersListView />}
+          {activeTab === 'orders' && <OrdersListView onReviewSubmitted={handleReviewSubmitted} />}
 
           {activeTab === 'notifications' && (
             <NotificationCenter onClearBadge={() => setUnreadCount(0)} />
+          )}
+
+          {activeTab === 'reviews' && (
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '18px', padding: '24px', border: '1px solid #e8e5de' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px', color: '#1e241e' }}>
+                Product Reviews & Ratings
+              </h2>
+              <p style={{ fontSize: '13px', color: '#6e776e', marginBottom: '20px' }}>
+                Real-time customer feedback fetched from the backend API.
+              </p>
+              <ReviewsList productId={1} refreshTrigger={reviewsVersion} />
+            </div>
           )}
         </section>
       </main>
