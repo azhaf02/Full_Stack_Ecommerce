@@ -8,14 +8,15 @@ Create Date: 2026-09-30 23:10:00.000000
 from alembic import op
 import sqlalchemy as sa
 
-# revision identifiers, used by Alembic.
+
 revision = '0010'
-down_revision = None
+down_revision = '0008_order_payment_method'
+
 branch_labels = None
 depends_on = None
 
 def upgrade():
-    # support_tickets table blueprint
+    
     op.create_table(
         'support_tickets',
         sa.Column('id', sa.Integer(), primary_key=True, nullable=False),
@@ -28,7 +29,7 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(), nullable=False)
     )
     
-    # support_messages table blueprint
+    
     op.create_table(
         'support_messages',
         sa.Column('id', sa.Integer(), primary_key=True, nullable=False),
