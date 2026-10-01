@@ -84,6 +84,6 @@ Customer requests a return → admin approves or rejects → product returned �
 
 ## Open questions
 
-1. **COD acceptance.** COD is a supported payment option. Proposal, still to be confirmed with Aaliya: a COD order is confirmed straight away without an online `SUCCESS`; its payment stays `PENDING` until an admin marks it paid. The order needs to know the payment method, either via a `payment_method` column on `orders` or by looking it up in `payments`.
-2. **Payment status values.** Confirm the six statuses above with Aaliya before adding a database check on `orders.payment_status`.
+1. **COD acceptance.** COD is a supported payment option and orders now store `payment_method` (`ONLINE` or `COD`). Proposal, still to be confirmed with Aaliya: a COD order is confirmed straight away without an online `SUCCESS`; its payment stays `PENDING` until an admin marks it paid.
+2. **Payment status values.** The database allows the six statuses from the integration guide. If Aaliya's module needs another value (for example `INITIATED`), the check on `orders.payment_status` has to change.
 3. **Foreign keys.** `user_id`, `address_id`, `coupon_id`, `product_id` and `variant_id` are plain integers until those tables exist.

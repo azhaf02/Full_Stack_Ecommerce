@@ -20,6 +20,20 @@ class OrderStatus(str, Enum):
 
 ORDER_STATUS_VALUES = ", ".join(f"'{s.value}'" for s in OrderStatus)
 
+class PaymentStatus(str, Enum):
+    PENDING = "PENDING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    REFUND_PENDING = "REFUND_PENDING"
+    REFUNDED = "REFUNDED"
+
+PAYMENT_STATUS_VALUES = ", ".join(f"'{s.value}'" for s in PaymentStatus)
+
+class PaymentMethod(str, Enum):
+    ONLINE = "ONLINE"
+    COD = "COD"
+
 # user_id, address_id, coupon_id, product_id and variant_id are plain indexed integers until the
 # users/addresses/coupons/products/product_variants tables exist; FK constraints are added in a later migration.
 # shipping_method_id is FK-constrained in the database (0007_orders), but has no ForeignKey here because
@@ -35,7 +49,8 @@ class Order(Base):
     shipping_method_id = Column(Integer, nullable=False)
     coupon_id = Column(Integer, nullable=True)
     status = Column(String(30), default=OrderStatus.PLACED.value, nullable=False, index=True)
-    payment_status = Column(String(20), default="PENDING", nullable=False)
+    payment_method = Column(String(20), nullable=False)
+    payment_status = Column(String(20), default=PaymentStatus.PENDING.value, nullable=False)
     subtotal = Column(Numeric(10, 2), nullable=False)
     discount_amount = Column(Numeric(10, 2), default=0, nullable=False)
     tax_amount = Column(Numeric(10, 2), default=0, nullable=False)
@@ -50,6 +65,7 @@ class Order(Base):
 
     __table_args__ = (
         CheckConstraint(f"status IN ({ORDER_STATUS_VALUES})", name="check_order_status_valid"),
+        CheckConstraint(f"payment_status IN ({PAYMENT_STATUS_VALUES})", name="check_order_payment_status_valid"),
         CheckConstraint("total_amount >= 0", name="check_order_total_non_negative"),
     )
 
