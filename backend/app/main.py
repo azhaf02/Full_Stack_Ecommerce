@@ -1,10 +1,11 @@
+
 from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-
+from app.api.routes.wishlist import router as wishlist_router
 # Load every SQLAlchemy model in app/models so relationships between modules
 # (e.g. Product -> ProductVariant, Inventory -> InventoryHistory) can resolve
 import importlib
@@ -82,7 +83,8 @@ app.include_router(checkout_sessions.router)
 
 # Admin product management
 app.include_router(catalog_router)
-
+# Wishlist routes
+app.include_router(wishlist_router)
 
 @app.get("/")
 def root():
