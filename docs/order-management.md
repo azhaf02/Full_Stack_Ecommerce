@@ -64,7 +64,7 @@ Customer requests a return → admin approves or rejects → product returned �
 - Only `DELIVERED` orders inside the return window can request a return. The return window is **7 days from delivery**, counted from the time the order entered `DELIVERED` in `order_status_history`.
 - A rejected return puts the order back to `DELIVERED`; the decision is stored on the `returns` record.
 - `RETURNED` restocks inventory and starts the refund (`REFUND_PENDING` → `REFUNDED`).
-- The `returns` table is added in ORD-07.
+- Stored in `returns` (one per request) and `return_items` (which order items, and how many, so partial returns work). See [database.md](database.md).
 
 ## Access rules
 

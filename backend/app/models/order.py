@@ -1,5 +1,5 @@
 from enum import Enum
-from sqlalchemy import Column, Integer, String, Text, Numeric, DateTime, ForeignKey, CheckConstraint, func
+from sqlalchemy import Column, Integer, String, Text, Numeric, DateTime, ForeignKey, CheckConstraint, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -29,6 +29,16 @@ class PaymentStatus(str, Enum):
     REFUNDED = "REFUNDED"
 
 PAYMENT_STATUS_VALUES = ", ".join(f"'{s.value}'" for s in PaymentStatus)
+
+class ReturnStatus(str, Enum):
+    REQUESTED = "REQUESTED"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    RETURNED = "RETURNED"
+    REFUND_PENDING = "REFUND_PENDING"
+    REFUNDED = "REFUNDED"
+
+RETURN_STATUS_VALUES = ", ".join(f"'{s.value}'" for s in ReturnStatus)
 
 class PaymentMethod(str, Enum):
     ONLINE = "ONLINE"
@@ -62,6 +72,7 @@ class Order(Base):
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     status_history = relationship("OrderStatusHistory", back_populates="order", cascade="all, delete-orphan",
                                   order_by="OrderStatusHistory.changed_at")
+    returns = relationship("Return", back_populates="order", cascade="all, delete-orphan")
 
     __table_args__ = (
         CheckConstraint(f"status IN ({ORDER_STATUS_VALUES})", name="check_order_status_valid"),
@@ -98,3 +109,41 @@ class OrderStatusHistory(Base):
     changed_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     order = relationship("Order", back_populates="status_history")
+
+class Return(Base):
+    __tablename__ = "returns"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    reason = Column(Text, nullable=False)
+    status = Column(String(20), default=ReturnStatus.REQUESTED.value, nullable=False, index=True)
+    admin_remarks = Column(Text, nullable=True)
+    reviewed_by = Column(Integer, nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    refund_amount = Column(Numeric(10, 2), nullable=True)
+    requested_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    order = relationship("Order", back_populates="returns")
+    items = relationship("ReturnItem", back_populates="return_request", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        CheckConstraint(f"status IN ({RETURN_STATUS_VALUES})", name="check_return_status_valid"),
+        CheckConstraint("refund_amount IS NULL OR refund_amount >= 0", name="check_return_refund_non_negative"),
+    )
+
+class ReturnItem(Base):
+    __tablename__ = "return_items"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    return_id = Column(Integer, ForeignKey("returns.id", ondelete="CASCADE"), nullable=False, index=True)
+    order_item_id = Column(Integer, ForeignKey("order_items.id"), nullable=False, index=True)
+    quantity = Column(Integer, nullable=False)
+
+    return_request = relationship("Return", back_populates="items")
+
+    __table_args__ = (
+        UniqueConstraint("return_id", "order_item_id", name="uq_return_item_per_return"),
+        CheckConstraint("quantity > 0", name="check_return_item_quantity_positive"),
+    )
