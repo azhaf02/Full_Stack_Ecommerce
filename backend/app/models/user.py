@@ -18,7 +18,5 @@ class User(Base):
 
     role = relationship("Role", back_populates="users")
     addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")
-    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
-    notifications=relationship("Notification",back_populates="user",cascade="all,delete-orphan")
-    reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
+    
  
