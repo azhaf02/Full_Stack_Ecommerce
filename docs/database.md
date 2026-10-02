@@ -13,6 +13,8 @@ python -m alembic upgrade head  # apply pending migrations
 
 ## Orders (Order Management, Rukhsar, migrations `0007_orders`, `0008_order_payment_method`, `0009_returns`, `0010_return_items_cascade`)
 
+![Order Management schema diagram](order-schema.png)
+
 ### `orders`
 | Column | Type | Notes |
 |---|---|---|
