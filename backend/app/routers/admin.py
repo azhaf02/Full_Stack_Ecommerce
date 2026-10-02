@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.core.security import require_role
+from app.models.order import Order
 from app.models.role import Role
 from app.models.user import User
 
@@ -137,3 +138,55 @@ def update_customer_status(
     db.commit()
     db.refresh(customer)
     return customer
+
+
+
+class CustomerOrder(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)
+
+    id: int
+    order_number: str
+    status: str
+    total_amount: float
+    created_at: datetime
+
+
+class CustomerDetail(CustomerOut):
+    orders_count: int
+    total_spent: float
+    recent_orders: list[CustomerOrder]
+
+
+# ADM-03: one customer's profile with a summary of their orders
+@router.get("/customers/{customer_id}", response_model=CustomerDetail)
+def get_customer(customer_id: int, db: Session = Depends(get_db)):
+    customer = (
+        db.query(User)
+        .join(Role)
+        .filter(User.id == customer_id, Role.name == "customer")
+        .first()
+    )
+    if customer is None:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    orders = (
+        db.query(Order)
+        .filter(Order.user_id == customer_id)
+        .order_by(Order.created_at.desc())
+        .all()
+    )
+    # Cancelled and refunded orders do not count as money spent
+    total_spent = sum(
+        float(o.total_amount) for o in orders if o.status not in ("CANCELLED", "REFUNDED")
+    )
+
+    return {
+        "id": customer.id,
+        "name": customer.name,
+        "email": customer.email,
+        "status": customer.status,
+        "created_at": customer.created_at,
+        "orders_count": len(orders),
+        "total_spent": total_spent,
+        "recent_orders": orders[:5],
+    }

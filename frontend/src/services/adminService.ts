@@ -110,3 +110,24 @@ export async function deactivateCategory(
   );
   return response.data;
 }
+
+
+export interface CustomerOrder {
+  id: number;
+  orderNumber: string;
+  status: string;
+  totalAmount: number;
+  createdAt: string;
+}
+
+export interface CustomerDetail extends Customer {
+  ordersCount: number;
+  totalSpent: number;
+  recentOrders: CustomerOrder[];
+}
+
+// One customer's profile with their order summary
+export async function getCustomer(id: number): Promise<CustomerDetail> {
+  const response = await api.get(`/api/admin/customers/${id}`);
+  return response.data;
+}

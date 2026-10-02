@@ -5,8 +5,9 @@ import DataTable from "../../components/admin/DataTable";
 import type { Column } from "../../components/admin/DataTable";
 import StatusBadge from "../../components/admin/StatusBadge";
 import Modal from "../../components/admin/Modal";
-import { getCustomers, updateCustomerStatus } from "../../services/adminService";
-import type { Customer } from "../../services/adminService";
+import { getCustomer, getCustomers, updateCustomerStatus } from "../../services/adminService";
+import type { Customer, CustomerDetail } from "../../services/adminService";
+import { formatINR } from "../../utils/format";
 
 const formatDate = (value: string | null) =>
   value
@@ -25,6 +26,29 @@ export default function AdminCustomersPage() {
   const [confirming, setConfirming] = useState<Customer | null>(null); // confirm popup
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [detail, setDetail] = useState<CustomerDetail | null>(null); // order summary for the popup
+  const [detailError, setDetailError] = useState("");
+
+  // Load the order summary from GET /api/admin/customers/{id} when a popup opens
+  useEffect(() => {
+    if (!selected) return;
+    let cancelled = false;
+    setDetail(null);
+    setDetailError("");
+
+    getCustomer(selected.id)
+      .then((data) => {
+        if (!cancelled) setDetail(data);
+      })
+      .catch(() => {
+        if (!cancelled) setDetailError("Could not load the order summary.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selected]);
+
 
   // Load customers from GET /api/admin/customers.
   // Waits 400 ms after the last key press, so we don't call the API on every letter.
@@ -146,7 +170,7 @@ export default function AdminCustomersPage() {
         </>
       )}
 
-      {/* Detail popup */}
+           {/* Detail popup */}
       {selected && (
         <Modal title={selected.name} onClose={() => setSelected(null)}>
           <div className="space-y-1 text-sm">
@@ -157,8 +181,43 @@ export default function AdminCustomersPage() {
               <StatusBadge status={selected.status.toUpperCase()} />
             </div>
           </div>
+
+          <h4 className="font-semibold text-slate-800 mt-6 mb-2 text-sm">Order summary</h4>
+
+          {detailError && <p className="text-sm text-red-600">{detailError}</p>}
+          {!detailError && !detail && <p className="text-sm text-slate-500">Loading orders...</p>}
+
+          {detail && (
+            <>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="border rounded-lg p-3">
+                  <p className="text-slate-500">Orders</p>
+                  <p className="text-lg font-semibold text-slate-800">{detail.ordersCount}</p>
+                </div>
+                <div className="border rounded-lg p-3">
+                  <p className="text-slate-500">Total spent</p>
+                  <p className="text-lg font-semibold text-slate-800">{formatINR(detail.totalSpent)}</p>
+                </div>
+              </div>
+
+              {detail.recentOrders.length === 0 ? (
+                <p className="text-sm text-slate-500 mt-3">No orders yet.</p>
+              ) : (
+                <ul className="divide-y text-sm mt-3">
+                  {detail.recentOrders.map((o) => (
+                    <li key={o.id} className="py-2 flex justify-between items-center gap-2">
+                      <span>{o.orderNumber}</span>
+                      <span>{formatINR(o.totalAmount)}</span>
+                      <StatusBadge status={o.status} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
         </Modal>
       )}
+
 
       {/* Confirm popup */}
       {confirming && (
