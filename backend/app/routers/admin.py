@@ -12,9 +12,11 @@ from app.core.security import require_role
 from app.models.role import Role
 from app.models.user import User
 
-
-
-router = APIRouter(prefix="/api/admin", tags=["Admin"], dependencies=[Depends(require_role("admin"))],)
+router = APIRouter(
+    prefix="/api/admin",
+    tags=["Admin"],
+    dependencies=[Depends(require_role("admin"))],
+)
 
 # A product counts as "low stock" at or below this quantity
 LOW_STOCK_THRESHOLD = 10

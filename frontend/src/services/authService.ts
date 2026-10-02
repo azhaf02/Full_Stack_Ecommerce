@@ -2,8 +2,7 @@
 // The backend returns a JWT; we keep it and send it with every admin API request.
 import axios from "axios";
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
-
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
 // Shape of the response from /api/auth/login and /api/auth/admin/login
 export interface LoginResponse {
   access_token: string;
