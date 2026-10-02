@@ -1,26 +1,35 @@
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# Load backend/.env so DATABASE_URL is available regardless of the working directory
+# Load backend/.env so environment variables are available
+# regardless of the working directory.
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-# Uses your Supabase PostgreSQL connection string from environment variable,
-# or falls back to your local SQLite file if SUPABASE_DB_URL is not set.
 DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    os.getenv("SUPABASE_DB_URL", "sqlite:///./sql_app.db")
+    "DATABASE_URL",
+    os.getenv("SUPABASE_DB_URL", "sqlite:///./sql_app.db"),
 )
 
-# SQLite requires check_same_thread=False; PostgreSQL does not
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+# SQLite requires check_same_thread=False; PostgreSQL does not.
+connect_args = (
+    {"check_same_thread": False}
+    if DATABASE_URL.startswith("sqlite")
+    else {}
+)
 
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
 
 Base = declarative_base()
+
 
 def get_db():
     db = SessionLocal()
