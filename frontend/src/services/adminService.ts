@@ -35,3 +35,24 @@ export async function getDashboardSummary(): Promise<DashboardKpis> {
   const response = await api.get("/api/admin/dashboard-summary");
   return response.data.kpis;
 }
+
+
+export interface Customer {
+  id: number;
+  name: string;
+  email: string;
+  status: string; // "active" or "inactive"
+  createdAt: string | null;
+}
+
+// Customer list, optionally filtered by a name or email search
+export async function getCustomers(q: string): Promise<Customer[]> {
+  const response = await api.get("/api/admin/customers", { params: { q } });
+  return response.data.items;
+}
+
+// Activates or deactivates one customer and returns the updated customer
+export async function updateCustomerStatus(id: number, status: "active" | "inactive"): Promise<Customer> {
+  const response = await api.put(`/api/admin/customers/${id}/status`, { status });
+  return response.data;
+}
