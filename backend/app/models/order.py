@@ -138,7 +138,7 @@ class ReturnItem(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     return_id = Column(Integer, ForeignKey("returns.id", ondelete="CASCADE"), nullable=False, index=True)
-    order_item_id = Column(Integer, ForeignKey("order_items.id"), nullable=False, index=True)
+    order_item_id = Column(Integer, ForeignKey("order_items.id", ondelete="CASCADE"), nullable=False, index=True)
     quantity = Column(Integer, nullable=False)
 
     return_request = relationship("Return", back_populates="items")

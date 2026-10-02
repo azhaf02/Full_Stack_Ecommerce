@@ -11,7 +11,7 @@ python -m alembic upgrade head  # apply pending migrations
 
 `6658707a12a7_baseline.py` is a no-op placeholder for the revision the shared Supabase database was already stamped at (its original file was never committed). New migrations should chain from the current head.
 
-## Orders (Order Management, Rukhsar, migrations `0007_orders`, `0008_order_payment_method`, `0009_returns`)
+## Orders (Order Management, Rukhsar, migrations `0007_orders`, `0008_order_payment_method`, `0009_returns`, `0010_return_items_cascade`)
 
 ### `orders`
 | Column | Type | Notes |
@@ -68,7 +68,7 @@ Order statuses: `PLACED`, `CONFIRMED`, `PROCESSING`, `PACKED`, `SHIPPED`, `OUT_F
 |---|---|---|
 | id | integer PK | |
 | return_id | integer | FK to `returns.id`, cascade delete |
-| order_item_id | integer | FK to `order_items.id` |
+| order_item_id | integer | FK to `order_items.id`, cascade delete (`0010_return_items_cascade`) |
 | quantity | integer | `> 0`; an order item can appear only once per return |
 
 `0009_returns` chains after Aaliya's payments/invoices migration (`0d01fe9783e7`), so her `feature/payment` branch must be merged first.
