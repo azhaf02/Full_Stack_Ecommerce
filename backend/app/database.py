@@ -5,10 +5,11 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# Load backend/.env so environment variables are available
-# regardless of the working directory.
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+# Load environment variables from backend/.env
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BACKEND_DIR / ".env")
 
+# Prefer the shared database, with local SQLite as fallback.
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     os.getenv("SUPABASE_DB_URL", "sqlite:///./sql_app.db"),
@@ -22,6 +23,7 @@ connect_args = (
 )
 
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
+
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
