@@ -4,6 +4,7 @@ import {
   ShoppingCart,
   CreditCard,
   ShieldCheck,
+  Tags,
 } from "lucide-react";
 
 export const adminNav = [
@@ -12,4 +13,5 @@ export const adminNav = [
   { label: "Orders", path: "/admin/orders", icon: ShoppingCart },
   { label: "Payments", path: "/admin/payments", icon: CreditCard },
   { label: "Roles", path: "/admin/roles", icon: ShieldCheck },
+  { label: "Categories", path: "/admin/categories", icon: Tags },
 ];

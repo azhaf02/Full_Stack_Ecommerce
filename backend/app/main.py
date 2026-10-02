@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import notifications, reviews, admin
+from app.routers import notifications, reviews, admin, category
 
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
@@ -18,7 +18,7 @@ app.add_middleware(
 app.include_router(notifications.router)
 app.include_router(reviews.router)
 app.include_router(admin.router)
-
+app.include_router(category.router)
 
 @app.get("/")
 def root():
