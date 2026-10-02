@@ -35,3 +35,57 @@ export async function getDashboardSummary(): Promise<DashboardKpis> {
   const response = await api.get("/api/admin/dashboard-summary");
   return response.data.kpis;
 }
+export interface Category {
+  id: number;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CategoryCreateData {
+  name: string;
+  description: string | null;
+}
+
+export interface CategoryUpdateData {
+  name?: string;
+  description?: string | null;
+}
+
+export async function getCategories(
+  includeInactive = false
+): Promise<Category[]> {
+  const response = await api.get("/api/admin/categories/", {
+    params: { include_inactive: includeInactive },
+  });
+  return response.data;
+}
+
+export async function createCategory(
+  data: CategoryCreateData
+): Promise<Category> {
+  const response = await api.post("/api/admin/categories/", data);
+  return response.data;
+}
+
+export async function updateCategory(
+  categoryId: number,
+  data: CategoryUpdateData
+): Promise<Category> {
+  const response = await api.put(
+    `/api/admin/categories/${categoryId}`,
+    data
+  );
+  return response.data;
+}
+
+export async function deactivateCategory(
+  categoryId: number
+): Promise<Category> {
+  const response = await api.delete(
+    `/api/admin/categories/${categoryId}`
+  );
+  return response.data;
+}

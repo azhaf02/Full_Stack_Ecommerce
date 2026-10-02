@@ -1,20 +1,19 @@
 import { useEffect, useState } from "react";
+import {
+  Category,
+  createCategory,
+  deactivateCategory,
+  getCategories,
+  updateCategory,
+} from "../../services/adminService";
 
-interface Category {
-  id: number;
-  name: string;
-  description: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
 
 interface CategoryFormData {
   name: string;
   description: string;
 }
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -32,29 +31,21 @@ export default function AdminCategoriesPage() {
     description: "",
   });
 
-  const fetchCategories = async () => {
-    try {
-      setLoading(true);
-      setError("");
+const fetchCategories = async () => {
+  try {
+    setLoading(true);
+    setError("");
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/admin/categories/?include_inactive=true`
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch categories");
-      }
-
-      const data: Category[] = await response.json();
-      setCategories(data);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Something went wrong"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    const data = await getCategories(true);
+    setCategories(data);
+  } catch (err) {
+    setError(
+      err instanceof Error ? err.message : "Something went wrong"
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchCategories();
@@ -101,82 +92,59 @@ export default function AdminCategoriesPage() {
     }));
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+ const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  event.preventDefault();
 
-    if (formData.name.trim().length < 2) {
-      setError("Category name must contain at least 2 characters.");
-      return;
+  if (formData.name.trim().length < 2) {
+    setError("Category name must contain at least 2 characters.");
+    return;
+  }
+
+  try {
+    setSaving(true);
+    setError("");
+
+    const data = {
+      name: formData.name.trim(),
+      description: formData.description.trim() || null,
+    };
+
+    if (editingCategory) {
+      await updateCategory(editingCategory.id, data);
+    } else {
+      await createCategory(data);
     }
 
-    try {
-      setSaving(true);
-      setError("");
-
-      const url = editingCategory
-        ? `${API_BASE_URL}/api/admin/categories/${editingCategory.id}`
-        : `${API_BASE_URL}/api/admin/categories/`;
-
-      const method = editingCategory ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          description: formData.description.trim() || null,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Failed to save category");
-      }
-
-      closeForm();
-      await fetchCategories();
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Something went wrong"
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+    closeForm();
+    await fetchCategories();
+  } catch (err) {
+    setError(
+      err instanceof Error ? err.message : "Something went wrong"
+    );
+  } finally {
+    setSaving(false);
+  }
+};
 
   const handleDeactivate = async (category: Category) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to deactivate "${category.name}"?`
+  const confirmed = window.confirm(
+    `Are you sure you want to deactivate "${category.name}"?`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    setError("");
+
+    await deactivateCategory(category.id);
+
+    await fetchCategories();
+  } catch (err) {
+    setError(
+      err instanceof Error ? err.message : "Something went wrong"
     );
-
-    if (!confirmed) return;
-
-    try {
-      setError("");
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/admin/categories/${category.id}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Failed to deactivate category");
-      }
-
-      await fetchCategories();
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Something went wrong"
-      );
-    }
-  };
+  }
+};
 
   return (
     <div className="space-y-6">
