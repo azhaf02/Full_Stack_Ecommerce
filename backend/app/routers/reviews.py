@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, ConfigDict
 
 from app.database import get_db
 from app.models.review import Review, ReviewModerationStatus
@@ -20,20 +21,18 @@ class ReviewCreate(BaseModel):
     title: Optional[str] = None
     comment: str
 
-
 class ReviewResponse(BaseModel):
     id: int
     product_id: int
     user_id: int
     order_id: int
     rating: int
-    title: Optional[str] = None
+    title: str | None = None
     comment: str
     status: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProductReviewsSummaryResponse(BaseModel):

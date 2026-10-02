@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from typing import List
-from datetime import datetime
+from datetime import datetime, timezone
+
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/notifications", tags=["Notifications"])
@@ -21,7 +22,7 @@ _mock_notifications = [
         "title": "Order Shipped",
         "message": "Your order #1 has been shipped and is on the way!",
         "is_read": False,
-        "created_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc)
     },
     {
         "id": 2,
@@ -29,7 +30,7 @@ _mock_notifications = [
         "title": "Welcome Offer",
         "message": "Use coupon code WELCOME10 for 10% off your next purchase.",
         "is_read": False,
-        "created_at": datetime.utcnow()
+        "created_at":datetime.now(timezone.utc)
     }
 ]
 
