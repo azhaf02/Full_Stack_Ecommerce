@@ -303,3 +303,25 @@ Follow clean commit message syntax rules:
 - [] Comprehensive architectural tracking logs fully documented inside `docs/support.md` mapping rules.
 
 -------------------------------------------------------------
+
+---
+
+# SUP-06: Integrate Return/Refund Support Context
+
+## 1. Objective
+Equip support helpdesk administrators with complete order-level return and refund statuses directly inside individual support ticket details to reduce diagnostic times and facilitate rapid case updates.
+
+## 2. Description
+The Return/Refund Support context synchronization block executes read-only database join requests combining the primary incident tickets table with internal product order tracking states. If a ticket points to a reference identifier mapping an active customer return, the backend hands over active context metrics inline, activating direct interface hyper-links into parallel administrative screens.
+
+## 3. Core Endpoint Specifications
+- **GET** `/api/support/admin/tickets/{ticket_id}` - Extends the baseline triage dictionary structure by running queries fetching relational parameters (`has_active_return`, `return_status`, `return_id`) without requiring system manual refresh sequences.
+
+## 4. Cross-Module Data Mapping & Validations
+- **Read-Only Join Enforcements:** Performs safe isolated `SELECT` queries across separate system tables without altering row entries values inside Rukhsar's tracking domains.
+- **Direct Navigation Links Canvas:** Automatically wires action routing hooks passing the explicit target index token (`return_id`) directly to Rukhsar's custom workflow layout route: `/admin/returns/review/{id}`.
+
+## 5. Definition of Done (DoD)
+- [] Backend database query successfully extracts inline return status indicators via read-only join logic profiles.
+- [] Front-end context layout view module renders warning banners and action redirect buttons cleanly with **0 compiler errors**.
+- [] Joint team workflow dependency models perfectly aligned alongside Rukhsar's `ORD-07` tracking repositories.
