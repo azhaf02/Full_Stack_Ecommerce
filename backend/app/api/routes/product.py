@@ -1,10 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
+<<<<<<< HEAD
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
 from app.services import product_service
 
+=======
+from sqlalchemy.orm import Session, joinedload
+
+from app.database.connection import get_db
+from app.models.product import Product
+>>>>>>> b0e1ca3 (feat: add product details page and API)
 
 router = APIRouter(
     prefix="/api/products",
@@ -12,6 +19,7 @@ router = APIRouter(
 )
 
 
+<<<<<<< HEAD
 @router.post("/", response_model=ProductResponse)
 def create_product(
     product: ProductCreate,
@@ -80,6 +88,21 @@ def deactivate_product(
     product = product_service.deactivate_product(
         db,
         product_id
+=======
+@router.get("/{product_id}")
+def get_product_detail(
+    product_id: int,
+    db: Session = Depends(get_db)
+):
+    product = (
+        db.query(Product)
+        .options(
+            joinedload(Product.images),
+            joinedload(Product.category)
+        )
+        .filter(Product.id == product_id)
+        .first()
+>>>>>>> b0e1ca3 (feat: add product details page and API)
     )
 
     if not product:
@@ -88,4 +111,44 @@ def deactivate_product(
             detail="Product not found"
         )
 
+<<<<<<< HEAD
     return product
+=======
+    related_products = (
+        db.query(Product)
+        .filter(
+            Product.category_id == product.category_id,
+            Product.id != product_id
+        )
+        .limit(4)
+        .all()
+    )
+
+    return {
+        "id": product.id,
+        "name": product.name,
+        "description": product.description,
+        "price": product.price,
+        "stock_quantity": product.stock_quantity,
+        "status": product.status,
+        "category_id": product.category_id,
+        "category_name": product.category.name if product.category else None,
+        "images": [
+            {
+                "id": image.id,
+                "image_url": image.image_url,
+                "is_primary": image.is_primary
+            }
+            for image in product.images
+        ],
+        "related_products": [
+            {
+                "id": item.id,
+                "name": item.name,
+                "price": item.price,
+                "status": item.status
+            }
+            for item in related_products
+        ]
+    }
+>>>>>>> b0e1ca3 (feat: add product details page and API)
