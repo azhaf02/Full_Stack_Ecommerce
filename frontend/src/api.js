@@ -23,5 +23,11 @@ export const markAllNotificationsRead = (userId) =>
 // Reviews (matching your backend Swagger route exactly)
 export const submitProductReview = (reviewData) => 
   api.post('/api/v1/reviews/api/reviews/', reviewData);
-
+// Admin Analytics
+export const fetchAnalyticsSummary = (token) =>
+  api.get('/api/admin/analytics/summary', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 export default api;
