@@ -1,28 +1,84 @@
-# Customer Dashboard, Notifications & Reviews Specification
+# Customer Dashboard, Notifications & Reviews Documentation
 
-## 1. Module Overview
-- **Owner:** Student 8 (Aliza Khan)
-- **Module:** Customer Dashboard, Notifications & Reviews
-- **Git Branch:** feature/customer-dashboard
+## 1. Overview & Architecture
+The Customer Dashboard module integrates user profile management, real-time notification alerts, and product review moderation workflows.
 
-## 2. Customer Dashboard Architecture
-The dashboard aggregates customer activity in a unified interface:
-- **Summary Overview:** Recent orders, current active orders, wishlist item count, and unread notifications count.
-- **My Orders Navigation:** Direct access to tracking details and order lifecycle history (integrated with Rukhsar's module).
-- **Wishlist Integration:** Saved products and quick actions to move items to cart (integrated with Gazala's module).
+- **Backend Stack:** FastAPI / Python, SQLAlchemy ORM, Pydantic data schemas, SQLite / PostgreSQL.
+- **Frontend Stack:** React (TypeScript), Vite, React Testing Library, Vitest, JSDOM.
 
-## 3. Notifications System Rules
-- **Triggers:** System-wide events automatically generate customer notifications:
-  - Order placed / Order confirmed
-  - Order shipped / Delivered
-  - Payment successful / Failed
-  - Return / Refund status updates
-  - Support ticket responses
-- **Customer Controls:** View notification list, display unread indicator badges, mark individual or all notifications as read.
+---
 
-## 4. Product Reviews & Ratings Rules
-- **Eligibility:** Verified purchases only (order status must be DELIVERED).
-- **Submission:** Star rating (1 to 5), title, text review, and optional media upload.
-- **Validation:** Prevention of duplicate reviews for the same order item.
-- **Moderation:** Review status flow (PENDING -> APPROVED / REJECTED) for admin moderation.
-- **Display:** Approved reviews displayed on public product pages with average aggregate ratings.
+## 2. API Reference
+
+### Product Reviews Endpoints
+- `GET /api/products/{product_id}/reviews`
+  - **Description:** Retrieve published reviews and review aggregates for a product.
+  - **Response:**
+    ```json
+    {
+      "product_id": 1,
+      "average_rating": 4.8,
+      "total_reviews": 12,
+      "reviews": [
+        {
+          "id": 101,
+          "user_name": "Aliza Khan",
+          "rating": 5,
+          "title": "Superb quality",
+          "comment": "Exceeded all expectations, great battery life!",
+          "created_at": "2026-09-28T10:15:00Z"
+        }
+      ]
+    }
+    ```
+
+- `POST /api/products/{product_id}/reviews`
+  - **Description:** Submit a customer review with rating and optional comments.
+  - **Payload:**
+    ```json
+    {
+      "rating": 5,
+      "title": "Superb quality",
+      "comment": "Exceeded all expectations, great battery life!"
+    }
+    ```
+  - **Validation:** Rating must be an integer between 1 and 5; title and comment strings sanitized.
+
+### Notifications Endpoints
+- `GET /api/notifications`
+  - **Description:** Fetch user notifications (order status changes, moderation updates, promotional alerts).
+  - **Response:**
+    ```json
+    [
+      {
+        "id": 1,
+        "type": "ORDER_SHIPPED",
+        "title": "Order Shipped",
+        "message": "Your order #1043 is on its way!",
+        "is_read": false,
+        "created_at": "2026-09-30T14:22:00Z"
+      }
+    ]
+    ```
+
+- `PATCH /api/notifications/{notification_id}/read`
+  - **Description:** Mark an unread notification as read.
+
+---
+
+## 3. Frontend Component Hierarchy
+- **`ReviewsList` (`frontend/src/components/ReviewsList.tsx`):**
+  - Fetches product reviews asynchronously on mount.
+  - Displays aggregated star ratings, review cards, submission dates, and empty-state placeholders.
+- **`ReviewSubmissionModal` (`frontend/src/components/ReviewSubmissionModal.tsx`):**
+  - Interactive modal dialog capturing user rating (1–5 stars), headline, and written feedback.
+  - Handles client-side form validation, error states, and async dispatch to the reviews API.
+
+---
+
+## 4. Verification & Testing Instructions
+
+### Backend Regression Tests
+Run pytest across all reviews and notification test cases:
+```bash
+pytest backend/tests/test_reviews.py -v
