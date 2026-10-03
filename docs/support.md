@@ -173,123 +173,37 @@ Follow clean commit message syntax:
 • Database schema (support_messages) is fully documented and mapped in python class models.
 • All code changes are committed, pushed to feature/support, and submitted as a verified PR path.
 
-# SUP3: Inter-Module Service Synchronization & Notification Triggers
-
-## 1. Objective
-Automatically broadcast live confirmation metrics and trigger system event notifications to the customer instantly upon the successful database creation of any support incident record.
-
-## 2. Description
-The Notification Synchronization module acts as an automated callback layer bridging core customer workflows with external system communications. As soon as a ticket transaction successfully commits to cloud storage tables, the database transaction layer dynamically hands over communication parameters to Aliza’s core verification utility module.
-
-## 3. Detailed Instructions
-1. Transaction Hooks Monitoring:
-	• Attach transactional listeners behind the ticket initialization route execution stack (POST /api/support/tickets).
-	• Prevent execution locks; if notification dispatches encounter temporary latency networks, the primary database saving routine must not terminate or break down.
-2. Dynamic Notification Payloads:
-	• Extract tracking parameters in real-time (ticket.id, current_user.id).
-	• Construct personalized localization string logs: "Aapka ticket #{ticket.id} create ho gaya hai!"
-2. Dynamic Notification Payloads:
-	• Extract tracking parameters in real-time (ticket.id, current_user.id).
-	• Construct personalized localization string logs: "Aapka ticket #{ticket.id} create ho gaya hai!"
-2. Dynamic Notification Payloads:
-	• Extract tracking parameters in real-time (ticket.id, current_user.id).
-	• Construct personalized localization string logs: "Aapka ticket #{ticket.id} create ho gaya hai!"
-1. Dependency Sequence Controls:
-	• Coordinate validation layers tightly following structural status confirmations fetched across parent modules (SUP-02 parameters).
-
-## 4. Expected Output
-• Execution of cross-module functions without database blockages or row rollbacks.
-• Automatic dispatch loops triggering contextual updates immediately post data commits.
-• System framework exceptions logic explicitly routed to capture connectivity status metrics.
-
-## 5. System Inter-Connection Code Definition
-Upon successfully generating individual records inside support_tickets and initial strings into support_messages, the transaction script executes this exact cross-module framework logic: 
-from app.services.notification_service import create_notification
-
-# Automated trigger routine executed post cloud transaction commit
-create_notification(
-    db=db,
-    user_id=current_user.id,
-    title="Support Ticket Created",
-    message=f"Your support ticket #{ticket.id} has been successfully created!"
-)
 
 ----------------------------------------------
+# 🎟️ Customer Support & Threaded Interaction Architecture Specifications
 
-# SUP3: Inter-Module Service Synchronization & Notification Triggers
+This master documentation outlines the comprehensive database layer, dynamic synchronization dependencies, testing workflows, and tracking layouts executed across Sprint Tasks **SUP-01 through SUP-06**.
+
+---
+
+# SUP-03: Support Ticket Creation
 
 ## 1. Objective
-Automatically broadcast live transaction confirmation metrics and trigger system event notifications to the customer instantly upon the successful database creation of any support incident record.
+Allow an authenticated logged-in customer to successfully generate a support ticket row, optionally connect it to a valid order identifier reference, and record the initialization message.
 
 ## 2. Description
-The Notification Synchronization module acts as an automated backend callback layer bridging core customer support workflows with external system communications. As soon as a ticket transaction successfully commits to the cloud storage tables, the database transaction layer dynamically hands over communication parameters to the core notification verification system to trigger a client-side alert without interrupting primary user interactions.
+The Support Ticket Creation module exposes core ingestion frameworks. It hooks behind Aliza's active notification channel service utility routines to alert the customer upon record creation and performs strict order-ownership boundaries checks to eliminate invalid transactional records insertions.
 
-## 3. Detailed Instructions
-1. **Transaction Hooks Monitoring:**
-   - Attach transactional callback listeners immediately behind the ticket initialization route execution stack (`POST /api/support/tickets`).
-   - Implement asynchronous execution paths; if notification dispatches encounter temporary network latency or external channel delays, the primary database saving routine must continue to commit securely without application timeouts or row rollbacks.
-2. **Dynamic Notification Payloads:**
-   - Extract active session metadata and relational tracking keys in real-time (`ticket.id`, `current_user.id`).
-   - Construct personalized, user-facing notification alert string payloads: *"Your support ticket #{ticket.id} has been successfully created!"*
-3. **Dependency Sequence Controls:**
-   - Coordinate validation layers tightly following structural status confirmations fetched across parent modules (**SUP-01** and **SUP-02** parameters).
+## 3. Technical Core Endpoint Definition
+- **POST** `/api/support/tickets` - Ingests ticket payload parameters dynamically (`subject`, `category`, `description`, `order_id`).
 
-## 4. Expected Output
-- Execution of cross-module functions without database blockages, routing crashes, or transaction exceptions.
-- Automatic alert dispatch loops triggering contextual updates immediately post data commits.
-- System framework exceptions logic explicitly routed to isolate and capture third-party service connectivity status metrics securely.
+## 4. Business Process Validations Enforced
+- **Session Identity Check:** Extracts logged-in customer parameters through secure JWT token evaluation filters.
+- **Initial Lifecycle Insertion Rule:** Automatically saves incoming entries into data tables with status flags pre-assigned strictly to `'Open'`.
+- **Relational Integrity Shield:** Evaluates if the incoming optional `order_id` matches rows linked directly to the user's primary metrics registry, throwing validation exceptions upon detecting anomalies.
 
-## 5. Deliverables
-- **Documentation File:** `docs/support.md` (Completely updated and populated with SUP1, SUP2, and SUP3 baseline parameters).
-- **Backend Routing Pipeline Configuration:** `backend/app/api/routes/support.py` wired to trigger post-insert service hooks.
-- **Verification Script Profile:** `backend/test_db.py` deployed to simulate multi-module database transaction pipelines.
+## 5. Definition of Done (DoD) Verification
+- [] Functional form page `NewTicketPage.tsx` successfully accepts all required fields parameters.
+- [] Backend database validation layers intercept requests cleanly to block out invalid order bounds.
+- [] First message transaction commits cleanly to the storage tables alongside the main ticket row log.
+- [] Explicit cross-module callbacks execute Aliza's notification triggers flawlessly post commit operations.
 
-## 6. System Inter-Connection Code Definition
-Upon successfully generating individual records inside `support_tickets` and initial records into `support_messages`, the transaction script executes this exact cross-module framework logic:
 
-```python
-from app.services.notification_service import create_notification
-
-# Automated trigger routine executed post cloud transaction commit
-create_notification(
-    db=db,
-    user_id=current_user.id,
-    title="Support Ticket Created",
-    message=f"Your support ticket #{ticket.id} has been successfully created!"
-)
-```
-
-## 7. Testing Instructions
-### 1. Verification Suite Flow Check:
-- Execute `python backend/test_db.py` under terminal setups to evaluate schema insertion sequences.
-- Verify structural database models seamlessly absorb matching keys without generating data structure matching failures.
-### 2. Failure Isolation Test:
-- Simulate explicit network failures on external service paths and confirm that primary ticket entries continue to store securely without application timeouts.
-
-## 8. Commit Requirements
-Follow clean commit message syntax:
-- `#feat(support): integrate cross-module notification triggers post data commit`
-- `#chore(support): link verification endpoints with external service channels`
-- *Keep commits granular and tied to specific feature increments.*
-
-## 9. Pull Request (PR) Requirements
-- **Target Branch:** `develop`
-- **Source Branch:** `feature/support`
-- **PR Collaborators:** Tag Aliza for notification logic verification checks, service code validation, and cross-functional testing.
-- **PR Description Checklist:**
-  - Dynamic verification statement detailing cross-module connectivity checks.
-  - Confirmation of local validation scripts execution logs.
-
-## 10. Dependencies & Pipeline Integration
-- **Cross-Module Linkage:** Tied directly to Aliza's active `notification_service` logic components merged on parallel repositories tracking paths.
-- **Data Compliance Mapping:** Utilizes synchronized customer parameters (`current_user.id` matching primary integer indexes) mapped seamlessly into notification tracking arrays.
-
-## 11. Definition of Done (DoD)
-- [] API framework layer contains explicit hooks calling verification service architectures.
-- [] Support data generation flows route live values cleanly without transaction bottlenecks.
-- [] Automated text layouts match structural formatting rules precisely in plain English.
-- [] All functional integration logs are fully detailed in `docs/support.md`.
-- [] Pushed completely onto remote repository tracking configurations ready for production merge runs.
 
 -----------------------------------------------------------
 
