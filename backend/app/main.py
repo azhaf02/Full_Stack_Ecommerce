@@ -1,7 +1,9 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.category import router as category_router
 from app.api.routes.wishlist import router as wishlist_router
+from app.api.routes.product import router as product_router
 from app.database.connection import engine
 from app.models.base import Base
 
@@ -18,12 +20,23 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="E-Commerce API")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Category routes
 app.include_router(category_router)
 # wishlist routes
 app.include_router(wishlist_router)
-
+# product routes
+app.include_router(product_router)
 @app.get("/")
 def home():
     return {"message": "E-Commerce API is running"}
