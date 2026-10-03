@@ -1,9 +1,10 @@
 import React from 'react';
-import DashboardLayout from './components/DashboardLayout';
+import NewTicketPage from './pages/support/NewTicketPage';
 
-
-const App: React.FC = () => {
-  return <DashboardLayout />;
-};
+function App() {
+  return (
+    <NewTicketPage />
+  );
+}
 
 export default App;

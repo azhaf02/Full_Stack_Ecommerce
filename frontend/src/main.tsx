@@ -1,6 +1,12 @@
 import React, { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App';
+// @ts-ignore
+import 'bootstrap/dist/css/bootstrap.min.css';
+// @ts-ignore
+import 'bootstrap-icons/font/bootstrap-icons.css';
+// @ts-ignore
+import './index.css';
+import App from './App.tsx';
 
 const rootElement = document.getElementById('root');
 
