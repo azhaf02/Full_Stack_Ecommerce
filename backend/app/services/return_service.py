@@ -42,6 +42,19 @@ def delivered_at(order: Order) -> Optional[datetime]:
     return max(times) if times else None
 
 
+def return_deadline(order: Order) -> Optional[datetime]:
+    """Last moment a return can be requested, or None if the order was never delivered."""
+    delivered = delivered_at(order)
+    return delivered + timedelta(days=RETURN_WINDOW_DAYS) if delivered else None
+
+
+def can_request_return(order: Order, now: datetime = None) -> bool:
+    """True if request_return would accept this order (ignoring who is asking and what items)."""
+    deadline = return_deadline(order)
+    return (order.status == OrderStatus.DELIVERED.value and not order.returns
+            and deadline is not None and (now or utcnow()) <= deadline)
+
+
 def _check_items(order: Order, items: List[Tuple[int, int]]) -> None:
     if not items:
         raise InvalidReturnItems("Choose at least one item to return")

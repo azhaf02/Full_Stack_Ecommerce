@@ -83,9 +83,27 @@ Customer requests a return → admin approves or rejects → product returned �
 | `log_action` | Faeeza | Audit trail for admin actions |
 | `order_service.update_status()` | Rukhsar | The only way to change an order's status |
 
+## API
+
+Code: `backend/app/routers/orders.py`, schemas in `backend/app/schemas/order.py`. Live reference: `/docs` (Swagger UI). Send `Authorization: Bearer <token>` from `POST /api/auth/login`.
+
+| Method and path | Who | What it does |
+|---|---|---|
+| `GET /api/account/orders?page=&page_size=` | customer | My orders, newest first (page size 1 to 100) |
+| `GET /api/account/orders/{id}` | customer | One of my orders: items, status timeline, returns, and `actions` (`can_cancel`, `can_request_return`, `return_deadline`) so the page knows which buttons to show |
+| `POST /api/account/orders/{id}/cancel` | customer | Body `{"reason": "..."}` (optional). A paid order moves on to a refund. |
+| `POST /api/account/orders/{id}/return` | customer | Body `{"reason": "...", "items": [{"order_item_id": 1, "quantity": 1}]}`. Returns `201`. |
+| `PUT /api/admin/orders/{id}/status` | admin | Body `{"status": "PROCESSING", "remarks": "..."}`. Return steps (`RETURN_*`, `RETURNED`) are refused here and go through the returns route. |
+| `GET /api/admin/returns?status=&page=&page_size=` | admin | Return requests, newest first |
+| `PUT /api/admin/returns/{id}` | admin | Body `{"action": "approve" \| "reject" \| "mark_returned" \| "complete_refund", "remarks": "..."}` |
+
+Errors: `401` no or bad token, `403` wrong role, `404` order or return not found (also used for someone else's order), `409` the step is not allowed right now (wrong status, window closed, not paid), `422` bad input.
+
+**Not built yet:** `POST /api/orders`. It must create the order from Safiya's server-side checkout session, so prices and totals are computed by the server and never sent by the browser. `order_service.create_order()` is ready for it.
+
 ## Services
 
-Code: `backend/app/services/order_service.py` and `return_service.py`. Neither commits; the caller (route) commits, so a status change, stock deduction and refund all land in one transaction. Tests: `backend/tests` (`python -m pytest` from `backend/`).
+Code: `backend/app/services/order_service.py` and `return_service.py`. Neither commits; the caller (route) commits, so a status change, stock deduction and refund all land in one transaction. Tests: `backend/tests` (`pip install -r requirements-dev.txt`, then `python -m pytest` from `backend/`).
 
 | Function | Used by | What it does |
 |---|---|---|
