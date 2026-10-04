@@ -100,6 +100,30 @@ Code: `backend/app/routers/orders.py`, schemas in `backend/app/schemas/order.py`
 
 Errors: `401` no or bad token, `403` wrong role, `404` order or return not found (also used for someone else's order), `409` the step is not allowed right now (wrong status, window closed, not paid, out of stock), `422` bad input (including a product, variant, address or shipping method that isn't available).
 
+## Frontend: order confirmation page
+
+Code: `frontend/src/pages/OrderConfirmationPage.tsx`, with `services/orderService.ts` (API calls), `types/order.ts` and `utils/orderOutcome.ts` (messages and formatting). Tests: `src/pages/__tests__/OrderConfirmationPage.test.tsx` (19 tests; run with `npm test` once Vitest is in `package.json`, see PR #16).
+
+```tsx
+const order = await orderService.place({ address_id, shipping_method_id, payment_method: 'COD', items });
+// then show:
+<OrderConfirmationPage orderId={order.id} onViewOrders={...} onContinueShopping={...} />
+```
+
+It shows the **Order ID** (`order_number`) with a Copy button, the payment method and status, the items with line totals, the totals, and the order history. The headline depends on the order:
+
+| Order | Headline |
+|---|---|
+| COD, `CONFIRMED` | Order confirmed: pay in cash on delivery |
+| Online, paid | Order confirmed: payment received |
+| Online, `PLACED`, payment pending | Order received: waiting for payment confirmation |
+| Payment `FAILED` or `CANCELLED` | Payment not completed (never says "confirmed") |
+| `CANCELLED`, refund states | Order cancelled |
+
+It also handles loading, errors (with a Try again button), and phone widths. Item names are not shown yet because the order API only returns product ids.
+
+**Not wired into the app yet:** `main` has no router. Once the auth module (PR #20, `react-router-dom`) is merged, add a route such as `/orders/:id/confirmation` and navigate to it after `orderService.place()` succeeds. `orderService` uses the same token key as the auth module (`viora_token`); switch it to the shared `apiClient` after that PR merges.
+
 ### How an order is priced
 
 `services/order_pricing.py` turns the request into a fully priced order: the price comes from `products` (plus `price_delta` of the chosen variant), shipping cost from `shipping_methods`, and the address must belong to the logged-in customer. The same product and variant listed twice becomes one line. The product must be `ACTIVE`, the shipping method switched on, and a variant is required when the product has variants. A later price change does not change an existing order, because the price is copied onto the order item.
