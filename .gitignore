@@ -1,6 +1,13 @@
+<<<<<<< HEAD
+# Python cache files
 __pycache__/
-*.py[cod]
-*.db
+*.pyc
 .env
-.venv/
-venv/
+frontend/.env
+# Environment files
+.env
+frontend/.env
+=======
+.env
+.env.*
+>>>>>>> origin/main

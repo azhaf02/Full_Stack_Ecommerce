@@ -4,10 +4,23 @@ from app.models.category import Category
 from app.schemas.category import CategoryCreate, CategoryUpdate
 
 
+def get_categories(db: Session, include_inactive: bool = False):
+    query = db.query(Category)
+
+    if not include_inactive:
+        query = query.filter(Category.is_active.is_(True))
+
+    return query.order_by(Category.id.desc()).all()
+
+
+def get_category(db: Session, category_id: int):
+    return db.query(Category).filter(Category.id == category_id).first()
+
+
 def create_category(db: Session, category_data: CategoryCreate):
     category = Category(
         name=category_data.name,
-        description=category_data.description
+        description=category_data.description,
     )
 
     db.add(category)
@@ -17,28 +30,21 @@ def create_category(db: Session, category_data: CategoryCreate):
     return category
 
 
-def get_categories(db: Session):
-    return db.query(Category).all()
-
-
-def get_category(db: Session, category_id: int):
-    return db.query(Category).filter(Category.id == category_id).first()
-
-
 def update_category(
     db: Session,
     category_id: int,
-    category_data: CategoryUpdate
+    category_data: CategoryUpdate,
 ):
     category = get_category(db, category_id)
 
     if not category:
         return None
 
-    update_data = category_data.model_dump(exclude_unset=True)
+    if category_data.name is not None:
+        category.name = category_data.name
 
-    for field, value in update_data.items():
-        setattr(category, field, value)
+    if category_data.description is not None:
+        category.description = category_data.description
 
     db.commit()
     db.refresh(category)
