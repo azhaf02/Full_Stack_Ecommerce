@@ -1,9 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+
 from app.api.routes.category import router as category_router
 from app.api.routes.wishlist import router as wishlist_router
 from app.api.routes.product import router as product_router
+from app.api.routes.variant import router as variant_router
+from app.routers.cart import router as cart_router
+
 from app.database.connection import engine
 from app.models.base import Base
 
@@ -37,6 +41,8 @@ app.include_router(category_router)
 app.include_router(wishlist_router)
 # product routes
 app.include_router(product_router)
+app.include_router(variant_router)
+app.include_router(cart_router)
 @app.get("/")
 def home():
     return {"message": "E-Commerce API is running"}
