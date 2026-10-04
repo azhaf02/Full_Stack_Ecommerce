@@ -1,1 +1,1 @@
-from .connection import Base, get_db, engine, SessionLocal
+from .connection import Base, DATABASE_URL, get_db, engine, SessionLocal
