@@ -17,3 +17,6 @@ from app.models.order import (
 
 from app.models.payment import Payment
 from app.models.invoice import Invoice
+
+from app.models.inventory import Inventory
+from app.models.inventory_history import InventoryHistory
