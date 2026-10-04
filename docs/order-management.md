@@ -126,6 +126,29 @@ It also handles loading, errors (with a Try again button), and phone widths. Ite
 
 **Not wired into the app yet:** `main` has no router. Once the auth module (PR #20, `react-router-dom`) is merged, add a route such as `/orders/:id/confirmation` and navigate to it after `orderService.place()` succeeds. `orderService` uses the same token key as the auth module (`viora_token`); switch it to the shared `apiClient` after that PR merges.
 
+## Frontend: my orders, tracking, cancel and return
+
+Plain components that take an order id (or nothing) and call `orderService`; they work as soon as they are put on a route. All are in `frontend/src`; tests are next to them in `__tests__` (55 tests in total with the confirmation page).
+
+| Component | Props | What it does |
+|---|---|---|
+| `pages/MyOrdersPage.tsx` | `onSelectOrder?(id)`, `pageSize?` | The customer's orders as cards (order number, date, payment, status, total) with Previous/Next paging. Loading, empty and error (Try again) states. |
+| `pages/OrderTrackingPage.tsx` | `orderId`, `onBack?` | One order: status, tracking timeline, items and totals, any return request (status, reason, our note, refund), and the Cancel and Return buttons. |
+| `components/CancelOrderButton.tsx` | `order`, `onCancelled(order)` | Shows only when the server says `actions.can_cancel`. Asks for confirmation (says whether a refund follows) and an optional reason. |
+| `components/ReturnRequestForm.tsx` | `order`, `onSubmitted(return)`, `onClose?` | Tick items and pick a quantity (up to what was ordered), write a reason. Needs at least one item and a reason before it sends anything. |
+| `components/OrderStatusBadge.tsx` | `status` | A coloured pill for an order or return status. |
+
+The page never works out the rules itself: the Cancel and Return buttons appear only when `actions.can_cancel` / `actions.can_request_return` say so, and the return deadline comes from `actions.return_deadline`. Server messages (for example "The 7-day return window ... has closed") are shown as they are.
+
+Wiring (once the auth module's router is on `main`), for example:
+
+```tsx
+<Route path="/orders" element={<MyOrdersPage onSelectOrder={(id) => navigate(`/orders/${id}`)} />} />
+<Route path="/orders/:id" element={<OrderTrackingPage orderId={Number(id)} onBack={() => navigate('/orders')} />} />
+```
+
+Checked in a real browser at desktop and 390px phone widths.
+
 ### How an order is priced
 
 `services/order_pricing.py` turns the request into a fully priced order: the price comes from `products` (plus `price_delta` of the chosen variant), shipping cost from `shipping_methods`, and the address must belong to the logged-in customer. The same product and variant listed twice becomes one line. The product must be `ACTIVE`, the shipping method switched on, and a variant is required when the product has variants. A later price change does not change an existing order, because the price is copied onto the order item.
