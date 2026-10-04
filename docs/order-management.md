@@ -14,7 +14,9 @@ Additional: `CANCELLED`, `RETURN_REQUESTED`, `RETURN_APPROVED`, `RETURNED`, `REF
 
 ## Allowed transitions
 
-Only these changes are accepted. Anything else is rejected by the backend (never trusted from the client), and every accepted change is written to `order_status_history`.
+Only these changes are accepted. Anything else is rejected by the backend (never trusted from the client), and every accepted change is written to `order_status_history`. Rejected changes return `409` (`422` for a status that doesn't exist) and nothing is saved.
+
+Test evidence, including a live run of the API and the `DELIVERED` to `PLACED` example: [test-evidence/ORD-04-order-status-transitions.md](test-evidence/ORD-04-order-status-transitions.md).
 
 | From | To |
 |---|---|
@@ -94,7 +96,7 @@ Code: `backend/app/routers/orders.py`, schemas in `backend/app/schemas/order.py`
 | `GET /api/account/orders/{id}` | customer | One of my orders: items, status timeline, returns, and `actions` (`can_cancel`, `can_request_return`, `return_deadline`) so the page knows which buttons to show |
 | `POST /api/account/orders/{id}/cancel` | customer | Body `{"reason": "..."}` (optional). A paid order moves on to a refund. |
 | `POST /api/account/orders/{id}/return` | customer | Body `{"reason": "...", "items": [{"order_item_id": 1, "quantity": 1}]}`. Returns `201`. |
-| `PUT /api/admin/orders/{id}/status` | admin | Body `{"status": "PROCESSING", "remarks": "..."}`. Return steps (`RETURN_*`, `RETURNED`) are refused here and go through the returns route. |
+| `PUT /api/admin/orders/{id}/status` | admin | Body `{"status": "PROCESSING", "remarks": "..."}`. Returns the updated order. `actions.allowed_next_statuses` lists what the admin can pick next (use it for the dropdown instead of a copy of the table; it already leaves out `CONFIRMED` for an unpaid online order). Return steps (`RETURN_*`, `RETURNED`) are refused here and go through the returns route. Every change is saved in `order_status_history` with the previous and new status, who changed it, the time and the remarks. |
 | `GET /api/admin/returns?status=&page=&page_size=` | admin | Return requests, newest first |
 | `PUT /api/admin/returns/{id}` | admin | Body `{"action": "approve" \| "reject" \| "mark_returned" \| "complete_refund", "remarks": "..."}` |
 

@@ -36,10 +36,6 @@ _ERROR_STATUS = [
     (OrderServiceError, status.HTTP_409_CONFLICT),
 ]
 
-# Only the returns workflow may move an order through these, so orders and returns never disagree.
-_RETURN_ONLY_STATUSES = {OrderStatus.RETURN_REQUESTED.value, OrderStatus.RETURN_APPROVED.value,
-                         OrderStatus.RETURNED.value}
-_IN_RETURN_FLOW = _RETURN_ONLY_STATUSES | {OrderStatus.REFUND_PENDING.value}
 
 
 def _http_error(exc: OrderServiceError) -> HTTPException:
@@ -63,12 +59,14 @@ def _run(db: Session, action):
         raise
 
 
-def _detail(order: Order) -> OrderDetailOut:
+def _detail(order: Order, for_admin: bool = False) -> OrderDetailOut:
     out = OrderDetailOut.model_validate(order)
     out.actions = OrderActions(
         can_cancel=order_service.can_customer_cancel(order),
         can_request_return=return_service.can_request_return(order),
         return_deadline=return_service.return_deadline(order),
+        # Only the admin screens need this; it is what PUT /api/admin/orders/{id}/status will accept.
+        allowed_next_statuses=order_service.admin_next_statuses(order) if for_admin else None,
     )
     return out
 
@@ -139,11 +137,11 @@ def admin_update_status(order_id: int, data: StatusUpdate,
         order = db.get(Order, order_id)
         if order is None:
             raise order_service.OrderNotFound(f"Order {order_id} not found")
-        if data.status in _RETURN_ONLY_STATUSES or (order.returns and order.status in _IN_RETURN_FLOW):
+        if order_service.admin_status_is_blocked(order, data.status):
             raise order_service.OrderServiceError(
                 "This step belongs to the returns workflow; use PUT /api/admin/returns/{id}")
         return order_service.update_status(db, order, data.status, changed_by=admin.id, remarks=data.remarks)
-    return _detail(_run(db, action))
+    return _detail(_run(db, action), for_admin=True)
 
 
 @router.get("/api/admin/returns", response_model=List[ReturnOut])

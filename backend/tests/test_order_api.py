@@ -124,7 +124,8 @@ def test_order_detail_has_items_timeline_and_actions(env):
     assert body["status"] == "CONFIRMED" and body["payment_status"] == "SUCCESS"
     assert [i["quantity"] for i in body["items"]] == [2, 1]
     assert [h["new_status"] for h in body["status_history"]] == ["PLACED", "CONFIRMED"]
-    assert body["actions"] == {"can_cancel": True, "can_request_return": False, "return_deadline": None}
+    assert body["actions"] == {"can_cancel": True, "can_request_return": False, "return_deadline": None,
+                               "allowed_next_statuses": None}  # customers never see the admin options
     assert float(body["total_amount"]) == 120.0
 
 
@@ -390,3 +391,32 @@ def test_works_with_real_jwt_tokens_from_the_auth_module(env):
     assert moved.status_code == 200 and moved.json()["status_history"][-1]["changed_by"] == 9
     assert c.get("/api/account/orders", headers={"Authorization": "Bearer not-a-token"}).status_code == 401
     assert c.get("/api/account/orders", headers=bearer("inactive")).status_code == 401
+
+
+def test_admin_response_lists_what_can_be_chosen_next(env):
+    order_id = make(env)
+    env.who["user"] = ADMIN
+    moved = env.client.put(f"/api/admin/orders/{order_id}/status", json={"status": "PROCESSING"}).json()
+    assert moved["actions"]["allowed_next_statuses"] == ["PACKED", "CANCELLED"]
+    # and every status it lists is accepted
+    for _ in range(4):
+        options = moved["actions"]["allowed_next_statuses"]
+        if not options:
+            break
+        moved = env.client.put(f"/api/admin/orders/{order_id}/status", json={"status": options[0]})
+        assert moved.status_code == 200
+        moved = moved.json()
+    assert moved["status"] == "DELIVERED" and moved["actions"]["allowed_next_statuses"] == []
+
+
+def test_admin_history_records_every_change_in_order(env):
+    order_id = make(env)
+    env.who["user"] = ADMIN
+    for step, note in [("PROCESSING", "picking"), ("PACKED", "boxed"), ("SHIPPED", "handed to courier")]:
+        env.client.put(f"/api/admin/orders/{order_id}/status", json={"status": step, "remarks": note})
+    env.who["user"] = CUSTOMER
+    history = env.client.get(f"/api/account/orders/{order_id}").json()["status_history"]
+    assert [(h["previous_status"], h["new_status"], h["changed_by"], h["remarks"]) for h in history][2:] == [
+        ("CONFIRMED", "PROCESSING", 9, "picking"), ("PROCESSING", "PACKED", 9, "boxed"),
+        ("PACKED", "SHIPPED", 9, "handed to courier")]
+    assert all(h["changed_at"] for h in history)

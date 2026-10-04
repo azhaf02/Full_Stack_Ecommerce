@@ -58,6 +58,8 @@ class OrderActions(BaseModel):
     can_cancel: bool
     can_request_return: bool
     return_deadline: Optional[datetime] = None
+    # Admin responses only: the statuses PUT /api/admin/orders/{id}/status will accept right now.
+    allowed_next_statuses: Optional[List[str]] = None
 
 
 class OrderDetailOut(OrderSummaryOut):
