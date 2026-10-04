@@ -2,6 +2,16 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Product, ProductImage } from "./types/product";
 import { getProductById } from "./services/productService";
+import VariantSelector from "./components/VariantSelector";
+
+interface ProductVariant {
+  id: number;
+  product_id: number;
+  attribute_name: string;
+  attribute_value: string;
+  price_delta: number;
+  stock: number;
+}
 
 function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -14,9 +24,11 @@ function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [, setImageChanging] = useState(false)
+  const [imageChanging, setImageChanging] = useState(false)
   const [wishlistAdded, setWishlistAdded] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [selectedVariant, setSelectedVariant] =
+  useState<ProductVariant | null>(null);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -195,10 +207,9 @@ function ProductDetailPage() {
   }
 
   const isInStock = product.stock_status !== "out_of_stock";
-  const isLowStock = product.stock_status === "low_stock";
 
   // const selectedImageUrl = ...
-    selectedImage?.image_url || null;
+    const selectedImageUrl = selectedImage?.image_url || null;
 
   return (
     <>
@@ -711,343 +722,277 @@ function ProductDetailPage() {
               {product.name}
             </span>
           </div>
+{/* Main Product Area */}
+<div className="product-main">
 
-          {/* Main Product Area */}
-          <div className="product-main">
+  {/* Gallery */}
+  <div className="gallery-panel">
+    <div className="main-image-wrapper">
+      {selectedImageUrl ? (
+        <img
+          src={selectedImageUrl}
+          alt={product.name}
+          className="main-product-image"
+          style={{ opacity: imageChanging ? 0 : 1 }}
+        />
+      ) : (
+        <div className="no-image">No image available</div>
+      )}
+    </div>
 
-            {/* Gallery */}
-            <div className="gallery-panel">
-            <div className="main-image-wrapper">
-  <div
-    style={{
-      width: "100%",
-      minHeight: "450px",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "#F8F7F2",
+
+    {product.images.length > 0 && (
+      <div className="thumbnail-row">
+        {product.images.map((image) => (
+          <button
+            key={image.id}
+            type="button"
+            className={`thumbnail-button ${
+              selectedImage?.id === image.id ? "selected" : ""
+            }`}
+            onClick={() => changeImage(image)}
+          >
+            <img
+              src={image.image_url}
+              alt={product.name}
+              className="thumbnail-image"
+            />
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+
+
+  {/* Details */}
+  <div className="details-panel">
+    {product.category_name && (
+      <div className="category-badge">
+        {product.category_name}
+      </div>
+    )}
+
+    <h1 className="product-title">
+      {product.name}
+    </h1>
+
+    <div className="product-price">
+      ₹{(
+        Number(product.price) +
+        (selectedVariant?.price_delta ?? 0)
+      ).toFixed(2)}
+    </div>
+
+    <VariantSelector
+      productId={product.id}
+      basePrice={Number(product.price)}
+      onVariantChange={setSelectedVariant}
+    />
+
+    <div className="availability-row">
+      <span
+        className="availability-dot"
+        style={{
+          backgroundColor:
+            (selectedVariant?.stock ?? product.stock_quantity) > 0
+              ? "#198754"
+              : "#DC3545",
+        }}
+      />
+
+      <span
+        style={{
+          color:
+            (selectedVariant?.stock ?? product.stock_quantity) > 0
+              ? "#198754"
+              : "#DC3545",
+          fontWeight: 600,
+        }}
+      >
+        {(selectedVariant?.stock ?? product.stock_quantity) > 0
+          ? `${selectedVariant?.stock ?? product.stock_quantity} units available`
+          : "Currently out of stock"}
+      </span>
+    </div>
+
+    {/* Description */}
+    <div className="description-section">
+      <div className="section-label">Description</div>
+      <p className="description-text">
+        {product.description || "No description available for this product."}
+      </p>
+    </div>
+
+
+{/* Purchase Controls */}
+<div className="purchase-row">
+  <div className="quantity-control">
+    <button
+      type="button"
+      className="quantity-button"
+      onClick={decreaseQuantity}
+      disabled={
+        selectedVariant
+          ? selectedVariant.stock <= 0
+          : !isInStock
+      }
+    >
+      −
+    </button>
+
+    <span className="quantity-value">
+      {quantity}
+    </span>
+
+    <button
+      type="button"
+      className="quantity-button"
+      onClick={increaseQuantity}
+      disabled={
+        selectedVariant
+          ? selectedVariant.stock <= 0 ||
+            quantity >= selectedVariant.stock
+          : !isInStock ||
+            quantity >= product.stock_quantity
+      }
+    >
+      +
+    </button>
+  </div>
+
+  <button
+    type="button"
+    className="cart-button"
+    disabled={
+      selectedVariant
+        ? selectedVariant.stock <= 0
+        : !isInStock
+    }
+    onClick={async () => {
+      try {
+        const response = await fetch(
+          "http://127.0.0.1:8000/api/cart/items",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              product_id: product.id,
+              quantity: quantity,
+              variant_id: selectedVariant?.id ?? null,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to add item to cart");
+        }
+
+        alert("Product added to cart!");
+      } catch (error) {
+        console.error(error);
+        alert("Unable to add product to cart.");
+      }
     }}
   >
-    {product.id === 3 ? (
-      <svg
-        width="360"
-        height="280"
-        viewBox="0 0 360 280"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        {/* Laptop screen */}
-        <rect
-          x="70"
-          y="35"
-          width="220"
-          height="150"
-          rx="10"
-          fill="#D9D9D9"
-          stroke="#222"
-          strokeWidth="8"
-        />
+    Add to Cart
+  </button>
 
-        {/* Screen */}
-        <rect
-          x="88"
-          y="53"
-          width="184"
-          height="114"
-          rx="4"
-          fill="#F5F5F5"
-        />
+  <button
+    type="button"
+    className={`wishlist-button ${
+      wishlistAdded ? "added" : ""
+    }`}
+    onClick={() =>
+      setWishlistAdded((current) => !current)
+    }
+    aria-label="Add to wishlist"
+  >
+    {wishlistAdded ? "♥" : "♡"}
+  </button>
+</div>
 
-        {/* Screen text */}
-        <text
-          x="180"
-          y="115"
-          textAnchor="middle"
-          fontSize="24"
-          fontWeight="700"
-          fill="#222"
+    {/* Small Product Information */}
+    <div className="product-meta">
+      <div className="meta-item">
+        <span className="meta-label">
+          Product ID
+        </span>
+
+        <span className="meta-value">
+          #{product.id}
+        </span>
+      </div>
+
+      <div className="meta-item">
+        <span className="meta-label">
+          Status
+        </span>
+
+        <span
+          className="meta-value"
+          style={{
+            color:
+              product.status === "ACTIVE"
+                ? "#198754"
+                : "#6C757D",
+          }}
         >
-          LAPTOP
-        </text>
-
-        {/* Keyboard/base */}
-        <path
-          d="M45 195 L315 195 L335 225 L25 225 Z"
-          fill="#B5B5B5"
-          stroke="#222"
-          strokeWidth="7"
-        />
-
-        {/* Trackpad */}
-        <rect
-          x="145"
-          y="202"
-          width="70"
-          height="14"
-          rx="3"
-          fill="#888"
-        />
-
-        {/* Product name */}
-        <text
-          x="180"
-          y="260"
-          textAnchor="middle"
-          fontSize="24"
-          fontWeight="700"
-          fill="#222"
-        >
-          Laptop
-        </text>
-      </svg>
-    ) : product.id === 4 ? (
-      <div style={{ fontSize: "100px" }}>🎧</div>
-    ) : product.id === 2 ? (
-      <div style={{ fontSize: "100px" }}>👕</div>
-    ) : product.id === 5 ? (
-      <div style={{ fontSize: "100px" }}>🎒</div>
-    ) : (
-      <div style={{ fontSize: "100px" }}>📦</div>
-    )}
+          {product.status}
+        </span>
+      </div>
+    </div>
   </div>
 </div>
 
-              {product.images.length > 0 && (
-                <div className="thumbnail-row">
-                  {product.images.map((image) => (
-                    <button
-                      key={image.id}
-                      type="button"
-                      className={`thumbnail-button ${
-                        selectedImage?.id === image.id
-                          ? "selected"
-                          : ""
-                      }`}
-                      onClick={() => changeImage(image)}
-                    >
-                      <img
-                        src={image.image_url}
-                        alt={`${product.name} thumbnail`}
-                        className="thumbnail-image"
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+{/* Related Products */}
+{product.related_products.length > 0 && (
+  <section className="related-section">
+    <div className="related-heading">
+      <div>
+        <h2 className="related-title">
+          You may also like
+        </h2>
 
-            {/* Details */}
-            <div className="details-panel">
-              {product.category_name && (
-                <div className="category-badge">
-                  {product.category_name}
-                </div>
-              )}
+        <p className="related-subtitle">
+          More products from the same category
+        </p>
+      </div>
+    </div>
 
-              <h1 className="product-title">
-                {product.name}
-              </h1>
-
-              <div className="product-price">
-                ₹{Number(product.price).toFixed(2)}
-              </div>
-
-              <div className="availability-row">
-                <span
-                  className="availability-dot"
-                  style={{
-                    backgroundColor: isInStock
-                      ? "#198754"
-                      : "#DC3545",
-                  }}
-                />
-
-                <span
-                  style={{
-                    color: isInStock
-                      ? "#198754"
-                      : "#DC3545",
-                    fontWeight: 600,
-                  }}
-                >
-                  {product.stock_status === "in_stock" &&
-                    `${product.stock_quantity} units available`}
-
-                  {isLowStock &&
-                    `Only ${product.stock_quantity} units left - Low Stock`}
-
-                  {product.stock_status === "out_of_stock" &&
-                    "Currently out of stock"}
-                </span>
-              </div>
-
-              {isLowStock && (
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    marginTop: "10px",
-                    padding: "5px 10px",
-                    borderRadius: "999px",
-                    backgroundColor: "#FFF3CD",
-                    color: "#856404",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                  }}
-                >
-                  Low Stock
-                </div>
-              )}
-              {/* Description */}
-              <div className="description-section">
-                <div className="section-label">
-                  Description
-                </div>
-
-                <p className="description-text">
-                  {product.description ||
-                    "No description available for this product."}
-                </p>
-              </div>
-
-              {/* Purchase Controls */}
-              <div className="purchase-row">
-                <div className="quantity-control">
-                  <button
-                    type="button"
-                    className="quantity-button"
-                    onClick={decreaseQuantity}
-                    disabled={!isInStock}
-                  >
-                    −
-                  </button>
-
-                  <span className="quantity-value">
-                    {quantity}
-                  </span>
-
-                  <button
-                    type="button"
-                    className="quantity-button"
-                    onClick={increaseQuantity}
-                    disabled={
-                      !isInStock ||
-                      quantity >= product.stock_quantity
-                    }
-                  >
-                    +
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  className="cart-button"
-                  disabled={!isInStock}
-                >
-                  Add to Cart
-                </button>
-
-                <button
-                  type="button"
-                  className={`wishlist-button ${
-                    wishlistAdded ? "added" : ""
-                  }`}
-                  onClick={() =>
-                    setWishlistAdded((current) => !current)
-                  }
-                  aria-label="Add to wishlist"
-                >
-                  {wishlistAdded ? "♥" : "♡"}
-                </button>
-              </div>
-
-              {/* Small Product Information */}
-              <div className="product-meta">
-                <div className="meta-item">
-                  <span className="meta-label">
-                    Product ID
-                  </span>
-
-                  <span className="meta-value">
-                    #{product.id}
-                  </span>
-                </div>
-
-                <div className="meta-item">
-                  <span className="meta-label">
-                    Status
-                  </span>
-
-                  <span
-                    className="meta-value"
-                    style={{
-                      color:
-                        product.status === "ACTIVE"
-                          ? "#198754"
-                          : "#6C757D",
-                    }}
-                  >
-                    {product.status}
-                  </span>
-                </div>
-              </div>
-            </div>
+    <div className="related-grid">
+      {product.related_products.map((relatedProduct) => (
+        <div
+          key={relatedProduct.id}
+          className="related-card"
+          onClick={() =>
+            navigate(`/products/${relatedProduct.id}`)
+          }
+        >
+          <div className="related-image">
+            <span className="related-image-placeholder">
+              Product
+            </span>
           </div>
 
-          {/* Related Products */}
-          {product.related_products.length > 0 && (
-            <section className="related-section">
-              <div className="related-heading">
-                <div>
-                  <h2 className="related-title">
-                    You may also like
-                  </h2>
+          <h3 className="related-name">
+            {relatedProduct.name}
+          </h3>
 
-                  <p className="related-subtitle">
-                    More products from the same category
-                  </p>
-                </div>
-              </div>
-
-              <div className="related-grid">
-                {product.related_products.map(
-                  (relatedProduct) => (
-                    <div
-                      key={relatedProduct.id}
-                      className="related-card"
-                      onClick={() =>
-                        navigate(
-                          `/products/${relatedProduct.id}`
-                        )
-                      }
-                    >
-                      <div className="related-image">
-                        <span className="related-image-placeholder">
-                          Product
-                        </span>
-                      </div>
-
-                      <h3 className="related-name">
-                        {relatedProduct.name}
-                      </h3>
-
-                      <p className="related-price">
-                        ₹
-                        {Number(
-                          relatedProduct.price
-                        ).toFixed(2)}
-                      </p>
-                    </div>
-                  )
-                )}
-              </div>
-            </section>
-          )}
-
+          <p className="related-price">
+            ₹{Number(relatedProduct.price).toFixed(2)}
+          </p>
         </div>
-      </div>
-    </>
-  );
+      ))}
+    </div>
+  </section>
+)}
+
+</div>
+</div>
+</>
+);
 }
 
 export default ProductDetailPage;
