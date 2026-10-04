@@ -89,6 +89,7 @@ Code: `backend/app/routers/orders.py`, schemas in `backend/app/schemas/order.py`
 
 | Method and path | Who | What it does |
 |---|---|---|
+| `POST /api/orders` | customer | Place an order. Body `{"address_id": 1, "shipping_method_id": 2, "payment_method": "ONLINE" or "COD", "items": [{"product_id": 4, "variant_id": null, "quantity": 2}]}`. Returns `201` with the order and its Order ID (`order_number`). A COD order comes back `CONFIRMED`; an online order comes back `PLACED` until the payment module reports a verified `SUCCESS`. **Do not send prices, totals or shipping cost**: the server reads them from the database and rejects any extra field with `422`. |
 | `GET /api/account/orders?page=&page_size=` | customer | My orders, newest first (page size 1 to 100) |
 | `GET /api/account/orders/{id}` | customer | One of my orders: items, status timeline, returns, and `actions` (`can_cancel`, `can_request_return`, `return_deadline`) so the page knows which buttons to show |
 | `POST /api/account/orders/{id}/cancel` | customer | Body `{"reason": "..."}` (optional). A paid order moves on to a refund. |
@@ -97,9 +98,15 @@ Code: `backend/app/routers/orders.py`, schemas in `backend/app/schemas/order.py`
 | `GET /api/admin/returns?status=&page=&page_size=` | admin | Return requests, newest first |
 | `PUT /api/admin/returns/{id}` | admin | Body `{"action": "approve" \| "reject" \| "mark_returned" \| "complete_refund", "remarks": "..."}` |
 
-Errors: `401` no or bad token, `403` wrong role, `404` order or return not found (also used for someone else's order), `409` the step is not allowed right now (wrong status, window closed, not paid), `422` bad input.
+Errors: `401` no or bad token, `403` wrong role, `404` order or return not found (also used for someone else's order), `409` the step is not allowed right now (wrong status, window closed, not paid, out of stock), `422` bad input (including a product, variant, address or shipping method that isn't available).
 
-**Not built yet:** `POST /api/orders`. It must create the order from Safiya's server-side checkout session, so prices and totals are computed by the server and never sent by the browser. `order_service.create_order()` is ready for it.
+### How an order is priced
+
+`services/order_pricing.py` turns the request into a fully priced order: the price comes from `products` (plus `price_delta` of the chosen variant), shipping cost from `shipping_methods`, and the address must belong to the logged-in customer. The same product and variant listed twice becomes one line. The product must be `ACTIVE`, the shipping method switched on, and a variant is required when the product has variants. A later price change does not change an existing order, because the price is copied onto the order item.
+
+Tax, discount and coupon are `0` for now. When Safiya's checkout session and Zubiya's pricing engine are merged, `price_order()` is the one function to replace; `create_order()` and everything after it stay the same.
+
+Stock is not checked at this step. The inventory hook (below) raises `order_service.OutOfStock` when it can't deduct, which cancels the whole creation and returns `409`.
 
 ## Services
 
@@ -107,7 +114,7 @@ Code: `backend/app/services/order_service.py` and `return_service.py`. Neither c
 
 | Function | Used by | What it does |
 |---|---|---|
-| `create_order(db, OrderInput)` | Checkout (Safiya) | Validates items and totals, creates a `PLACED` order with its first history row. A COD order is moved straight to `CONFIRMED`. |
+| `create_order(db, OrderInput)` | `POST /api/orders` (via `order_pricing.price_order`) | Validates items and totals, creates a `PLACED` order with its first history row. A COD order is moved straight to `CONFIRMED`. |
 | `apply_payment_result(db, order, payment_status)` | Payment (Aaliya) | Pass the backend-verified result. `SUCCESS` confirms a `PLACED` order; `FAILED`, `CANCELLED` and `PENDING` leave it unconfirmed. Calling `SUCCESS` twice confirms once. |
 | `update_status(db, order, new_status, changed_by, remarks)` | Admin, other services | The only way to change status. Rejects moves outside the allowed table. |
 | `cancel_order`, `get_order_for_user`, `list_orders_for_user` | Customer routes | Cancellation and "only my own orders" access. |
@@ -119,7 +126,7 @@ Code: `backend/app/services/order_service.py` and `return_service.py`. Neither c
 
 `order_service.register_status_hook(fn)` registers `fn(db, order, previous_status, new_status)`. Hooks run inside `update_status()`, after the rules pass and before the caller commits. If a hook raises, roll back and the status change is undone with it.
 
-- **Inventory (Rehan):** deduct stock when `new_status == "CONFIRMED"`; restore it when `new_status == "CANCELLED"` and `stock_was_deducted(order)` is true, and when `new_status == "RETURNED"` (the returned items are in `order.returns[-1].items`). Because an order is confirmed only once, stock is deducted once.
+- **Inventory (Rehan):** deduct stock when `new_status == "CONFIRMED"` (raise `order_service.OutOfStock("...")` if there isn't enough, which undoes the order); restore it when `new_status == "CANCELLED"` and `stock_was_deducted(order)` is true, and when `new_status == "RETURNED"` (the returned items are in `order.returns[-1].items`). Because an order is confirmed only once, stock is deducted once.
 - **Notifications (Aliza):** notify the customer on any status change.
 
 ## Open questions

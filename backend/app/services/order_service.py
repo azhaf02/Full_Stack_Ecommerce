@@ -75,6 +75,10 @@ class InvalidOrder(OrderServiceError):
     """The data used to create an order is inconsistent."""
 
 
+class OutOfStock(OrderServiceError):
+    """Raised by the inventory status hook when there isn't enough stock. The whole change is rolled back."""
+
+
 class NotCancellable(OrderServiceError):
     """The order has gone too far (packed or later) to be cancelled by the customer."""
 

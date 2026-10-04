@@ -4,8 +4,8 @@ The routes only check who is asking and translate errors; the rules live in serv
 return_service.py. A route commits once at the end, so a status change and everything hooked onto it
 (stock, notifications) succeed or fail together.
 
-POST /api/orders is intentionally not here yet: it must build the order from Safiya's server-side checkout
-session (prices and totals computed by the server), never from numbers sent by the browser.
+POST /api/orders prices the order on the server (services/order_pricing.py); the browser never sends a price.
+When Safiya's checkout session exists, only order_pricing.price_order() needs to change.
 """
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -16,10 +16,10 @@ from app.database import get_db
 from app.models.order import Order, OrderStatus, Return, ReturnStatus
 from app.models.user import User
 from app.schemas.order import (
-    CancelRequest, OrderActions, OrderDetailOut, OrderSummaryOut, ReturnOut, ReturnRequest, ReturnReview,
-    StatusUpdate,
+    CancelRequest, OrderActions, OrderCreate, OrderDetailOut, OrderSummaryOut, ReturnOut, ReturnRequest,
+    ReturnReview, StatusUpdate,
 )
-from app.services import order_service, return_service
+from app.services import order_pricing, order_service, return_service
 from app.services.order_service import OrderServiceError
 
 router = APIRouter(tags=["Orders"])
@@ -81,6 +81,20 @@ def _load_return(db: Session, return_id: int) -> Return:
 
 
 # ---------------------------------------------------------------- customer
+
+@router.post("/api/orders", response_model=OrderDetailOut, status_code=status.HTTP_201_CREATED)
+def place_order(data: OrderCreate, user: User = Depends(customer_only), db: Session = Depends(get_db)):
+    """Place an order. A COD order comes back CONFIRMED; an online order comes back PLACED and is confirmed
+    when the payment module reports a verified SUCCESS."""
+    def action():
+        request = order_pricing.OrderRequest(
+            address_id=data.address_id, shipping_method_id=data.shipping_method_id,
+            payment_method=data.payment_method,
+            items=[order_pricing.OrderLine(product_id=i.product_id, variant_id=i.variant_id, quantity=i.quantity)
+                   for i in data.items])
+        return order_service.create_order(db, order_pricing.price_order(db, user.id, request))
+    return _detail(_run(db, action))
+
 
 @router.get("/api/account/orders", response_model=List[OrderSummaryOut])
 def my_orders(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100),

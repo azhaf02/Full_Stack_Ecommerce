@@ -77,6 +77,23 @@ class OrderDetailOut(OrderSummaryOut):
 
 # ---------------------------------------------------------------- requests
 
+class OrderLineIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    product_id: int
+    variant_id: Optional[int] = None
+    quantity: int = Field(gt=0, le=100)
+
+
+class OrderCreate(BaseModel):
+    """What a customer sends to place an order. There is deliberately no price, total or shipping cost:
+    extra fields are rejected so nobody can try to supply one."""
+    model_config = ConfigDict(extra="forbid")
+    address_id: int
+    shipping_method_id: int
+    payment_method: Literal["ONLINE", "COD"]
+    items: List[OrderLineIn] = Field(min_length=1, max_length=50)
+
+
 class CancelRequest(BaseModel):
     reason: Optional[str] = Field(default=None, max_length=500)
 
