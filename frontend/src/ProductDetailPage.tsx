@@ -717,36 +717,100 @@ function ProductDetailPage() {
 
             {/* Gallery */}
             <div className="gallery-panel">
-              <div className="main-image-wrapper">
-                {selectedImageUrl ? (
-<div className="main-image-wrapper">
+            <div className="main-image-wrapper">
   <div
     style={{
       width: "100%",
-      height: "100%",
+      minHeight: "450px",
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
       background: "#F8F7F2",
-      color: "#333",
     }}
   >
-    <div style={{ fontSize: "64px", marginBottom: "20px" }}>👕</div>
-    <div style={{ fontSize: "28px", fontWeight: 700 }}>
-      {product.name}
-    </div>
-    <div style={{ marginTop: "8px", color: "#777" }}>
-      Product Image
-    </div>
+    {product.id === 3 ? (
+      <svg
+        width="360"
+        height="280"
+        viewBox="0 0 360 280"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* Laptop screen */}
+        <rect
+          x="70"
+          y="35"
+          width="220"
+          height="150"
+          rx="10"
+          fill="#D9D9D9"
+          stroke="#222"
+          strokeWidth="8"
+        />
+
+        {/* Screen */}
+        <rect
+          x="88"
+          y="53"
+          width="184"
+          height="114"
+          rx="4"
+          fill="#F5F5F5"
+        />
+
+        {/* Screen text */}
+        <text
+          x="180"
+          y="115"
+          textAnchor="middle"
+          fontSize="24"
+          fontWeight="700"
+          fill="#222"
+        >
+          LAPTOP
+        </text>
+
+        {/* Keyboard/base */}
+        <path
+          d="M45 195 L315 195 L335 225 L25 225 Z"
+          fill="#B5B5B5"
+          stroke="#222"
+          strokeWidth="7"
+        />
+
+        {/* Trackpad */}
+        <rect
+          x="145"
+          y="202"
+          width="70"
+          height="14"
+          rx="3"
+          fill="#888"
+        />
+
+        {/* Product name */}
+        <text
+          x="180"
+          y="260"
+          textAnchor="middle"
+          fontSize="24"
+          fontWeight="700"
+          fill="#222"
+        >
+          Laptop
+        </text>
+      </svg>
+    ) : product.id === 4 ? (
+      <div style={{ fontSize: "100px" }}>🎧</div>
+    ) : product.id === 2 ? (
+      <div style={{ fontSize: "100px" }}>👕</div>
+    ) : product.id === 5 ? (
+      <div style={{ fontSize: "100px" }}>🎒</div>
+    ) : (
+      <div style={{ fontSize: "100px" }}>📦</div>
+    )}
   </div>
 </div>
-                ) : (
-                  <div className="no-image">
-                    No image available
-                  </div>
-                )}
-              </div>
 
               {product.images.length > 0 && (
                 <div className="thumbnail-row">
