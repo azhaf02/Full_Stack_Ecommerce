@@ -3,7 +3,7 @@ load_dotenv()  # loads DATABASE_URL / SECRET_KEY from backend/.env
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import notifications, reviews, account, auth, audit_logs, payment
+from app.routers import notifications, reviews, account, auth, audit_logs, payment, orders
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
 
@@ -22,7 +22,11 @@ app.include_router(reviews.router)
 app.include_router(account.router)  # addresses (Madeeha)
 app.include_router(auth.router)  # login/register/admin login (Madeeha)
 app.include_router(audit_logs.router)
+<<<<<<< HEAD
 app.include_router(payment.router)
+=======
+app.include_router(orders.router)  # orders, cancellation, returns (Rukhsar)
+>>>>>>> origin/main
 
 @app.get("/")
 def root():
