@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import OrdersListView from './OrdersListView';
 import NotificationCenter from './NotificationCenter';
 import ReviewsList from './ReviewsList';
+import WishlistListView from './WishlistListView';
 
 // SVG matching the circled VIORA icon (Shopping Bag with Leaf)
 function VioraLogo() {
@@ -39,9 +40,9 @@ function VioraLogo() {
 }
 
 export default function DashboardLayout() {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [unreadCount, setUnreadCount] = useState(1);
-  const [reviewsVersion, setReviewsVersion] = useState(0);
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'wishlist' | 'notifications' | 'reviews'>('overview');
+  const [unreadCount, setUnreadCount] = useState<number>(1);
+  const [reviewsVersion, setReviewsVersion] = useState<number>(0);
 
   const handleReviewSubmitted = () => {
     setReviewsVersion((prev) => prev + 1);
@@ -191,6 +192,7 @@ export default function DashboardLayout() {
               {[
                 { id: 'overview', label: 'Dashboard Overview', icon: '📊' },
                 { id: 'orders', label: 'My Orders', icon: '📦' },
+                { id: 'wishlist', label: 'My Wishlist', icon: '🤍' },      
                 { id: 'notifications', label: 'Notifications', icon: '🔔', badge: unreadCount },
                 { id: 'reviews', label: 'Product Reviews', icon: '⭐' },
               ].map((tab) => {
@@ -198,7 +200,7 @@ export default function DashboardLayout() {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => setActiveTab(tab.id as any)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -220,7 +222,7 @@ export default function DashboardLayout() {
                       <span style={{ fontSize: '16px' }}>{tab.icon}</span>
                       {tab.label}
                     </div>
-                    {tab.badge > 0 && (
+                    {typeof tab.badge === 'number' && tab.badge > 0 && (
                       <span style={{
                         backgroundColor: isActive ? '#ffffff' : '#d4a373',
                         color: isActive ? '#3b4d3c' : '#ffffff',
@@ -287,6 +289,9 @@ export default function DashboardLayout() {
           )}
 
           {activeTab === 'orders' && <OrdersListView onReviewSubmitted={handleReviewSubmitted} />}
+
+          {/* DASH-04: Wishlist Integration */}
+          {activeTab === 'wishlist' && <WishlistListView />}
 
           {activeTab === 'notifications' && (
             <NotificationCenter onClearBadge={() => setUnreadCount(0)} />
