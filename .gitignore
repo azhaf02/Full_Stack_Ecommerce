@@ -1,13 +1,12 @@
-<<<<<<< HEAD
 # Python cache files
 __pycache__/
-*.pyc
-.env
-frontend/.env
+*.py[cod]
+*.db
+
 # Environment files
 .env
-frontend/.env
-=======
-.env
 .env.*
->>>>>>> origin/main
+frontend/.env
+
+# Uploaded files
+backend/uploads/
