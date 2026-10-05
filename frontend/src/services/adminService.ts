@@ -131,3 +131,46 @@ export async function getCustomer(id: number): Promise<CustomerDetail> {
   const response = await api.get(`/api/admin/customers/${id}`);
   return response.data;
 }
+
+
+export interface AdminOrder {
+  id: number;
+  orderNumber: string;
+  customerName: string;
+  status: string;
+  paymentMethod: string;
+  totalAmount: number;
+  createdAt: string;
+}
+
+export interface AdminOrderList {
+  items: AdminOrder[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface OrderFilters {
+  q?: string;
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+// Order list for admins with search, status/date filters and pagination
+export async function getOrders(filters: OrderFilters): Promise<AdminOrderList> {
+  const response = await api.get("/api/admin/orders", {
+    params: {
+      q: filters.q || undefined,
+      status: filters.status || undefined,
+      date_from: filters.dateFrom || undefined,
+      date_to: filters.dateTo || undefined,
+      page: filters.page ?? 1,
+      page_size: filters.pageSize ?? 10,
+    },
+  });
+  return response.data;
+}

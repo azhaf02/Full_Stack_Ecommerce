@@ -1,15 +1,16 @@
-from datetime import datetime, time, timezone
-from typing import Literal
+from datetime import date, datetime, time, timedelta, timezone
+from math import ceil
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.core.security import require_role
-from app.models.order import Order
+from app.models.order import Order, OrderStatus
 from app.models.role import Role
 from app.models.user import User
 
@@ -189,4 +190,109 @@ def get_customer(customer_id: int, db: Session = Depends(get_db)):
         "orders_count": len(orders),
         "total_spent": total_spent,
         "recent_orders": orders[:5],
+    }
+
+
+
+class OrderListParams(BaseModel):
+    """Search and filter values for the admin order list. Pydantic rejects anything invalid."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    q: str = Field("", max_length=100)
+    status: OrderStatus | None = None
+    date_from: date | None = None
+    date_to: date | None = None
+    page: int = Field(1, ge=1)
+    page_size: int = Field(10, ge=1, le=50)
+
+    @model_validator(mode="after")
+    def check_date_range(self):
+        if self.date_from and self.date_to and self.date_from > self.date_to:
+            raise ValueError("date_from cannot be after date_to")
+        return self
+
+
+class AdminOrderRow(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    id: int
+    order_number: str
+    customer_name: str
+    status: str
+    payment_method: str
+    total_amount: float
+    created_at: datetime
+
+
+class AdminOrderList(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    items: list[AdminOrderRow]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+def _like_pattern(value: str) -> str:
+    # Escape % and _ so they are searched as normal characters, not wildcards
+    escaped = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+# ADM-04: order list for admins with search, status/date filters and pagination
+@router.get("/orders", response_model=AdminOrderList)
+def list_orders(params: Annotated[OrderListParams, Query()], db: Session = Depends(get_db)):
+    # orders.user_id has no foreign key yet, so join users by id.
+    # Outer join keeps an order in the list even if its user row is missing.
+    query = db.query(Order, User.name).outerjoin(User, User.id == Order.user_id)
+
+    search = params.q.strip()
+    if search:
+        pattern = _like_pattern(search)
+        query = query.filter(
+            or_(
+                Order.order_number.ilike(pattern, escape="\\"),
+                User.name.ilike(pattern, escape="\\"),
+            )
+        )
+
+    if params.status:
+        query = query.filter(Order.status == params.status.value)
+
+    if params.date_from:
+        query = query.filter(Order.created_at >= datetime.combine(params.date_from, time.min))
+    if params.date_to:
+        # include the whole "to" day
+        day_after = params.date_to + timedelta(days=1)
+        query = query.filter(Order.created_at < datetime.combine(day_after, time.min))
+
+    total = query.count()
+    rows = (
+        query.order_by(Order.created_at.desc(), Order.id.desc())
+        .offset((params.page - 1) * params.page_size)
+        .limit(params.page_size)
+        .all()
+    )
+
+    items = [
+        {
+            "id": order.id,
+            "order_number": order.order_number,
+            "customer_name": name or "Unknown customer",
+            "status": order.status,
+            "payment_method": order.payment_method,
+            "total_amount": float(order.total_amount),
+            "created_at": order.created_at,
+        }
+        for order, name in rows
+    ]
+
+    return {
+        "items": items,
+        "total": total,
+        "page": params.page,
+        "page_size": params.page_size,
+        "total_pages": max(1, ceil(total / params.page_size)),
     }
