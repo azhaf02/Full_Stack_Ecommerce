@@ -89,3 +89,99 @@ export async function deactivateCategory(
   );
   return response.data;
 }
+export interface Product {
+  id: number;
+  category_id: number;
+  name: string;
+  description: string | null;
+  price: string;
+  stock_quantity: number;
+  status: "ACTIVE" | "INACTIVE";
+}
+
+export interface ProductCreateData {
+  category_id: number;
+  name: string;
+  description: string | null;
+  price: number;
+  stock_quantity: number;
+  status: "ACTIVE" | "INACTIVE";
+}
+
+export interface ProductUpdateData {
+  category_id?: number;
+  name?: string;
+  description?: string | null;
+  price?: number;
+  stock_quantity?: number;
+  status?: "ACTIVE" | "INACTIVE";
+}
+
+export interface ProductImage {
+  id: number;
+  product_id: number;
+  image_url: string;
+  is_primary: boolean;
+}
+
+export async function getAdminProducts(params?: {
+  search?: string;
+  category_id?: number;
+  status?: "ACTIVE" | "INACTIVE";
+}): Promise<Product[]> {
+  const response = await api.get("/api/admin/products/", { params });
+  return response.data;
+}
+
+export async function createAdminProduct(
+  data: ProductCreateData
+): Promise<Product> {
+  const response = await api.post("/api/admin/products/", data);
+  return response.data;
+}
+
+export async function getAdminProduct(
+  productId: number
+): Promise<Product> {
+  const response = await api.get(`/api/admin/products/${productId}`);
+  return response.data;
+}
+
+export async function updateAdminProduct(
+  productId: number,
+  data: ProductUpdateData
+): Promise<Product> {
+  const response = await api.put(
+    `/api/admin/products/${productId}`,
+    data
+  );
+  return response.data;
+}
+
+export async function deactivateAdminProduct(
+  productId: number
+): Promise<Product> {
+  const response = await api.delete(
+    `/api/admin/products/${productId}`
+  );
+  return response.data;
+}
+
+export async function uploadProductImage(
+  productId: number,
+  file: File,
+  isPrimary = false
+): Promise<ProductImage> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await api.post(
+    `/api/admin/products/${productId}/images`,
+    formData,
+    {
+      params: { is_primary: isPrimary },
+    }
+  );
+
+  return response.data;
+}
