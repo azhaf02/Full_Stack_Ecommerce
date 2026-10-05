@@ -1,37 +1,39 @@
- # PAY-03: Payment Method Selection
+# PAY-03: Payment Method Selection
 
 ## Objective
-Allow customers to select Online Payment or Cash on Delivery during checkout.
 
-## Implemented Features
-- React payment-selection component.
-- ONLINE and COD payment options.
-- Required payment-method selection.
-- Loading and error messages.
-- Payment request and response schemas.
-- UUID validation for checkout-session IDs.
-- Payment service prepared to save PENDING payments.
-- Authenticated `POST /api/payment/select-method` endpoint.
+Allow customers to select a valid payment method during checkout and securely store the payment with PENDING status.
 
-## API Status
-`POST /api/payment/select-method` is registered but currently returns HTTP 503.
-Payment creation is disabled until checkout and order integration can be securely validated.
+## Supported Payment Methods
 
-## Dependencies
-- Safiya: Checkout-session API and authentication integration.
-- Rukhsar: Order creation and order ID integration.
+- ONLINE
+- COD (Cash on Delivery)
 
-## Testing
-Five payment-schema tests passed:
-1. Invalid payment method.
-2. Missing payment method.
-3. Valid ONLINE payment.
-4. Valid COD payment.
-5. Empty checkout-session ID.
+## Payment Flow
 
-Database integration and end-to-end payment tests are pending.
+1. Customer starts checkout.
+2. Checkout session is validated.
+3. Checkout session must:
+   - Exist.
+   - Have `active` status.
+   - Not be expired.
+   - Belong to the currently logged-in customer.
+4. Checkout creates the order using `POST /api/orders`.
+5. The generated `order_id` is provided to the Payment flow.
+6. Customer selects ONLINE or COD.
+7. Payment is created or updated with `PENDING` status.
+8. Selecting a payment method does not mark the payment as SUCCESS.
+9. ONLINE payment becomes SUCCESS only after actual payment verification.
 
-## Security
-- Payment endpoints require authentication.
-- Checkout-session validity and customer ownership must be verified before saving payments.
-- Selecting a payment method must not mark payment successful.
+## API
+
+### POST /api/payment/select-method
+
+Request:
+
+```json
+{
+  "checkout_session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "order_id": 1,
+  "method": "ONLINE"
+}

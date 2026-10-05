@@ -10,9 +10,9 @@ class PaymentMethod(str, Enum):
 
 
 class PaymentSelectionRequest(BaseModel):
-	checkout_session_id: UUID
-	method: PaymentMethod
-
+    checkout_session_id: UUID
+    order_id: int
+    method: PaymentMethod
 
 class PaymentSelectionResponse(BaseModel):
 	payment_id: int
