@@ -14,6 +14,7 @@ from app.routers import (
     account,
     auth,
     audit_logs,
+    orders,
 )
 
 from app.api.routes.catalog import router as catalog_router
@@ -47,6 +48,7 @@ app.include_router(category.router)
 app.include_router(account.router)
 app.include_router(auth.router)
 app.include_router(audit_logs.router)
+app.include_router(orders.router)  # orders, cancellation, returns (Rukhsar)
 
 # Admin product management
 app.include_router(catalog_router)
