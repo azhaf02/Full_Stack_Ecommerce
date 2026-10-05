@@ -1,2 +1,12 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*.db
+
+# Environment files
 .env
 .env.*
+frontend/.env
+
+# Uploaded files
+backend/uploads/
