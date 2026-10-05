@@ -1,8 +1,7 @@
-import React from 'react';
-import DashboardLayout from './components/DashboardLayout';
+import CheckoutPage from "./checkout/pages/CheckoutPage";
 
 function App() {
-  return <DashboardLayout />;
+  return <CheckoutPage />;
 }
 
 export default App;
