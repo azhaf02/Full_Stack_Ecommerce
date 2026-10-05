@@ -13,6 +13,7 @@ from app.routers import (
     account,
     auth,
     audit_logs,
+    orders,
 )
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
@@ -39,6 +40,7 @@ app.include_router(category.router)
 app.include_router(account.router)
 app.include_router(auth.router)
 app.include_router(audit_logs.router)
+app.include_router(orders.router)  # orders, cancellation, returns (Rukhsar)
 
 
 @app.get("/")
