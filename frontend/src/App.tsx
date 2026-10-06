@@ -1,16 +1,26 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import DashboardLayout from './components/DashboardLayout';
+import { lazy, Suspense } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import ProductDetailPage from './ProductDetailPage';
+
+// Loaded separately so the admin's Tailwind styles and the customer
+// dashboard's Bootstrap styles are not applied to each other's pages.
+const AdminApp = lazy(() => import('./AdminApp'));
+const CustomerApp = lazy(() => import('./CustomerApp'));
 
 function App() {
   return (
-    <BrowserRouter>
+    <Suspense fallback={null}>
       <Routes>
+        {/* Admin Dashboard */}
+        <Route path="/admin/*" element={<AdminApp />} />
+
+        {/* Product Details */}
         <Route path="/product/:id" element={<ProductDetailPage />} />
-        <Route path="*" element={<DashboardLayout />} />
+
+        {/* Customer Dashboard */}
+        <Route path="*" element={<CustomerApp />} />
       </Routes>
-    </BrowserRouter>
+    </Suspense>
   );
 }
 
