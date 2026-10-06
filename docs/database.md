@@ -53,6 +53,41 @@ python -m alembic upgrade head  # apply pending migrations
 
 Order statuses: `PLACED`, `CONFIRMED`, `PROCESSING`, `PACKED`, `SHIPPED`, `OUT_FOR_DELIVERY`, `DELIVERED`, `CANCELLED`, `RETURN_REQUESTED`, `RETURN_APPROVED`, `RETURNED`, `REFUND_PENDING`, `REFUNDED`.
 
+## Inventory (Inventory Management, Rehan)
+
+### `inventory`
+
+| Column | Type | Notes |
+|---|---|---|
+| id | integer PK | Auto-incremented inventory record ID |
+| product_id | integer | Indexed product reference |
+| variant_id | integer, nullable | Indexed variant reference; used when stock is tracked per variant |
+| quantity | integer | Current stock quantity; must be `>= 0` |
+| low_stock_threshold | integer | Minimum stock threshold; must be `>= 0`; default `10` |
+| location | varchar(100), nullable | Stock location |
+| status | varchar(20) | `IN_STOCK`, `LOW_STOCK`, or `OUT_OF_STOCK` |
+| created_at | timestamp | Inventory record creation time |
+| updated_at | timestamp | Last inventory update time |
+
+### `inventory_history`
+
+| Column | Type | Notes |
+|---|---|---|
+| id | integer PK | Auto-incremented history record ID |
+| inventory_id | integer | FK to `inventory.id`; cascade delete |
+| change_type | varchar(30) | Type of inventory change |
+| quantity_changed | integer | Quantity changed |
+| previous_quantity | integer | Stock quantity before the change |
+| new_quantity | integer | Stock quantity after the change |
+| reason | text, nullable | Reason for the stock change |
+| location | varchar(100), nullable | Location associated with the change |
+| created_at | timestamp | Time of the inventory change |
+
+Inventory quantity cannot be negative. This is enforced using the
+`check_inventory_quantity_non_negative` database constraint.
+
+Inventory history is linked to the inventory record through `inventory_id`.
+
 ### `returns`
 | Column | Type | Notes |
 |---|---|---|

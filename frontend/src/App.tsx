@@ -1,7 +1,25 @@
-import CheckoutPage from "./checkout/pages/CheckoutPage";
+import { lazy, Suspense } from 'react';
+import { Routes, Route } from 'react-router-dom';
+import ProductDetailPage from './ProductDetailPage';
+
+const AdminApp = lazy(() => import('./AdminApp'));
+const CustomerApp = lazy(() => import('./CustomerApp'));
 
 function App() {
-  return <CheckoutPage />;
+  return (
+    <Suspense fallback={null}>
+      <Routes>
+        {/* Admin Dashboard */}
+        <Route path="/admin/*" element={<AdminApp />} />
+
+        {/* Product Details */}
+        <Route path="/product/:id" element={<ProductDetailPage />} />
+
+        {/* Customer Dashboard */}
+        <Route path="*" element={<CustomerApp />} />
+      </Routes>
+    </Suspense>
+  );
 }
 
 export default App;
