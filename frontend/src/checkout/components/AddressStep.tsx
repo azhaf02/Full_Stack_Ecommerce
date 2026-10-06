@@ -19,7 +19,19 @@ type AddressStepProps = {
   onContinue: (shippingAddress: Address, billingAddress: Address) => void;
 };
 
-const API_BASE = "http://127.0.0.1:8000";
+// Updated API base URL
+const API_BASE = "http://localhost:8000";
+const TOKEN_KEY = "viora_token";
+
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem(TOKEN_KEY);
+
+  return token
+    ? {
+        Authorization: `Bearer ${token}`,
+      }
+    : {};
+}
 
 const emptyForm = {
   full_name: "",
@@ -54,16 +66,28 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/api/account/addresses`);
+      const response = await fetch(`${API_BASE}/api/account/addresses`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          ...getAuthHeaders(),
+        },
+      });
 
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error("Please login to view your saved addresses.");
         }
+
+        if (response.status === 403) {
+          throw new Error("Only logged-in customers can view addresses.");
+        }
+
         throw new Error("Unable to load saved addresses.");
       }
 
       const data: Address[] = await response.json();
+
       setAddresses(data);
 
       const defaultAddress = data.find((address) => address.is_default);
@@ -91,7 +115,9 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
   }
 
   function validateForm() {
-    if (!form.full_name.trim()) return "Full name is required.";
+    if (!form.full_name.trim()) {
+      return "Full name is required.";
+    }
 
     if (!/^[A-Za-z ]{2,100}$/.test(form.full_name.trim())) {
       return "Enter a valid full name.";
@@ -132,10 +158,12 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/api/checkout/address`, {
+      const response = await fetch(`${API_BASE}/api/account/addresses`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Accept: "application/json",
+          ...getAuthHeaders(),
         },
         body: JSON.stringify(form),
       });
@@ -143,6 +171,10 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error("Please login before adding an address.");
+        }
+
+        if (response.status === 403) {
+          throw new Error("Only logged-in customers can add addresses.");
         }
 
         const result = await response.json().catch(() => null);
@@ -174,6 +206,7 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
 
   function getAddress(id: number | null) {
     if (!id) return null;
+
     return addresses.find((address) => address.id === id) || null;
   }
 
@@ -293,6 +326,7 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
                   </div>
 
                   <p>{address.line1}</p>
+
                   {address.line2 && <p>{address.line2}</p>}
 
                   <p>
@@ -301,7 +335,7 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
                   </p>
 
                   <p>{address.country}</p>
-                  <p>?? {address.phone}</p>
+                  <p>📱 {address.phone}</p>
                 </div>
               </label>
             ))}
@@ -320,6 +354,7 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
               checked={sameAsShipping}
               onChange={(e) => {
                 const checked = e.target.checked;
+
                 setSameAsShipping(checked);
 
                 if (checked) {
@@ -327,6 +362,7 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
                 }
               }}
             />
+
             <span>Billing address is same as shipping address</span>
           </label>
 
@@ -352,6 +388,7 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
                     </div>
 
                     <p>{address.line1}</p>
+
                     {address.line2 && <p>{address.line2}</p>}
 
                     <p>
@@ -360,7 +397,7 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
                     </p>
 
                     <p>{address.country}</p>
-                    <p>?? {address.phone}</p>
+                    <p>📱 {address.phone}</p>
                   </div>
                 </label>
               ))}
@@ -373,27 +410,36 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
         <div className="checkout-new-address">
           <h3>Add New Address</h3>
 
-          {formError && <div className="checkout-error">{formError}</div>}
+          {formError && (
+            <div className="checkout-error">{formError}</div>
+          )}
 
           <div className="checkout-form-grid">
             <div className="checkout-field">
               <label>Full Name *</label>
+
               <input
                 type="text"
                 value={form.full_name}
-                onChange={(e) => updateField("full_name", e.target.value)}
+                onChange={(e) =>
+                  updateField("full_name", e.target.value)
+                }
                 placeholder="Enter full name"
               />
             </div>
 
             <div className="checkout-field">
               <label>Mobile Number *</label>
+
               <input
                 type="tel"
                 maxLength={10}
                 value={form.phone}
                 onChange={(e) =>
-                  updateField("phone", e.target.value.replace(/\D/g, ""))
+                  updateField(
+                    "phone",
+                    e.target.value.replace(/\D/g, "")
+                  )
                 }
                 placeholder="10-digit mobile number"
               />
@@ -401,46 +447,59 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
 
             <div className="checkout-field full-width">
               <label>Address Line 1 *</label>
+
               <input
                 type="text"
                 value={form.line1}
-                onChange={(e) => updateField("line1", e.target.value)}
+                onChange={(e) =>
+                  updateField("line1", e.target.value)
+                }
                 placeholder="House no., building, street"
               />
             </div>
 
             <div className="checkout-field full-width">
               <label>Address Line 2</label>
+
               <input
                 type="text"
                 value={form.line2}
-                onChange={(e) => updateField("line2", e.target.value)}
+                onChange={(e) =>
+                  updateField("line2", e.target.value)
+                }
                 placeholder="Apartment, landmark, etc."
               />
             </div>
 
             <div className="checkout-field">
               <label>City *</label>
+
               <input
                 type="text"
                 value={form.city}
-                onChange={(e) => updateField("city", e.target.value)}
+                onChange={(e) =>
+                  updateField("city", e.target.value)
+                }
                 placeholder="City"
               />
             </div>
 
             <div className="checkout-field">
               <label>State *</label>
+
               <input
                 type="text"
                 value={form.state}
-                onChange={(e) => updateField("state", e.target.value)}
+                onChange={(e) =>
+                  updateField("state", e.target.value)
+                }
                 placeholder="State"
               />
             </div>
 
             <div className="checkout-field">
               <label>PIN Code *</label>
+
               <input
                 type="text"
                 maxLength={6}
@@ -457,7 +516,12 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
 
             <div className="checkout-field">
               <label>Country</label>
-              <input type="text" value={form.country} disabled />
+
+              <input
+                type="text"
+                value={form.country}
+                disabled
+              />
             </div>
           </div>
 
@@ -476,9 +540,12 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
           type="button"
           className="checkout-primary-btn"
           onClick={handleContinue}
-          disabled={!shippingId || (!sameAsShipping && !billingId)}
+          disabled={
+            !shippingId ||
+            (!sameAsShipping && !billingId)
+          }
         >
-          Continue to Shipping ?
+          Continue to Shipping
         </button>
       </div>
     </div>
