@@ -16,21 +16,30 @@ router = APIRouter(
 )
 
 
+# ============================================================
+# ANALYTICS SUMMARY / KPI
+# ============================================================
+
 @router.get("/analytics/summary")
 def get_analytics_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin"))
 ):
+
     # -----------------------------
     # 1. Total Orders
     # -----------------------------
-    total_orders = db.query(func.count(Order.id)).scalar() or 0
+    total_orders = db.query(
+        func.count(Order.id)
+    ).scalar() or 0
 
     # -----------------------------
     # 2. Total Sales
     # -----------------------------
     total_sales = db.query(
-        func.coalesce(func.sum(Order.total_amount), 0)
+        func.coalesce(
+            func.sum(Order.total_amount), 0
+        )
     ).scalar()
 
     # -----------------------------
@@ -67,7 +76,9 @@ def get_analytics_summary(
 
     pending_orders = (
         db.query(func.count(Order.id))
-        .filter(Order.status.in_(pending_order_statuses))
+        .filter(
+            Order.status.in_(pending_order_statuses)
+        )
         .scalar()
         or 0
     )
@@ -77,7 +88,9 @@ def get_analytics_summary(
     # -----------------------------
     completed_orders = (
         db.query(func.count(Order.id))
-        .filter(Order.status == OrderStatus.DELIVERED.value)
+        .filter(
+            Order.status == OrderStatus.DELIVERED.value
+        )
         .scalar()
         or 0
     )
@@ -87,7 +100,9 @@ def get_analytics_summary(
     # -----------------------------
     cancelled_orders = (
         db.query(func.count(Order.id))
-        .filter(Order.status == OrderStatus.CANCELLED.value)
+        .filter(
+            Order.status == OrderStatus.CANCELLED.value
+        )
         .scalar()
         or 0
     )
@@ -97,11 +112,16 @@ def get_analytics_summary(
     # -----------------------------
     pending_payments = (
         db.query(func.count(Payment.id))
-        .filter(Payment.status == PaymentStatus.PENDING)
+        .filter(
+            Payment.status == PaymentStatus.PENDING
+        )
         .scalar()
         or 0
     )
 
+    # -----------------------------
+    # 9. Low Stock Products
+    # -----------------------------
     low_stock_count = db.execute(
         text("""
             SELECT COUNT(*)
@@ -120,4 +140,185 @@ def get_analytics_summary(
         "cancelled_orders": cancelled_orders,
         "pending_payments": pending_payments,
         "low_stock_count": low_stock_count,
+    }
+
+
+# ============================================================
+# ANALYTICS CHARTS
+# ============================================================
+
+@router.get("/analytics/charts")
+def get_analytics_charts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+
+    # --------------------------------------------------------
+    # 1. Sales Over Time
+    # --------------------------------------------------------
+    sales_over_time = (
+        db.query(
+            func.date(Order.created_at).label("date"),
+            func.coalesce(
+                func.sum(Order.total_amount), 0
+            ).label("sales")
+        )
+        .group_by(
+            func.date(Order.created_at)
+        )
+        .order_by(
+            func.date(Order.created_at)
+        )
+        .all()
+    )
+
+    # --------------------------------------------------------
+    # 2. Orders Over Time
+    # --------------------------------------------------------
+    orders_over_time = (
+        db.query(
+            func.date(Order.created_at).label("date"),
+            func.count(Order.id).label("orders")
+        )
+        .group_by(
+            func.date(Order.created_at)
+        )
+        .order_by(
+            func.date(Order.created_at)
+        )
+        .all()
+    )
+
+    # --------------------------------------------------------
+    # 3. Top Products
+    # --------------------------------------------------------
+    top_products = db.execute(
+        text("""
+            SELECT
+                p.id AS product_id,
+                p.name AS product_name,
+                COALESCE(SUM(oi.quantity), 0) AS quantity
+            FROM order_items oi
+            JOIN products p
+                ON p.id = oi.product_id
+            GROUP BY p.id, p.name
+            ORDER BY quantity DESC
+            LIMIT 10
+        """)
+    ).fetchall()
+
+    # --------------------------------------------------------
+    # 4. Top Categories
+    # --------------------------------------------------------
+    top_categories = db.execute(
+        text("""
+            SELECT
+                c.id AS category_id,
+                c.name AS category_name,
+                COALESCE(SUM(oi.quantity), 0) AS quantity
+            FROM order_items oi
+            JOIN products p
+                ON p.id = oi.product_id
+            JOIN categories c
+                ON c.id = p.category_id
+            GROUP BY c.id, c.name
+            ORDER BY quantity DESC
+            LIMIT 10
+        """)
+    ).fetchall()
+
+    # --------------------------------------------------------
+    # 5. Revenue by Category
+    # --------------------------------------------------------
+    revenue_by_category = db.execute(
+        text("""
+            SELECT
+                c.id AS category_id,
+                c.name AS category_name,
+                COALESCE(
+                    SUM(oi.quantity * oi.unit_price),
+                    0
+                ) AS revenue
+            FROM order_items oi
+            JOIN products p
+                ON p.id = oi.product_id
+            JOIN categories c
+                ON c.id = p.category_id
+            GROUP BY c.id, c.name
+            ORDER BY revenue DESC
+        """)
+    ).fetchall()
+
+    # --------------------------------------------------------
+    # 6. Order Status Distribution
+    # --------------------------------------------------------
+    order_status_distribution = (
+        db.query(
+            Order.status.label("status"),
+            func.count(Order.id).label("orders")
+        )
+        .group_by(
+            Order.status
+        )
+        .order_by(
+            Order.status
+        )
+        .all()
+    )
+
+    # --------------------------------------------------------
+    # RETURN ALL CHART DATA
+    # --------------------------------------------------------
+
+    return {
+        "sales_over_time": [
+            {
+                "date": str(row.date),
+                "sales": float(row.sales or 0)
+            }
+            for row in sales_over_time
+        ],
+
+        "orders_over_time": [
+            {
+                "date": str(row.date),
+                "orders": int(row.orders or 0)
+            }
+            for row in orders_over_time
+        ],
+
+        "top_products": [
+            {
+                "product_id": row.product_id,
+                "product_name": row.product_name,
+                "quantity": int(row.quantity or 0)
+            }
+            for row in top_products
+        ],
+
+        "top_categories": [
+            {
+                "category_id": row.category_id,
+                "category_name": row.category_name,
+                "quantity": int(row.quantity or 0)
+            }
+            for row in top_categories
+        ],
+
+        "revenue_by_category": [
+            {
+                "category_id": row.category_id,
+                "category_name": row.category_name,
+                "revenue": float(row.revenue or 0)
+            }
+            for row in revenue_by_category
+        ],
+
+        "order_status_distribution": [
+            {
+                "status": row.status,
+                "orders": int(row.orders or 0)
+            }
+            for row in order_status_distribution
+        ]
     }
