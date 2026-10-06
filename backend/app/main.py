@@ -15,7 +15,11 @@ from app.routers import (
     audit_logs,
     analytics,
     orders,
+    payment,
+    checkout_sessions,
 )
+
+from app.api.routes import product
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
 
@@ -34,6 +38,8 @@ app.add_middleware(
 # Register routers
 app.include_router(notifications.router)
 app.include_router(reviews.router)
+
+# Admin Dashboard
 app.include_router(admin.router)
 app.include_router(category.router)
 
@@ -47,6 +53,15 @@ app.include_router(analytics.router)
 
 # Orders, cancellation and returns
 app.include_router(orders.router)
+
+# Payment
+app.include_router(payment.router)
+
+# Checkout sessions
+app.include_router(checkout_sessions.router)
+
+# Product
+app.include_router(product.router)
 
 
 @app.get("/")
