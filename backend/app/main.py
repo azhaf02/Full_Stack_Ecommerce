@@ -46,16 +46,14 @@ app.include_router(category.router)
 app.include_router(account.router)
 app.include_router(auth.router)
 app.include_router(audit_logs.router)
-<<<<<<< HEAD
-app.include_router(orders.router)
-app.include_router(cart.router)  # cart and inventory validation
-=======
-
 # Analytics
 app.include_router(analytics.router)
 
 # Orders, cancellation and returns
 app.include_router(orders.router)
+
+# Cart and inventory validation
+app.include_router(cart.router)
 
 # Payment
 app.include_router(payment.router)
@@ -64,7 +62,6 @@ app.include_router(payment.router)
 app.include_router(checkout_sessions.router)
 
 # Product
->>>>>>> origin/main
 app.include_router(product.router)
 
 
