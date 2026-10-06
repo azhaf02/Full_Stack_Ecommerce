@@ -14,6 +14,7 @@ from decimal import Decimal
 from typing import Callable, Dict, FrozenSet, List, Optional
 from sqlalchemy.orm import Session
 from app.models.order import Order, OrderItem, OrderStatusHistory, OrderStatus, PaymentStatus, PaymentMethod
+from app.services.inventory_service import validate_stock, InsufficientStockError
 
 S = OrderStatus
 
@@ -223,6 +224,19 @@ def create_order(db: Session, data: OrderInput) -> Order:
     PLACED until the verified payment arrives through apply_payment_result(). Does not commit.
     """
     _validate_order_input(data)
+
+    # Revalidate stock at checkout/order creation.
+    # This protects against stock changing after the item was added to cart.
+    for item in data.items:
+        try:
+            validate_stock(
+                db,
+                item.product_id,
+                item.quantity,
+                item.variant_id
+            )
+        except InsufficientStockError as exc:
+            raise InvalidOrder(str(exc)) from exc
     order_number = generate_order_number()
     while db.query(Order.id).filter(Order.order_number == order_number).first():
         order_number = generate_order_number()
@@ -288,3 +302,6 @@ def cancel_order(db: Session, order: Order, user_id: int, reason: str = None) ->
         update_status(db, order, S.REFUND_PENDING.value, changed_by=user_id,
                       remarks="Refund started after cancellation")
     return order
+
+
+
