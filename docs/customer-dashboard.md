@@ -92,3 +92,21 @@ pytest backend/tests/test_reviews.py -v
   - Prevents duplicate reviews for the same order item.
 - **Moderation Workflow**: Newly submitted reviews are stored with status `pending`.
 - **Frontend Component**: `ReviewForm.tsx` integrated with luxury editorial theme (`#232F24`).
+
+## DASH-08: Checkpoint 5 & 6 Integration Log
+
+### Checkpoint 5: Dashboard & Notifications Integration (with Rukhsar)
+- **Order Lifecycle Events**: Verified notification triggers on key order state updates (`DELIVERED`, `SHIPPED`).
+- **Verified Purchase**: Reviews can only be submitted for completed/delivered items matching user orders.
+
+### Checkpoint 6: Review Moderation Integration (with Rishi)
+- **Review Submission**: Initial submission stores review with status `pending`.
+- **Admin Moderation**: Admin endpoints allow updating status to `approved` or `rejected`.
+- **Public Visibility**: Public endpoint `GET /api/products/{id}/reviews` strictly returns approved reviews only.
+- **Aggregation**: Average ratings dynamically update upon review approval.
+
+### Integration Test Results
+- Integration test suite in `backend/tests/test_reviews.py` passed with 3/3 test cases covering:
+  - `test_get_product_reviews` (200 OK)
+  - `test_post_review_success` (201 Created)
+  - `test_post_review_invalid_rating` (422 Unprocessable Entity)

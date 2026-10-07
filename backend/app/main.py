@@ -1,9 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import notifications
+from app.routers import notifications, reviews
 from app.database import engine, Base
 import app.models.review
-from app.api.routes import reviews
 
 # Ensure database tables exist
 Base.metadata.create_all(bind=engine)
@@ -19,9 +18,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include existing feature routers (without extra prefix)
-app.include_router(notifications.router)
-app.include_router(reviews.router)
+# Include feature routers with /api prefix
+app.include_router(notifications.router, prefix="/api")
+app.include_router(reviews.router, prefix="/api")
 
 @app.get("/")
 def read_root():
@@ -36,30 +35,30 @@ def get_wishlist():
             "product_id": 1,
             "name": "Bluetooth Noise-Cancelling Headphones",
             "category": "Electronics / Audio",
-            "price": "?7,499",
-            "originalPrice": "?9,999",
+            "price": "₹7,499",
+            "originalPrice": "₹9,999",
             "inStock": True,
-            "imageIcon": "??"
+            "imageIcon": "🎧"
         },
         {
             "id": 2,
             "product_id": 2,
             "name": "Smart Fitness Watch v2",
             "category": "Wearables / Fitness",
-            "price": "?2,499",
-            "originalPrice": "?3,999",
+            "price": "₹2,499",
+            "originalPrice": "₹3,999",
             "inStock": True,
-            "imageIcon": "?"
+            "imageIcon": "⌚"
         },
         {
             "id": 3,
             "product_id": 3,
             "name": "Ergonomic Mechanical Keyboard",
             "category": "Peripherals / Office",
-            "price": "?4,199",
-            "originalPrice": "?5,499",
+            "price": "₹4,199",
+            "originalPrice": "₹5,499",
             "inStock": False,
-            "imageIcon": "??"
+            "imageIcon": "⌨️"
         }
     ]
 
@@ -71,20 +70,20 @@ def get_orders():
             "id": 9821,
             "product_id": 1,
             "product_name": "Bluetooth Noise-Cancelling Headphones",
-            "image": "??",
+            "image": "🎧",
             "date": "2026-09-21",
             "status": "Delivered",
-            "total": "?7,499",
+            "total": "₹7,499",
             "canReview": True
         },
         {
             "id": 9825,
             "product_id": 2,
             "product_name": "Smart Fitness Watch v2",
-            "image": "?",
+            "image": "⌚",
             "date": "2026-09-24",
             "status": "Shipped",
-            "total": "?2,499",
+            "total": "₹2,499",
             "canReview": False
         }
     ]
