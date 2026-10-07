@@ -1,12 +1,18 @@
+import os
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+# Uses your Supabase PostgreSQL connection string from environment variable,
+# or falls back to your local SQLite file if SUPABASE_DB_URL is not set.
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    os.getenv("SUPABASE_DB_URL", "sqlite:///./sql_app.db")
 )
+
+# SQLite requires check_same_thread=False; PostgreSQL does not
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
