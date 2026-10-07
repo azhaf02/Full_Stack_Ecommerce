@@ -110,3 +110,51 @@ pytest backend/tests/test_reviews.py -v
   - `test_get_product_reviews` (200 OK)
   - `test_post_review_success` (201 Created)
   - `test_post_review_invalid_rating` (422 Unprocessable Entity)
+
+  # Viora E-Commerce Customer Dashboard Module Documentation
+
+## 1. Overview
+The Customer Dashboard module centralizes customer account activities, including notification feeds, order history, wishlist management, and verified product reviews.
+
+---
+
+## 2. API Endpoints Reference
+
+### Notifications
+- `GET /api/notifications`: Retrieves list of user notifications with status (unread/read).
+- `PATCH /api/notifications/{id}/read`: Marks a single notification as read.
+- `POST /api/notifications/read-all`: Marks all notifications as read for current session.
+
+### Wishlist & Orders (Mock & Storage)
+- `GET /api/wishlist`: Returns saved wishlist items.
+- `GET /api/account/orders`: Returns customer order list and status (`Delivered`, `Shipped`).
+
+### Product Reviews
+- `POST /api/reviews`: Submits a verified-purchase review (Status: `pending` or `approved`).
+- `GET /api/reviews/user/{user_id}`: Retrieves all reviews authored by a specific user.
+- `GET /api/products/{product_id}/reviews`: Public endpoint returning moderation-filtered approved reviews with aggregate average rating and pagination.
+
+---
+
+## 3. DASH-09: Final Test Case Matrix & Regression Pass
+
+| Test ID | Module | Scenario | Expected Result | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **TC-DASH-01** | Notifications | User views notification inbox | Notifications load chronologically with read/unread indicators | **PASS** |
+| **TC-DASH-02** | Notifications | User marks notification as read | Unread count decrements and item visually dims | **PASS** |
+| **TC-DASH-03** | Orders | View order history list | Orders display with appropriate review action button | **PASS** |
+| **TC-DASH-04** | Reviews | Submit review with rating between 1 and 5 | HTTP 201 Created; review persisted | **PASS** |
+| **TC-DASH-05** | Reviews | Submit review with rating > 5 | HTTP 422 Unprocessable Entity (validation error) | **PASS** |
+| **TC-DASH-06** | Reviews | Public reviews list query with pagination | HTTP 200 OK; only approved reviews returned with average score | **PASS** |
+| **TC-DASH-07** | Reviews | Empty reviews check for product | HTTP 200 OK; returns average 0.0 and empty array | **PASS** |
+
+---
+
+## 4. Resolved QA Bug Fixes (Closed Bug IDs)
+- **BUG-DASH-101**: Missing `/api` router prefix causing 404 on reviews endpoint — **Resolved**.
+- **BUG-DASH-102**: Missing `page_size` query parameter support in public review pagination — **Resolved**.
+- **BUG-DASH-103**: Pydantic schema import path collision resolved with explicit schema models — **Resolved**.
+- **BUG-DASH-104**: Corrected currency symbol rendering across frontend order cards — **Resolved**.
+
+---
+*Module Status: COMPLETED & STABLE FOR DEPLOYMENT*
