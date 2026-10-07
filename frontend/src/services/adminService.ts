@@ -174,3 +174,38 @@ export async function getOrders(filters: OrderFilters): Promise<AdminOrderList> 
   });
   return response.data;
 }
+
+
+// Shapes returned by the analytics API (GET /api/admin/analytics/...)
+export interface AnalyticsSummary {
+  total_orders: number;
+  total_sales: number;
+  total_customers: number;
+  total_products: number;
+  pending_orders: number;
+  completed_orders: number;
+  cancelled_orders: number;
+  pending_payments: number;
+  low_stock_count: number;
+}
+
+export interface AnalyticsCharts {
+  sales_over_time: { date: string; sales: number }[];
+  orders_over_time: { date: string; orders: number }[];
+  top_products: { product_id: number; product_name: string; quantity: number }[];
+  top_categories: { category_id: number; category_name: string; quantity: number }[];
+  revenue_by_category: { category_id: number; category_name: string; revenue: number }[];
+  order_status_distribution: { status: string; orders: number }[];
+}
+
+// KPI numbers shared with the Analytics page
+export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
+  const response = await api.get("/api/admin/analytics/summary");
+  return response.data;
+}
+
+// Chart data shared with the Analytics page
+export async function getAnalyticsCharts(): Promise<AnalyticsCharts> {
+  const response = await api.get("/api/admin/analytics/charts");
+  return response.data;
+}

@@ -5,7 +5,7 @@ import {
   fetchAnalyticsCharts,
 } from "../../api";
 
-import { getSession } from "../../services/authService";
+import { getSession, logout } from "../../services/authService";
 
 import {
   LineChart,
@@ -300,6 +300,16 @@ const AnalyticsPage: React.FC = () => {
         );
 
       } catch (err) {
+        // 401 = the login token is missing or expired: go back to the login page,
+        // the same way the other admin pages do
+        const status = (err as { response?: { status?: number } })?.response?.status;
+
+        if (status === 401) {
+          logout();
+          window.location.assign("/admin/login");
+          return;
+        }
+
         console.error(
           "Failed to load analytics:",
           err
