@@ -5,7 +5,6 @@ from app.models.audit_log import AuditLog
 
 from app.models.notification import Notification
 from app.models.review import Review, ReviewModerationStatus
-
 from app.models.order import (
     Order,
     OrderItem,
@@ -17,6 +16,12 @@ from app.models.order import (
     ReturnItem,
     ReturnStatus,
 )
-
 from app.models.payment import Payment
 from app.models.invoice import Invoice
+from app.models.inventory import Inventory
+from app.models.inventory_history import InventoryHistory
+from app.models.category import Category
+from app.models.product_image import ProductImage
+from app.models.product_variant import ProductVariant
+
+from app.models.product import Product

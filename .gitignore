@@ -1,2 +1,13 @@
+# Python cache files
+__pycache__/
+*.pyc
+*.py[cod]
+
+# Environment files
 .env
 .env.*
+!.env.example
+frontend/.env
+
+# Build output
+dist/
