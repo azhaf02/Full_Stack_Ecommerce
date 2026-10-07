@@ -1,22 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
-from app.models.review import ReviewStatus
-from app.services.review_service import ReviewService
+from app.database import get_db
+from app.models.review import Review, ReviewModerationStatus
 
-router = APIRouter(prefix="/api/reviews", tags=["Reviews"])
+router = APIRouter(prefix="/api", tags=["Reviews"])
+
 
 # --- Pydantic Schemas ---
-class ReviewCreateRequest(BaseModel):
+class ReviewCreate(BaseModel):
     product_id: int
     user_id: int
     order_id: int
-    rating: int = Field(..., ge=1, le=5, description="Rating from 1 to 5")
+    rating: int = Field(..., ge=1, le=5)
     title: Optional[str] = None
     comment: str
+
 
 class ReviewResponse(BaseModel):
     id: int
@@ -24,43 +27,95 @@ class ReviewResponse(BaseModel):
     user_id: int
     order_id: int
     rating: int
-    title: Optional[str]
+    title: Optional[str] = None
     comment: str
-    status: ReviewStatus
+    status: str
     created_at: datetime
 
     class Config:
         from_attributes = True
 
-# --- Placeholder Dependency for DB Session ---
-def get_db():
-    raise NotImplementedError("Database session dependency to be wired with shared database engine")
 
-# --- Routes ---
-@router.post("/", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
-def submit_review(payload: ReviewCreateRequest, db: Session = Depends(get_db)):
-    """Create a new product review."""
-    return ReviewService.create_review(
-        db=db,
+class ProductReviewsSummaryResponse(BaseModel):
+    product_id: int
+    average_rating: float
+    total_reviews: int
+    page: int
+    page_size: int
+    reviews: List[ReviewResponse]
+
+
+# --- Endpoints ---
+
+# DASH-07: Get approved reviews and rating metrics for a product
+@router.get("/products/{product_id}/reviews", response_model=ProductReviewsSummaryResponse)
+def get_product_reviews(
+    product_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=50),
+    db: Session = Depends(get_db),
+):
+    base_query = db.query(Review).filter(
+        Review.product_id == product_id,
+        Review.status == ReviewModerationStatus.APPROVED.value,
+    )
+
+    total_reviews = base_query.count()
+
+    # Calculate average rating
+    avg_rating_result = (
+        db.query(func.avg(Review.rating))
+        .filter(
+            Review.product_id == product_id,
+            Review.status == ReviewModerationStatus.APPROVED.value,
+        )
+        .scalar()
+    )
+    average_rating = round(float(avg_rating_result), 1) if avg_rating_result else 0.0
+
+    # Paginate reviews
+    offset = (page - 1) * page_size
+    reviews = (
+        base_query.order_by(Review.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
+
+    return {
+        "product_id": product_id,
+        "average_rating": average_rating,
+        "total_reviews": total_reviews,
+        "page": page,
+        "page_size": page_size,
+        "reviews": reviews,
+    }
+
+
+# Submit a review
+@router.post("/reviews", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/reviews/", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
+def create_review(payload: ReviewCreate, db: Session = Depends(get_db)):
+    new_review = Review(
         product_id=payload.product_id,
         user_id=payload.user_id,
         order_id=payload.order_id,
         rating=payload.rating,
+        title=payload.title or "",
         comment=payload.comment,
-        title=payload.title
+        status=ReviewModerationStatus.APPROVED.value,
     )
+    db.add(new_review)
+    db.commit()
+    db.refresh(new_review)
+    return new_review
 
-@router.get("/product/{product_id}", response_model=List[ReviewResponse])
-def fetch_product_reviews(product_id: int, db: Session = Depends(get_db)):
-    """Get all approved reviews for a product."""
-    return ReviewService.get_product_reviews(db=db, product_id=product_id)
-
-@router.get("/product/{product_id}/summary")
-def fetch_product_rating_summary(product_id: int, db: Session = Depends(get_db)):
-    """Get aggregated star rating and count for a product."""
-    return ReviewService.get_product_rating_summary(db=db, product_id=product_id)
-
-@router.get("/user/{user_id}", response_model=List[ReviewResponse])
-def fetch_user_reviews(user_id: int, db: Session = Depends(get_db)):
-    """Get all reviews submitted by a customer for their dashboard."""
-    return ReviewService.get_user_reviews(db=db, user_id=user_id)
+# Get reviews written by a specific user
+@router.get("/reviews/user/{user_id}", response_model=List[ReviewResponse])
+def get_user_reviews(user_id: int, db: Session = Depends(get_db)):
+    return (
+        db.query(Review)
+        .filter(Review.user_id == user_id)
+        .order_by(Review.created_at.desc())
+        .all()
+    )

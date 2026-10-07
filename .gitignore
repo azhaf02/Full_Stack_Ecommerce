@@ -1,0 +1,15 @@
+# Python cache files
+__pycache__/
+*.pyc
+
+# Environment files
+.env
+.env.*
+<<<<<<< HEAD
+!.env.example
+frontend/.env
+=======
+__pycache__/
+*.py[cod]
+dist/
+>>>>>>> origin/main

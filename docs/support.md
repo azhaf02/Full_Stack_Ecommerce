@@ -420,7 +420,27 @@ The final integration pass confirms zero compilation failures and zero system wa
 - **Frontend Polish Indicators:** Responsive UI summary component models and color sheets run beautifully under team variables.
 
 ## 4. Definition of Done (DoD) Summary Sign-Off
-- [x] Full structural regression test matrix records compiled inside `generated/final_test_case_sheet.csv`.
-- [x] All backend api paths and frontend workspace layouts perfectly compiled with **0 errors and 0 warnings**.
-- [x] Complete technical tracking logs fully recorded inside docs/support.md mapping rules.
-- [x] Customer Support Module officially marked as **100% COMPLETED**.
+- [] Full structural regression test matrix records compiled inside `generated/final_test_case_sheet.csv`.
+- [] All backend api paths and frontend workspace layouts perfectly compiled with **0 errors and 0 warnings**.
+- [] Complete technical tracking logs fully recorded inside docs/support.md mapping rules.
+- [] Customer Support Module officially marked as **100% COMPLETED**.
+
+
+---------------------------------------------------------------------
+# 🎟️ Customer Support Module (Checkpoint 6 Specifications)
+
+## 1. Objective
+Provide authenticated users with a secure portal interface workflow layout to safely review active incident logs history arrays, inspect historical thread timelines data blocks, and append follow-up statement responses.
+
+## 2. Product-Specific Ingestion Enforcement (Sir's Design Note Resolution)
+To accurately isolate single product breakdowns within multi-item transactions invoices, the request model extends baseline lookups to include an optional line parameter attribute: `product_id`. When populated, ingestion modules isolate the target product index, resolving tracking confusion.
+
+## 3. Core API Specifications Layout
+- **GET** `/api/support/account/tickets` - Pulls list view dictionary rows bounded by active consumer tokens identities.
+- **GET** `/api/support/account/tickets/{id}` - Returns deep historical message sequences under strict ownership guards constraints.
+- **POST** `/api/support/account/tickets/{id}/reply` - Commits a fresh customer reply entry onto open conversation timelines.
+
+## 4. Definition of Done (DoD) Matrix
+- [] Reusable functional component page `TicketsPage.tsx` compiles correctly under constraints with 0 validation warnings.
+- [] Ownership security check routines safely drop cross-tenant trace probes to return `403 Forbidden` response blocks.
+- [] Multi-item entry support form data pipeline records the item identifier fields without breaking database relations.
