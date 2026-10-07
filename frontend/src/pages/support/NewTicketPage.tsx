@@ -1,126 +1,102 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
-interface Ticket {
-  id: number;
-  category: string;
-  subject: string;
-  description: string;
-  status: string;
-  created_at: string;
+// 🔒 Add explicit prop tracking loop to let this page pass back navigation commands cleanly
+interface NewTicketPageProps {
+  onBackToHub?: () => void;
 }
 
-interface Message {
-  id: number;
-  sender_type: 'Customer' | 'Admin';
-  message: string;
-  timestamp: string;
-}
+const NewTicketPage: React.FC<NewTicketPageProps> = ({ onBackToHub }) => {
+  const [category, setCategory] = useState<string>('GENERAL INQUIRY');
+  const [orderId, setOrderId] = useState<string>('');
+  const [productId, setProductId] = useState<string>(''); 
+  const [subject, setSubject] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+  const [submitted, setSubmitted] = useState<boolean>(false);
 
-const TicketsPage: React.FC = () => {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [replyText, setReplyText] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
-
-  useEffect(() => {
-    setTickets([
-      { id: 104, category: 'Refunds', subject: 'Wallet failure on Order #ORD-9821', description: 'Finalized return accepted but cash balances missing. [System Product Context Note: Linked to Item ID #88]', status: 'Open', created_at: '2026-10-06' }
-    ]);
-  }, []);
-
-  const handleSelectTicket = async (t: Ticket) => {
-    setSelectedTicket(t);
-    setLoading(true);
-    try {
-      setMessages([
-        { id: 1, sender_type: 'Customer', message: t.description, timestamp: '10 mins ago' }
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSendReply = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!replyText.trim() || !selectedTicket) return;
+    
+    const payload = {
+      category,
+      order_id: orderId ? parseInt(orderId) : null,
+      product_id: productId ? parseInt(productId) : null, 
+      subject,
+      description
+    };
 
-    const newMsg: Message = { id: Date.now(), sender_type: 'Customer', message: replyText, timestamp: 'Just Now' };
-    setMessages([...messages, newMsg]);
-    setReplyText('');
+    // Simulated 100% instant submission resolution handler
+    setSubmitted(true);
   };
+
+  // 🎯 DYNAMIC VIEW ON SUCCESSFUL TICKET INGESTION SUBMISSION 🎯
+  if (submitted) {
+    return (
+      <div className="text-center py-5 font-monospace" style={{ color: '#000000' }}>
+        <div className="border p-5 bg-white" style={{ borderRadius: '0px', borderColor: '#000000', borderWidth: '2px' }}>
+          <i className="bi bi-check-square-fill text-dark mb-3" style={{ fontSize: '44px' }}></i>
+          <h5 className="fw-bold text-uppercase tracking-wider">REQUEST SUBMITTED SUCCESSFULLY</h5>
+          <p className="small text-muted mb-4 lh-base" style={{ fontSize: '11px' }}>Your customer incident query has been safely committed into our support ledger tracking registry index.</p>
+          
+          {/* Bulletproof back execution logic trigger */}
+          <button 
+            onClick={onBackToHub} 
+            className="btn btn-dark w-100 text-uppercase fw-bold rounded-0" 
+            style={{ borderRadius: '0px', backgroundColor: '#000000', fontSize: '12px', letterSpacing: '1px' }}
+          >
+            ← RETURN TO HELP PORTAL HUB
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container py-5" style={{ minHeight: '80vh', backgroundColor: '#FFFFFF', color: '#000000' }}>
-      <div className="row g-4">
-      
-        <div className="col-12 col-md-5">
-          <div className="card p-3 shadow-none border bg-white" style={{ borderRadius: '0px', borderColor: '#000000' }}>
-            <h5 className="fw-bold mb-3 text-uppercase tracking-wider text-dark" style={{ fontSize: '14px', borderBottom: '2px solid #000000', paddingBottom: '8px' }}>
-              My Support Tickets
-            </h5>
-            <div className="list-group gap-2">
-              {tickets.map(t => (
-                <button key={t.id} onClick={() => handleSelectTicket(t)} className={`list-group-item list-group-item-action border p-3 text-start ${selectedTicket?.id === t.id ? 'bg-black text-white' : 'bg-white text-dark'}`} style={{ borderRadius: '0px', borderColor: '#E5E5E5' }}>
-                  <div className="d-flex justify-content-between align-items-center mb-2">
-                    <span className={`badge font-monospace ${selectedTicket?.id === t.id ? 'bg-white text-black' : 'bg-black text-white'}`} style={{ borderRadius: '0px' }}>#{t.id} - {t.category}</span>
-                    <span className="small text-uppercase fw-bold" style={{ fontSize: '10px' }}>{t.status}</span>
-                  </div>
-                  <h6 className={`fw-bold mb-1 ${selectedTicket?.id === t.id ? 'text-white' : 'text-dark'}`}>{t.subject}</h6>
-                  <p className={`small mb-0 truncate-2-lines ${selectedTicket?.id === t.id ? 'text-white-50' : 'text-muted'}`}>{t.description}</p>
-                </button>
-              ))}
+    <div style={{ color: '#000000', backgroundColor: '#FFFFFF', fontFamily: 'monospace' }}>
+      <div className="card p-4 shadow-none border bg-white" style={{ borderRadius: '0px', borderColor: '#000000', borderWidth: '1px' }}>
+        <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3" style={{ borderColor: '#000000' }}>
+          <h5 className="fw-bold text-uppercase tracking-wider mb-0" style={{ fontSize: '15px' }}>Create Support Incident Report</h5>
+          <button type="button" onClick={onBackToHub} className="btn btn-sm btn-outline-dark text-uppercase font-monospace rounded-0" style={{ fontSize: '10px' }}>Cancel</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="d-flex flex-column gap-3">
+          <div>
+            <label className="form-label small text-uppercase fw-bold mb-1" style={{ fontSize: '10px' }}>Category</label>
+            <select className="form-select text-uppercase" style={{ borderRadius: '0px', borderColor: '#000000', fontSize: '12px' }} value={category} onChange={e => setCategory(e.target.value)}>
+              <option value="GENERAL INQUIRY">General Customer Care</option>
+              <option value="BILLING & TRANSFERS">Billing, Card & Payments Flow</option>
+              <option value="LOGISTICS & TRANSIT">Shipping, Warehousing & Delivery</option>
+              <option value="RETURNS & REFUNDS">Returns & Refunds Management</option>
+            </select>
+          </div>
+
+          <div className="row g-2">
+            <div className="col-6">
+              <label className="form-label small text-uppercase fw-bold mb-1" style={{ fontSize: '10px' }}>Order ID (Optional)</label>
+              <input type="number" className="form-control text-center font-monospace" placeholder="e.g. 9821" style={{ borderRadius: '0px', borderColor: '#000000', fontSize: '12px' }} value={orderId} onChange={e => setOrderId(e.target.value)} />
+            </div>
+            <div className="col-6">
+              <label className="form-label small text-uppercase fw-bold mb-1" style={{ fontSize: '10px' }}>Product ID (Optional)</label>
+              <input type="number" className="form-control text-center font-monospace" placeholder="e.g. 88" style={{ borderRadius: '0px', borderColor: '#000000', fontSize: '12px' }} value={productId} onChange={e => setProductId(e.target.value)} />
             </div>
           </div>
-        </div>
 
-   
-        <div className="col-12 col-md-7">
-          {selectedTicket ? (
-            <div className="card p-4 shadow-none border bg-white flex-grow-1" style={{ borderRadius: '0px', borderColor: '#000000' }}>
-              <div className="border-bottom pb-2 mb-3" style={{ borderColor: '#000000' }}>
-                <span className="text-uppercase small fw-bold text-muted">Active Thread</span>
-                <h4 className="fw-bold text-dark mb-1 text-uppercase tracking-tight" style={{ fontSize: '20px' }}>{selectedTicket.subject}</h4>
-                <p className="small mb-0">STATUS: <span className="fw-bold text-uppercase">{selectedTicket.status}</span></p>
-              </div>
+          <div>
+            <label className="form-label small text-uppercase fw-bold mb-1" style={{ fontSize: '10px' }}>Subject Headline</label>
+            <input type="text" className="form-control" placeholder="Brief outline string of problem parameters..." style={{ borderRadius: '0px', borderColor: '#000000', fontSize: '12px' }} value={subject} onChange={e => setSubject(e.target.value)} required />
+          </div>
 
-          
-              <div className="border p-3 mb-3 bg-white overflow-auto" style={{ height: '300px', borderRadius: '0px', borderColor: '#E5E5E5' }}>
-                {loading ? (
-                  <p className="text-muted text-center small py-4 text-uppercase">Syncing thread...</p>
-                ) : (
-                  messages.map(m => (
-                    <div key={m.id} className={`d-flex flex-column mb-3 ${m.sender_type === 'Admin' ? 'align-items-start' : 'align-items-end'}`}>
-                      <div className="p-3 border small" style={{ backgroundColor: m.sender_type === 'Admin' ? '#F5F5F5' : '#000000', color: m.sender_type === 'Admin' ? '#000000' : '#FFFFFF', maxWidth: '85%', borderRadius: '0px' }}>
-                        <span className="d-block fw-bold text-uppercase border-bottom pb-1 mb-1 font-monospace" style={{ fontSize: '8px', opacity: 0.7 }}>{m.sender_type}</span>
-                        {m.message}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+          <div>
+            <label className="form-label small text-uppercase fw-bold mb-1" style={{ fontSize: '10px' }}>Problem Narrative Text</label>
+            <textarea className="form-control" rows={4} placeholder="Describe your inquiry situation in depth here..." style={{ borderRadius: '0px', borderColor: '#000000', fontSize: '12px' }} value={description} onChange={e => setDescription(e.target.value)} required />
+          </div>
 
-           
-              {selectedTicket.status.toLowerCase() !== 'closed' ? (
-                <form onSubmit={handleSendReply}>
-                  <div className="input-group">
-                    <input type="text" className="form-control" placeholder="TYPE RESPONSE MESSAGE HERE..." style={{ borderRadius: '0px', borderColor: '#000000' }} value={replyText} onChange={e => setReplyText(e.target.value)} required />
-                    <button type="submit" className="btn btn-dark text-white fw-bold text-uppercase px-4" style={{ borderRadius: '0px', backgroundColor: '#000000' }}>Send</button>
-                  </div>
-                </form>
-              ) : (
-                <div className="border text-center py-2 text-uppercase small bg-light text-muted" style={{ borderRadius: '0px' }}>This conversation thread is closed.</div>
-              )}
-            </div>
-          ) : (
-            <div className="card p-5 text-center text-muted border bg-white h-100 d-flex align-items-center justify-content-center" style={{ borderRadius: '0px', borderStyle: 'dashed', borderColor: '#CCCCCC' }}>
-              <div><i className="bi bi-chat-left-dots text-dark mb-2" style={{ fontSize: '28px' }}></i><p className="small text-uppercase tracking-wider mb-0">Select an incident from the log list to view dialogue details.</p></div>
-            </div>
-          )}
-        </div>
+          <button type="submit" className="btn btn-dark text-white fw-bold text-uppercase w-100 mt-2 py-2 rounded-0" style={{ backgroundColor: '#000000', fontSize: '12px' }}>
+            Submit Ingestion Payload
+          </button>
+        </form>
       </div>
     </div>
   );
 };
 
-export default TicketsPage;
+export default NewTicketPage;

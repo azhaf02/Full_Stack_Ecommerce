@@ -2,309 +2,381 @@ import React, { useState } from 'react';
 import OrdersListView from './OrdersListView';
 import NotificationCenter from './NotificationCenter';
 import ReviewsList from './ReviewsList';
+//import WishlistListView from './WishlistListView';
+import NewTicketPage from '../pages/support/NewTicketPage'; // 💡 Imports your robust inquiry support form path
+import SupportChatbot from './SupportChatbot'; // 💡 Imports your conversational AI widget
 
-// SVG matching the circled VIORA icon (Shopping Bag with Leaf)
-function VioraLogo() {
+function VioraBrandBag() {
   return (
-    <svg width="34" height="38" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Bag Handle */}
-      <path 
-        d="M8 8V6C8 3.79086 9.79086 2 12 2C14.2091 2 16 3.79086 16 6V8" 
-        stroke="#ffffff" 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-      />
-      {/* Bag Body */}
-      <path 
-        d="M4.5 8H19.5L21.2 24C21.3 25.1 20.4 26 19.3 26H4.7C3.6 26 2.7 25.1 2.8 24L4.5 8Z" 
-        stroke="#ffffff" 
-        strokeWidth="2" 
-        strokeLinejoin="round" 
-      />
-      {/* Leaf Inside Bag */}
-      <path 
-        d="M12 14C12 14 15 14.5 15.5 17.5C16 20.5 13.5 22 12 22C10.5 22 8 20.5 8.5 17.5C9 14.5 12 14 12 14Z" 
-        fill="#a3b899" 
-        stroke="#ffffff" 
-        strokeWidth="1.2" 
-      />
-      <path 
-        d="M12 16V22" 
-        stroke="#2f3e30" 
-        strokeWidth="1.2" 
-        strokeLinecap="round" 
-      />
+    <svg width="26" height="30" viewBox="0 0 24 28" fill="none" xmlns="http://w3.org">
+      <path d="M8 7V5C8 2.79 9.79 1 12 1C14.21 1 16 2.79 16 5V7" stroke="#FAF8F5" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M4 7H20L21.4 25C21.45 25.8 20.8 26.5 20 26.5H4C3.2 26.5 2.55 25.8 2.6 25L4 7Z" stroke="#FAF8F5" strokeWidth="1.8" strokeLinejoin="round" />
+      <circle cx="12" cy="17" r="3" stroke="#FAF8F5" strokeWidth="1.4" />
+      <path d="M12 14.8V17" stroke="#FAF8F5" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
   );
 }
 
 export default function DashboardLayout() {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [unreadCount, setUnreadCount] = useState(1);
-  const [reviewsVersion, setReviewsVersion] = useState(0);
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'wishlist' | 'notifications' | 'reviews' | 'support-form'>('overview');
+  const [unreadCount, setUnreadCount] = useState<number>(1);
+  const [reviewsVersion, setReviewsVersion] = useState<number>(0);
 
   const handleReviewSubmitted = () => {
     setReviewsVersion((prev) => prev + 1);
     setActiveTab('reviews');
   };
 
+  const navItems = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'orders', label: 'My Orders' },
+    { id: 'wishlist', label: 'Wishlist' },
+    { id: 'notifications', label: 'Notifications', count: unreadCount },
+    { id: 'reviews', label: 'Product Reviews' },
+    { id: 'support-form', label: 'Support Form' }, // 🎯 YOUR TAB SUCCESSFULLY WIRED IN ALIZA'S NAVIGATION LOOP
+  ];
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f7f5f0', fontFamily: "'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif", color: '#1e241e' }}>
-      {/* Top VIORA Branded Header */}
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#FAF8F5',
+      color: '#1A211B',
+      fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif"
+    }}>
+      {/* Top Banner */}
+      <div style={{
+        backgroundColor: '#1B241C',
+        color: '#C2CDC0',
+        fontSize: '11px',
+        letterSpacing: '2.5px',
+        textTransform: 'uppercase',
+        textAlign: 'center',
+        padding: '9px 16px',
+        fontWeight: 500,
+        borderBottom: '1px solid rgba(255,255,255,0.08)'
+      }}>
+        Complimentary Express Shipping on Orders Above ₹5,000   Member Privileges
+      </div>
+
+      {/* Signature Olive Green Navbar with Bag Logo */}
       <header style={{
-        backgroundColor: '#2f3e30',
-        color: '#ffffff',
-        padding: '12px 40px',
+        backgroundColor: '#232F24',
+        borderBottom: '1px solid #1A241B',
+        padding: '0 48px',
+        height: '74px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+        position: 'sticky',
+        top: 0,
+        zIndex: 50
       }}>
-        {/* Brand Logo & Name */}
+        {/* Brand Lockup */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <VioraLogo />
-          </div>
-          <div>
-            <div style={{
-              margin: 0,
+          <VioraBrandBag />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{
+              fontFamily: "'Cinzel', 'Playfair Display', Georgia, serif",
               fontSize: '22px',
-              fontWeight: '800',
-              letterSpacing: '2.5px',
-              fontFamily: "'Cinzel', 'Playfair Display', serif, sans-serif",
-              color: '#ffffff'
+              letterSpacing: '5px',
+              fontWeight: 700,
+              color: '#FAF8F5',
+              lineHeight: 1
             }}>
               VIORA
-            </div>
-            <div style={{ fontSize: '10px', color: '#c5d3c1', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
-              Everything You Need, All in One Place
-            </div>
+            </span>
+            <span style={{
+              fontSize: '9px',
+              letterSpacing: '2px',
+              textTransform: 'uppercase',
+              color: '#9EB09A',
+              marginTop: '4px'
+            }}>
+              Everything You Need, All In One Place
+            </span>
           </div>
         </div>
 
-        {/* Right Section: Alerts + User Profile */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        {/* Member Area */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '22px' }}>
           <button
             onClick={() => setActiveTab('notifications')}
             style={{
-              position: 'relative',
-              background: 'rgba(255,255,255,0.12)',
-              border: '1px solid rgba(255,255,255,0.18)',
-              borderRadius: '50%',
-              width: '40px',
-              height: '40px',
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.25)',
+              borderRadius: '20px',
+              color: '#FAF8F5',
+              fontSize: '11px',
+              letterSpacing: '1.5px',
+              textTransform: 'uppercase',
+              fontWeight: 600,
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              fontSize: '16px',
-              transition: 'all 0.2s ease'
+              gap: '8px',
+              padding: '6px 14px'
             }}
           >
-            🔔
+            <span>Alerts</span>
             {unreadCount > 0 && (
               <span style={{
-                position: 'absolute',
-                top: '-2px',
-                right: '-2px',
-                background: '#d9534f',
-                color: '#fff',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                borderRadius: '50%',
-                width: '18px',
-                height: '18px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px solid #2f3e30'
+                backgroundColor: '#9E4E42',
+                color: '#FAF8F5',
+                fontSize: '10px',
+                fontWeight: 700,
+                padding: '1px 6px',
+                borderRadius: '10px'
               }}>
                 {unreadCount}
               </span>
             )}
           </button>
 
-          {/* User Profile Capsule */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
-            background: 'rgba(255,255,255,0.08)',
-            padding: '6px 14px 6px 8px',
-            borderRadius: '30px',
-            border: '1px solid rgba(255,255,255,0.1)'
+            gap: '12px',
+            borderLeft: '1px solid rgba(255,255,255,0.18)',
+            paddingLeft: '22px'
           }}>
             <div style={{
               width: '32px',
               height: '32px',
               borderRadius: '50%',
-              backgroundColor: '#a3b899',
-              color: '#1e241e',
+              backgroundColor: '#8E9E86',
+              color: '#1B241C',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontWeight: 'bold',
-              fontSize: '14px'
+              fontWeight: 700,
+              fontSize: '13px'
             }}>
               A
             </div>
-            <div style={{ textAlign: 'left', lineHeight: '1.2' }}>
-              <div style={{ fontSize: '13px', fontWeight: '600' }}>Hi, Aliza</div>
-              <div style={{ fontSize: '11px', color: '#c5d3c1' }}>Member</div>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#FAF8F5' }}>Aliza Fayyaz Khan</div>
+              <div style={{ fontSize: '9px', letterSpacing: '1.2px', color: '#9EB09A', textTransform: 'uppercase' }}>
+                Private Member
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Portal Container */}
-      <main style={{ maxWidth: '1280px', margin: '32px auto', padding: '0 24px', display: 'grid', gridTemplateColumns: '260px 1fr', gap: '28px' }}>
+      {/* Main Container */}
+      <main style={{
+        maxWidth: '1360px',
+        margin: '0 auto',
+        padding: '44px 48px 80px',
+        display: 'grid',
+        gridTemplateColumns: '230px 1fr',
+        gap: '48px'
+      }}>
         {/* Navigation Sidebar */}
         <aside>
           <div style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '18px',
-            padding: '24px 18px',
-            border: '1px solid #e8e5de',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.03)'
+            fontSize: '10px',
+            letterSpacing: '2px',
+            textTransform: 'uppercase',
+            color: '#768572',
+            fontWeight: 700,
+            marginBottom: '16px'
           }}>
-            <div style={{ textAlign: 'center', paddingBottom: '20px', borderBottom: '1px solid #f0ede6' }}>
-              <div style={{
-                width: '70px',
-                height: '70px',
-                margin: '0 auto 12px',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #3b4d3c 0%, #526b54 100%)',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '28px',
-                boxShadow: '0 6px 16px rgba(59,77,60,0.25)'
-              }}>
-                👤
-              </div>
-              <h3 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: '700' }}>Aliza Fayyaz Khan</h3>
-              <p style={{ margin: 0, fontSize: '12px', color: '#6e776e' }}>aliza@example.com</p>
-            </div>
-
-            <nav style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {[
-                { id: 'overview', label: 'Dashboard Overview', icon: '📊' },
-                { id: 'orders', label: 'My Orders', icon: '📦' },
-                { id: 'notifications', label: 'Notifications', icon: '🔔', badge: unreadCount },
-                { id: 'reviews', label: 'Product Reviews', icon: '⭐' },
-              ].map((tab) => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      width: '100%',
-                      padding: '12px 16px',
-                      borderRadius: '12px',
-                      border: 'none',
-                      backgroundColor: isActive ? '#3b4d3c' : 'transparent',
-                      color: isActive ? '#ffffff' : '#455045',
-                      fontWeight: isActive ? '600' : '500',
-                      fontSize: '14px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      boxShadow: isActive ? '0 4px 12px rgba(59,77,60,0.2)' : 'none'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '16px' }}>{tab.icon}</span>
-                      {tab.label}
-                    </div>
-                    {tab.badge > 0 && (
-                      <span style={{
-                        backgroundColor: isActive ? '#ffffff' : '#d4a373',
-                        color: isActive ? '#3b4d3c' : '#ffffff',
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        padding: '2px 8px',
-                        borderRadius: '20px'
-                      }}>
-                        {tab.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
+            Navigation
           </div>
-        </aside>
 
-        {/* Content View Area */}
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {navItems.map((item) => {
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id as any)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    padding: '12px 14px',
+                    background: isActive ? '#232F24' : 'transparent',
+                    color: isActive ? '#FAF8F5' : '#334032',
+                    border: 'none',
+                    borderRadius: '2px',
+                    fontSize: '12px',
+                    letterSpacing: '1.2px',
+                    textTransform: 'uppercase',
+                    fontWeight: isActive ? 600 : 500,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <span>{item.label}</span>
+                  {typeof item.count === 'number' && item.count > 0 && (
+                    <span style={{
+                      fontSize: '10px',
+                      backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : '#232F24',
+                      color: '#FAF8F5',
+                      padding: '1px 6px',
+                      borderRadius: '8px'
+                    }}>
+                      {item.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+        {/* Content Section */}
         <section>
           {activeTab === 'overview' && (
             <div>
-              {/* Quick Stat Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '28px' }}>
+              {/* Stat Counters */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                border: '1px solid #E5DFD5',
+                backgroundColor: '#FFFFFF',
+                marginBottom: '36px'
+              }}>
                 {[
-                  { label: 'Total Orders Placed', val: '2', sub: '1 in transit, 1 delivered', icon: '🛍️' },
-                  { label: 'Unread Alerts', val: unreadCount, sub: 'Updates regarding orders', icon: '🔔' },
-                  { label: 'VIORA Rewards', val: '₹450', sub: 'Usable at checkout', icon: '✨' },
-                ].map((stat, idx) => (
-                  <div key={idx} style={{
-                    backgroundColor: '#ffffff',
-                    padding: '22px',
-                    borderRadius: '18px',
-                    border: '1px solid #e8e5de',
-                    boxShadow: '0 6px 20px rgba(0,0,0,0.02)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '16px'
-                  }}>
-                    <div style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '14px',
-                      backgroundColor: '#f2eee6',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '22px'
-                    }}>
-                      {stat.icon}
+                  { tag: 'Acquisitions', title: 'Orders Placed', value: '02', note: '1 in transit, 1 delivered' },
+                  { tag: 'Activity', title: 'Unread Alerts', value: String(unreadCount).padStart(2, '0'), note: 'Order & payment alerts' },
+                  { tag: 'Privilege', title: 'Viora Rewards', value: '₹450', note: 'Usable at checkout' },
+                ].map((stat, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      padding: '26px 24px',
+                      borderRight: i < 2 ? '1px solid #E5DFD5' : 'none'
+                    }}
+                  >
+                    <div style={{ fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', color: '#768572', fontWeight: 600 }}>
+                      {stat.tag}
                     </div>
-                    <div>
-                      <div style={{ fontSize: '12px', color: '#6e776e', fontWeight: '600', textTransform: 'uppercase' }}>{stat.label}</div>
-                      <div style={{ fontSize: '24px', fontWeight: '800', color: '#2f3e30', margin: '4px 0 2px' }}>{stat.val}</div>
-                      <div style={{ fontSize: '11px', color: '#8a948a' }}>{stat.sub}</div>
+                    <div style={{
+                      fontFamily: "'Cinzel', Georgia, serif",
+                      fontSize: '30px',
+                      fontWeight: 700,
+                      color: '#232F24',
+                      margin: '10px 0 4px',
+                      letterSpacing: '-0.5px'
+                    }}>
+                      {stat.value}
+                    </div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#2B392C' }}>
+                      {stat.title}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#768572', marginTop: '6px' }}>
+                      {stat.note}
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Recent Orders Preview */}
+              {/* Recent Orders Card */}
+              <div style={{ border: '1px solid #E5DFD5', backgroundColor: '#FFFFFF', padding: '32px' }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-end',
+                  paddingBottom: '16px',
+                  borderBottom: '1px solid #E5DFD5',
+                  marginBottom: '20px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', color: '#768572', fontWeight: 600 }}>
+                      Recent History
+                    </div>
+                    <h3 style={{
+                      fontFamily: "'Cinzel', Georgia, serif",
+                      fontSize: '20px',
+                      fontWeight: 700,
+                      color: '#232F24',
+                      margin: '4px 0 0'
+                    }}>
+                      Fulfilled & Active Orders
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('orders')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '11px',
+                      letterSpacing: '1.5px',
+                      textTransform: 'uppercase',
+                      color: '#232F24',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      borderBottom: '1px solid #232F24',
+                      paddingBottom: '2px'
+                    }}
+                  >
+                    View All
+                  </button>
+                </div>
+                <OrdersListView onReviewSubmitted={handleReviewSubmitted} />
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'orders' && (
+            <div style={{ border: '1px solid #E5DFD5', backgroundColor: '#FFFFFF', padding: '36px' }}>
+              <div style={{ paddingBottom: '18px', borderBottom: '1px solid #E5DFD5', marginBottom: '24px' }}>
+                <div style={{ fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', color: '#768572', fontWeight: 600 }}>
+                  Client Ledger
+                </div>
+                <h2 style={{
+                  fontFamily: "'Cinzel', Georgia, serif",
+                  fontSize: '24px',
+                  fontWeight: 700,
+                  color: '#232F24',
+                  margin: '4px 0 0'
+                }}>
+                  Order History & Fulfillment
+                </h2>
+              </div>
               <OrdersListView onReviewSubmitted={handleReviewSubmitted} />
             </div>
           )}
 
-          {activeTab === 'orders' && <OrdersListView onReviewSubmitted={handleReviewSubmitted} />}
+          {activeTab === 'wishlist' && <div style={{ padding: '20px', color: '#6e776e' }}>Wishlist Content Coming Soon.</div>}
+
 
           {activeTab === 'notifications' && (
             <NotificationCenter onClearBadge={() => setUnreadCount(0)} />
           )}
 
           {activeTab === 'reviews' && (
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '18px', padding: '24px', border: '1px solid #e8e5de' }}>
-              <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px', color: '#1e241e' }}>
-                Product Reviews & Ratings
-              </h2>
-              <p style={{ fontSize: '13px', color: '#6e776e', marginBottom: '20px' }}>
-                Real-time customer feedback fetched from the backend API.
-              </p>
+            <div style={{ border: '1px solid #E5DFD5', backgroundColor: '#FFFFFF', padding: '36px' }}>
+              <div style={{ paddingBottom: '18px', borderBottom: '1px solid #E5DFD5', marginBottom: '24px' }}>
+                <div style={{ fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', color: '#768572', fontWeight: 600 }}>
+                  Feedback
+                </div>
+                <h2 style={{
+                  fontFamily: "'Cinzel', Georgia, serif",
+                  fontSize: '24px',
+                  fontWeight: 700,
+                  color: '#232F24',
+                  margin: '4px 0 0'
+                }}>
+                  Product Reviews & Ratings
+                </h2>
+              </div>
               <ReviewsList productId={1} refreshTrigger={reviewsVersion} />
             </div>
           )}
+
+          {/* 🎯 RENDERS YOUR SUPPORT FORM INLINE WHEN THE SIDEBAR TAB IS TRIGGERED 🎯 */}
+          {activeTab === 'support-form' && (
+            <NewTicketPage onBackToHub={() => setActiveTab('overview')} />
+          )}
         </section>
       </main>
+
+      {/* 🤖 GLOBAL CONVERSATIONAL SMART AI CHATBOT WIDGET FLOATS SURROUNDED 🤖 */}
+      <SupportChatbot />
     </div>
   );
 }

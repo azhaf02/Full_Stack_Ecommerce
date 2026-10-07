@@ -1,73 +1,272 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import NewTicketPage from './NewTicketPage';
 
 interface FAQItem {
   id: number;
   question: string;
   answer: string;
-  sort_order: number;
+}
+
+interface CategoryMetaData {
+  id: string;
+  label: string;
+  icon: string;
+  bgColor: string;
+  borderColor: string;
+  tagline: string;
+  faqs: FAQItem[];
 }
 
 const FaqPage: React.FC = () => {
-  const [faqs, setFaqs] = useState<FAQItem[]>([]);
-  const [search, setSearch] = useState<string>('');
+  const [activeView, setActiveView] = useState<'hub' | 'category' | 'form'>('hub');
+  const [currentCategory, setCurrentCategory] = useState<CategoryMetaData | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
-  useEffect(() => {
-    const fetchFaqs = async () => {
-      try {
-        const res = await fetch('/api/support/faq');
-        const data = await res.json();
-        setFaqs(data);
-      } catch {
-        setFaqs([
-          { id: 1, question: "How do I track my active order status tracking updates?", answer: "Go directly to your customer dashboard workspace panel and hit the Orders listing tab layout widget.", sort_order: 1 },
-          { id: 2, question: "What are the rules regarding returns and refunds?", answer: "In alignment with Rukhsar's ORD-07 modules parameters entries, return queries must be raised within 14 transaction days timeline grids.", sort_order: 2 },
-          { id: 3, question: "Which payment options are accepted across standard checkouts?", answer: "We securely integrate credit/debit card transfers, online banking channels, and wallet nodes via Aliza's billing loops.", sort_order: 3 }
-        ]);
-      }
-    };
-    fetchFaqs();
-  }, []);
+  const categoryRegistry: CategoryMetaData[] = [
+    {
+      id: 'account',
+      label: 'ACCOUNT MANAGEMENT',
+      icon: '👤',
+      bgColor: '#E8F0FE',
+      borderColor: '#B4CDFB',
+      tagline: 'Manage profile records, passwords, security tokens, and account access bounds.',
+      faqs: [
+        { id: 101, question: 'HOW DO I RESET MY SECURE PROFILE PASSWORD?', answer: 'Navigate straight to your profile configuration matrix inside your dashboard account settings block.' },
+        { id: 102, question: 'CAN I MIGRATE IDENTITY RECOVERY METADATA RECORDS?', answer: 'Yes, update your active multi-tenant registration entries directly within the credentials manager loop.' }
+      ]
+    },
+    {
+      id: 'orders',
+      label: 'ORDERS LEDGER',
+      icon: '📦',
+      bgColor: '#E6F4EA',
+      borderColor: '#A8DAB5',
+      tagline: 'Track active shipments invoices, check purchase history logs, or amend routing values.',
+      faqs: [
+        { id: 201, question: 'HOW DO I SECURELY TRACK MY COMPLETED PARCEL SHIPMENT?', answer: 'Your automated dashboard order history displays live location tracking indexes parameters seamlessly.' },
+        { id: 202, question: 'CAN I ALTER THE SYSTEM DELIVERY TARGET ADRESS AFTER CHECKOUT?', answer: 'Modifications are allowed within 60 runtime minutes post-checkout before shipment pipelines lock active.' }
+      ]
+    },
+    {
+      id: 'payments',
+      label: 'CHECKOUT & PAYMENTS',
+      icon: '💳',
+      bgColor: '#FEF7E0',
+      borderColor: '#FAD896',
+      tagline: 'Verify invoice settlements, check payment method filters, or download receipts.',
+      faqs: [
+        { id: 301, question: 'WHICH SECURE SETTLEMENT INGESTION CHANNELS ARE ACCEPTED?', answer: 'WE SECURELY INTEGRATE STANDARD CREDIT/DEBIT CARDS, WALLET INGESTION LAYERS, AND ONLINE NET BANKING TRANSFERS AT CHECKOUT.' },
+        { id: 302, question: 'MY BALANCE WAS DEBITED BUT TRANSACTION FAILED TO COMPLETED?', answer: 'Automated reverse transaction scripts will credit missing balances back into your account registry within 3-5 days.' }
+      ]
+    },
+    {
+      id: 'delivery',
+      label: 'LOGISTICS & DELIVERY',
+      icon: '🚚',
+      bgColor: '#FCE8E6',
+      borderColor: '#F7B4AE',
+      tagline: 'Review courier network schedules, customs validation alerts, or delayed drop flags.',
+      faqs: [
+        { id: 401, question: 'WHAT HAPPENS IF A DELIVERY SPRINT ENCOUNTERS CRITICAL REJECTS?', answer: 'Our logistics carrier networks engine will systematically trigger up to three package drop retries automatically.' },
+        { id: 402, question: 'ARE OVERSIZED DROP SHIPMENTS DEPLOYED GLOBALLY WITHIN CONSTRAINTS?', answer: 'Yes, transit timelines scale dynamically based on regional territory coordinates nodes.' }
+      ]
+    },
+    {
+      id: 'returns',
+      label: 'RETURNS & REFUNDS',
+      icon: '🔄',
+      bgColor: '#F3E8FD',
+      borderColor: '#D7B7F9',
+      tagline: 'Initiate exchange workflows or track pending return status arrays under ORD-07 frameworks.',
+      faqs: [
+        { id: 501, question: 'WHAT IS THE BASELINE RETURN GRACE DURATION?', answer: 'Return ingestion actions must be registered over our platform panel within 14 calendar days post-parcel arrival.' },
+        { id: 502, question: 'WHEN WILL PENDING CASH REFUNDS REFLECT IN MY BALANCES?', answer: 'Once warehouse scanners cross-verify the items condition, balances process via Aliza\'s billing engines within 48 hours.' }
+      ]
+    },
+    {
+      id: 'stock',
+      label: 'PRODUCT & STOCK',
+      icon: '✨',
+      bgColor: '#EAF6F6',
+      borderColor: '#AEDCDC',
+      tagline: 'Check product sizing charts, limited drop schedules, or inventory restock metrics.',
+      faqs: [
+        { id: 601, question: 'HOW OFTEN DO STOCK QUANTITY MATRIX COUNTERS REFRESH?', answer: 'Inventory indices synchronize live in step with actual transaction completion metrics across the checkout nodes.' },
+        { id: 602, question: 'CAN I PRE-ORDER OUT-OF-STOCK PREMIUM CLOTHING CAPSULES?', answer: 'Yes, activate the notify alert toggle button to auto-reserve items allocations dynamically.' }
+      ]
+    }
+  ];
 
-  const filteredFaqs = faqs.filter(f => 
-    f.question.toLowerCase().includes(search.toLowerCase()) || 
-    f.answer.toLowerCase().includes(search.toLowerCase())
-  );
+  const handleCategoryClick = (cat: CategoryMetaData) => {
+    setCurrentCategory(cat);
+    setActiveView('category');
+  };
 
+  const globalFilteredFaqs = () => {
+    if (!searchQuery.trim()) return [];
+    let collector: { catLabel: string; q: string; a: string; id: number }[] = [];
+    categoryRegistry.forEach(c => {
+      c.faqs.forEach(f => {
+        if (f.question.toLowerCase().includes(searchQuery.toLowerCase()) || c.label.toLowerCase().includes(searchQuery.toLowerCase())) {
+          collector.push({ catLabel: c.label, q: f.question, a: f.answer, id: f.id });
+        }
+      });
+    });
+    return collector;
+  };
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F8F7F2' }} className="py-5">
-      <div className="container" style={{ maxWidth: '800px' }}>
+    <div className="container-fluid min-vh-100 py-5" style={{ backgroundColor: '#FBFBFA', color: '#1A1A1A', fontFamily: 'monospace' }}>
+      <div className="container bg-white p-4 p-md-5 border" style={{ maxWidth: '850px', borderRadius: '0px', borderColor: '#EBEAE4' }}>
         
-        <div className="text-center mb-5">
-          <h2 className="fw-bold" style={{ color: '#252A20' }}>How can we help you today?</h2>
-          <p className="text-muted small">Search common frequently asked questions across shipping, orders, payments, and returns.</p>
-          
-          <div className="input-group mt-4 mx-auto shadow-sm" style={{ maxWidth: '500px' }}>
-            <span className="input-group-text bg-white border-end-0 text-muted"><i className="bi bi-search"></i></span>
-            <input type="text" className="form-control border-start-0 ps-1" placeholder="Type keywords to filter questions upfront..." value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-        </div>
-
-        <div className="d-flex flex-column gap-3 mb-5">
-          {filteredFaqs.length > 0 ? (
-            filteredFaqs.map((f) => (
-              <div key={f.id} className="card p-4 border-0 shadow-sm" style={{ backgroundColor: '#FFFFFF', borderRadius: '8px', border: '1px solid #E5E2D8' }}>
-                <h5 className="fw-bold mb-2" style={{ color: '#343A20', fontSize: '16px' }}><i className="bi bi-question-circle-fill me-2 text-secondary"></i>{f.question}</h5>
-                <p className="text-secondary small mb-0 lh-base fw-medium" style={{ opacity: 0.9 }}>{f.answer}</p>
-              </div>
-            ))
-          ) : (
-            <div className="text-center p-4 text-muted border border-dashed bg-white rounded">No matching FAQ categories or questions mapped in the active indices.</div>
+        {/* Dynamic Navigation Breadcrumb Ribbon */}
+        <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4" style={{ borderColor: '#000000', borderBottomWidth: '2px' }}>
+          <span className="fw-bold tracking-widest text-uppercase" style={{ fontSize: '12px', color: '#000000' }}>
+            VIORA HELPDESK SYSTEM // {activeView === 'hub' ? 'HELP PORTAL' : currentCategory?.id.toUpperCase() || 'SUPPORT'}
+          </span>
+          {activeView !== 'hub' && (
+            <button 
+              onClick={() => { setActiveView('hub'); setCurrentCategory(null); }} 
+              className="btn btn-sm btn-outline-dark tracking-wider text-uppercase" 
+              style={{ borderRadius: '0px', fontSize: '10px', fontWeight: 'bold' }}
+            >
+              ← BACK TO HELP HUB
+            </button>
           )}
         </div>
 
-        {/* Link to Contact Support if questions are unresolved */}
-        <div className="card p-4 text-center border-0 shadow-sm text-white" style={{ backgroundColor: '#343A20', borderRadius: '8px' }}>
-          <h6 className="fw-bold mb-2">Still can't find structural answers to your questions?</h6>
-          <p className="small mb-3 text-white-50">Our dedicated customer happiness agent helpdesk team is online 24/7 to resolve operations logs barriers.</p>
-          <button onClick={() => window.location.href = '/support/ticket/new'} className="btn btn-sm btn-light fw-bold px-4 rounded text-dark shadow-sm" style={{ backgroundColor: '#E8EAD9', borderColor: '#E8EAD9' }}>
-            <i className="bi bi-envelope-fill me-2"></i> Contact Customer Support
-          </button>
-        </div>
+        {/* -------------------- VIEW 1: MAIN HUB VIEW GRID PANELS -------------------- */}
+        {activeView === 'hub' && (
+          <div>
+            <div className="text-center py-4 mb-5 bg-light border" style={{ borderColor: '#EBEAE4' }}>
+              <h4 className="fw-bold text-uppercase tracking-widest mb-2" style={{ fontSize: '20px', letterSpacing: '2px' }}>HOW CAN WE ASSIST YOU?</h4>
+              <p className="text-muted small text-uppercase tracking-wider mb-4" style={{ fontSize: '9px' }}>Explore specific categories grids below or query the data logs directly.</p>
+              <div className="px-4 mx-auto" style={{ maxWidth: '500px' }}>
+                <input 
+                  type="text" 
+                  className="form-control text-center text-uppercase" 
+                  placeholder="SEARCH ERROR MANUALS REGISTERS INSTANTLY..." 
+                  style={{ borderRadius: '0px', borderColor: '#000000', padding: '10px', fontSize: '12px' }}
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {searchQuery.trim() !== '' && (
+              <div className="mb-5 border border-dark p-3">
+                <span className="badge bg-black text-white text-uppercase font-monospace mb-3" style={{ borderRadius: '0px' }}>SEARCH HITS MATRIX</span>
+                {globalFilteredFaqs().length > 0 ? (
+                  globalFilteredFaqs().map(f => (
+                    <div key={f.id} className="pb-3 mb-3 border-bottom" style={{ borderColor: '#F0EDE6' }}>
+                      <span className="d-block small text-muted font-monospace fw-bold mb-1">[{f.catLabel}]</span>
+                      <h6 className="fw-bold text-dark text-uppercase small mb-1">Q: {f.q}</h6>
+                      <p className="text-secondary small mb-0">{f.a}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-2 text-muted small text-uppercase">No explicit match results found across active catalogs registers.</div>
+                )}
+              </div>
+            )}
+
+            {/* Savana-Style Category Grids Enclosure (Pastel Accents) */}
+            <div className="row g-3 mb-5">
+              {categoryRegistry.map((cat) => (
+                <div key={cat.id} className="col-12 col-sm-6">
+                  <div 
+                    onClick={() => handleCategoryClick(cat)}
+                    className="card h-100 p-4"
+                    style={{ 
+                      borderRadius: '0px', 
+                      borderColor: '#EBEAE4',
+                      borderWidth: '1px',
+                      cursor: 'pointer',
+                      backgroundColor: '#FFFFFF',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.01)'
+                    }}
+                  >
+                    <div className="d-flex align-items-center gap-3 mb-3">
+                      <div 
+                        className="d-flex align-items-center justify-content-center"
+                        style={{ 
+                          width: '44px', 
+                          height: '44px', 
+                          backgroundColor: cat.bgColor, 
+                          border: `1px solid ${cat.borderColor}`,
+                          borderRadius: '8px',
+                          fontSize: '20px'
+                        }}
+                      >
+                        {cat.icon}
+                      </div>
+                      <h6 className="fw-bold text-dark tracking-wider text-uppercase mb-0" style={{ fontSize: '13px' }}>{cat.label}</h6>
+                    </div>
+                    <p className="text-muted mb-0 lh-sm" style={{ fontSize: '11px' }}>{cat.tagline}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Directive Action Ticket Creation CTA Ingestion Box */}
+            <div className="p-4 border border-dark bg-white mt-5" style={{ borderRadius: '0px', borderWidth: '2px' }}>
+              <div className="border-bottom pb-2 mb-3" style={{ borderColor: '#000000' }}>
+                <h6 className="fw-bold text-uppercase tracking-wider mb-1" style={{ fontSize: '13px' }}>OFFICIAL INCIDENT RESOLUTION TERMINAL</h6>
+                <p className="text-muted small text-uppercase mb-0" style={{ fontSize: '9px' }}>The reporting mechanism securely captures the following parameters:</p>
+              </div>
+              <ul className="list-unstyled d-flex flex-column gap-2 text-uppercase text-muted mb-4" style={{ fontSize: '11px', letterSpacing: '0.5px' }}>
+                <li><i className="bi bi-dash-lg me-2 text-dark"></i>Category / Routing Matrix</li>
+                <li><i className="bi bi-dash-lg me-2 text-dark"></i>Invoice Order Reference Number ID</li>
+                <li><i className="bi bi-dash-lg me-2 text-dark"></i>Specific Product ID Code <span className="text-dark fw-bold">[Sir's Multi-Item Filter]</span></li>
+                <li><i className="bi bi-dash-lg me-2 text-dark"></i>Descriptive Problem Narrative Text</li>
+              </ul>
+              <button 
+                onClick={() => setActiveView('form')} 
+                className="btn btn-dark text-white fw-bold text-uppercase w-100 py-3 tracking-widest text-center"
+                style={{ borderRadius: '0px', backgroundColor: '#000000', fontSize: '12px' }}
+              >
+                OPEN OFFICIAL SUPPORT FORM
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* -------------------- VIEW 2: DYNAMIC SPECIFIC CATEGORY DEDICATED PAGE -------------------- */}
+        {activeView === 'category' && currentCategory && (
+          <div className="py-2">
+            <div className="d-flex align-items-center gap-3 p-4 mb-4 border border-dark" style={{ backgroundColor: currentCategory.bgColor, borderColor: currentCategory.borderColor }}>
+              <div style={{ fontSize: '32px' }}>{currentCategory.icon}</div>
+              <div>
+                <h5 className="fw-bold text-dark text-uppercase tracking-wider mb-1" style={{ fontSize: '15px' }}>{currentCategory.label} ARCHIVE</h5>
+                <p className="text-secondary small mb-0 lh-sm" style={{ fontSize: '11px' }}>{currentCategory.tagline}</p>
+              </div>
+            </div>
+
+            <div className="d-flex flex-column gap-3 mb-5">
+              {currentCategory.faqs.map(f => (
+                <div key={f.id} className="p-4 bg-white border" style={{ borderColor: '#EBEAE4' }}>
+                  <h6 className="fw-bold text-dark text-uppercase mb-2" style={{ fontSize: '13px' }}>Q: {f.question}</h6>
+                  <p className="text-muted small mb-0 lh-base" style={{ fontSize: '12px' }}>{f.answer}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="text-center py-4 border bg-light">
+              <p className="small text-muted text-uppercase tracking-wider mb-3" style={{ fontSize: '10px' }}>Could not locate structural answers under this category register node?</p>
+              <button 
+                onClick={() => setActiveView('form')} 
+                className="btn btn-sm btn-dark text-uppercase text-white fw-bold px-4 rounded-0"
+                style={{ borderRadius: '0px', backgroundColor: '#000000', fontSize: '11px' }}
+              >
+                Proceed To Inquiry Form
+              </button>
+            </div>
+          </div>
+        )}
+
+                {/* -------------------- VIEW 3: TICKET CREATION INTAKE FORM VIEW -------------------- */}
+        {activeView === 'form' && (
+          <NewTicketPage onBackToHub={() => { setActiveView('hub'); setCurrentCategory(null); }} />
+        )}
 
       </div>
     </div>
