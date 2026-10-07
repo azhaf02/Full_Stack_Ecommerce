@@ -20,6 +20,8 @@ from app.schemas.payment import (
     MockPaymentVerifyRequest,
     MockPaymentVerifyResponse,
     PaymentByOrderResponse,
+    CODPaymentRequest,
+    CODPaymentResponse,
 )
 from app.services.mock_gateway import (
     mock_gateway,
@@ -348,4 +350,72 @@ def get_payment_by_order(
         method=payment.method.value,
         status=payment.status.value,
         transaction_id=payment.transaction_id,
+    )
+
+
+# =========================================================
+# PAY-05: CASH ON DELIVERY
+# =========================================================
+
+@router.post(
+    "/cod",
+    response_model=CODPaymentResponse,
+)
+def confirm_cod_payment(
+    data: CODPaymentRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    payment = db.get(Payment, data.payment_id)
+
+    if payment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment not found",
+        )
+
+    try:
+        order = get_order_for_user(
+            db,
+            payment.order_id,
+            current_user.id,
+        )
+    except OrderNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found",
+        )
+
+    if payment.method != ModelPaymentMethod.COD:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="COD endpoint is only available for COD payments",
+        )
+
+    if payment.status != PaymentStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="COD payment must be pending",
+        )
+
+    # COD is not paid during checkout.
+    # Payment remains PENDING until payment is collected
+    # and an authorized admin records it as paid.
+    payment.status = PaymentStatus.PENDING
+    order.payment_method = ModelPaymentMethod.COD.value
+    order.payment_status = PaymentStatus.PENDING.value
+
+    try:
+        db.commit()
+        db.refresh(payment)
+    except Exception:
+        db.rollback()
+        raise
+
+    return CODPaymentResponse(
+        payment_id=payment.id,
+        order_id=order.id,
+        method="COD",
+        status=payment.status.value,
+        message="Cash on Delivery confirmed. Payment remains pending until collection.",
     )
