@@ -82,3 +82,13 @@ The Customer Dashboard module integrates user profile management, real-time noti
 Run pytest across all reviews and notification test cases:
 ```bash
 pytest backend/tests/test_reviews.py -v
+
+## DASH-06: Product Review Submission
+
+- **Endpoint**: `POST /api/reviews`
+- **Validation & Gating**:
+  - Gated to verified purchases with order status `DELIVERED` (coordination with ORD-05).
+  - Star ratings validated strictly between 1 and 5.
+  - Prevents duplicate reviews for the same order item.
+- **Moderation Workflow**: Newly submitted reviews are stored with status `pending`.
+- **Frontend Component**: `ReviewForm.tsx` integrated with luxury editorial theme (`#232F24`).

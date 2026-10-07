@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import notifications, reviews
+from app.routers import notifications
 from app.database import engine, Base
 import app.models.review
+from app.api.routes import reviews
 
 # Ensure database tables exist
 Base.metadata.create_all(bind=engine)
