@@ -4,6 +4,7 @@ import DashboardLayout from './components/DashboardLayout';
 import ProductDetailPage from './ProductDetailPage';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import SearchResultsPage from './SearchResultsPage';
 
 // VIORA storefront + auth pages (Madeeha), loaded on demand
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -25,7 +26,7 @@ export default function App() {
             {/* Product listing + details (Chandani) */}
             <Route path="/products" element={<ProductListingPage />} />
             <Route path="/product/:id" element={<ProductDetailPage />} />
-
+            <Route path="/search" element={<SearchResultsPage />} />
             {/* Auth pages (Madeeha) */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />

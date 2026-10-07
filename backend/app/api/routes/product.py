@@ -1,29 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException
-<<<<<<< HEAD
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
 from app.services import product_service
 
-=======
-from sqlalchemy.orm import Session, joinedload
-
-from app.database.connection import get_db
-from app.models.product import Product
->>>>>>> b0e1ca3 (feat: add product details page and API)
-
 router = APIRouter(
     prefix="/api/products",
-    tags=["Products"]
+    tags=["Products"],
 )
 
 
-<<<<<<< HEAD
 @router.post("/", response_model=ProductResponse)
 def create_product(
     product: ProductCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     return product_service.create_product(db, product)
 
@@ -42,18 +35,54 @@ def get_products(
         category_id=category_id,
     )
 
+@router.get("/search")
+def search_products(
+    q: str = Query(..., min_length=1, max_length=100),
+    db: Session = Depends(get_db),
+):
+    q = q.strip()
 
+    if not q:
+        raise HTTPException(
+            status_code=422,
+            detail="Search query cannot be empty",
+        )
+
+    search_term = f"%{q}%"
+
+    products = (
+        db.query(Product)
+        .filter(
+            or_(
+                Product.name.ilike(search_term),
+                Product.description.ilike(search_term),
+            )
+        )
+        .all()
+    )
+
+    return [
+        {
+            "id": product.id,
+            "name": product.name,
+            "description": product.description,
+            "price": product.price,
+            "stock_quantity": product.stock_quantity,
+            "status": product.status,
+        }
+        for product in products
+    ]
 @router.get("/{product_id}", response_model=ProductResponse)
 def get_product(
     product_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     product = product_service.get_product_detail(db, product_id)
 
     if not product:
         raise HTTPException(
             status_code=404,
-            detail="Product not found"
+            detail="Product not found",
         )
 
     return product
@@ -63,18 +92,18 @@ def get_product(
 def update_product(
     product_id: int,
     product: ProductUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     updated = product_service.update_product(
         db,
         product_id,
-        product
+        product,
     )
 
     if not updated:
         raise HTTPException(
             status_code=404,
-            detail="Product not found"
+            detail="Product not found",
         )
 
     return updated
@@ -83,72 +112,14 @@ def update_product(
 @router.delete("/{product_id}", response_model=ProductResponse)
 def deactivate_product(
     product_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    product = product_service.deactivate_product(
-        db,
-        product_id
-=======
-@router.get("/{product_id}")
-def get_product_detail(
-    product_id: int,
-    db: Session = Depends(get_db)
-):
-    product = (
-        db.query(Product)
-        .options(
-            joinedload(Product.images),
-            joinedload(Product.category)
-        )
-        .filter(Product.id == product_id)
-        .first()
->>>>>>> b0e1ca3 (feat: add product details page and API)
-    )
+    product = product_service.deactivate_product(db, product_id)
 
     if not product:
         raise HTTPException(
             status_code=404,
-            detail="Product not found"
+            detail="Product not found",
         )
 
-<<<<<<< HEAD
     return product
-=======
-    related_products = (
-        db.query(Product)
-        .filter(
-            Product.category_id == product.category_id,
-            Product.id != product_id
-        )
-        .limit(4)
-        .all()
-    )
-
-    return {
-        "id": product.id,
-        "name": product.name,
-        "description": product.description,
-        "price": product.price,
-        "stock_quantity": product.stock_quantity,
-        "status": product.status,
-        "category_id": product.category_id,
-        "category_name": product.category.name if product.category else None,
-        "images": [
-            {
-                "id": image.id,
-                "image_url": image.image_url,
-                "is_primary": image.is_primary
-            }
-            for image in product.images
-        ],
-        "related_products": [
-            {
-                "id": item.id,
-                "name": item.name,
-                "price": item.price,
-                "status": item.status
-            }
-            for item in related_products
-        ]
-    }
->>>>>>> b0e1ca3 (feat: add product details page and API)
