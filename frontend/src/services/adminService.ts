@@ -209,3 +209,55 @@ export async function getAnalyticsCharts(): Promise<AnalyticsCharts> {
   const response = await api.get("/api/admin/analytics/charts");
   return response.data;
 }
+
+
+// One order as returned by GET /api/admin/orders/{id} and PUT /api/admin/orders/{id}/status.
+// Field names follow the orders module (snake_case). Money values arrive as text, e.g. "599.00".
+export interface AdminOrderDetail {
+  id: number;
+  order_number: string;
+  status: string;
+  payment_method: string;
+  payment_status: string;
+  subtotal: string;
+  discount_amount: string;
+  tax_amount: string;
+  shipping_cost: string;
+  total_amount: string;
+  created_at: string;
+  items: {
+    id: number;
+    product_id: number;
+    variant_id: number | null;
+    quantity: number;
+    unit_price: string;
+  }[];
+  status_history: {
+    previous_status: string | null;
+    new_status: string;
+    changed_by: number | null;
+    remarks: string | null;
+    changed_at: string;
+  }[];
+  actions: { allowed_next_statuses: string[] | null } | null;
+  // Only in the GET response
+  customer_name?: string;
+  customer_email?: string | null;
+  shipping_address?: string | null;
+  product_names?: Record<string, string>;
+}
+
+// One order with items, history and the statuses the admin may move it to
+export async function getOrder(id: number): Promise<AdminOrderDetail> {
+  const response = await api.get(`/api/admin/orders/${id}`);
+  return response.data;
+}
+
+// Moves an order to a new status; the reply has the updated history and next allowed statuses
+export async function updateOrderStatus(id: number, status: string, remarks: string): Promise<AdminOrderDetail> {
+  const response = await api.put(`/api/admin/orders/${id}/status`, {
+    status,
+    remarks: remarks.trim() || null,
+  });
+  return response.data;
+}

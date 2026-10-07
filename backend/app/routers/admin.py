@@ -5,11 +5,14 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
-from sqlalchemy import or_, text
+from sqlalchemy import bindparam, or_, text
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.core.security import require_role
+from app.models.address import Address
+from app.schemas.order import OrderActions, OrderDetailOut
+from app.services import order_service, return_service
 from app.models.order import Order, OrderStatus
 from app.models.role import Role
 from app.models.user import User
@@ -296,3 +299,63 @@ def list_orders(params: Annotated[OrderListParams, Query()], db: Session = Depen
         "page_size": params.page_size,
         "total_pages": max(1, ceil(total / params.page_size)),
     }
+
+
+
+class AdminOrderDetail(OrderDetailOut):
+    """The order detail from the orders module, plus what the admin screen shows next to it."""
+
+    customer_name: str
+    customer_email: str | None = None
+    shipping_address: str | None = None
+    product_names: dict[int, str] = {}
+
+
+def _format_address(address: Address | None) -> str | None:
+    if address is None:
+        return None
+    parts = [
+        address.full_name, address.line1, address.line2, address.city,
+        f"{address.state} {address.postal_code}", address.country, address.phone,
+    ]
+    return ", ".join(part for part in parts if part)
+
+
+# ADM-05: one order with its items, history and the statuses an admin may move it to
+@router.get("/orders/{order_id}", response_model=AdminOrderDetail)
+def get_order(order_id: int, db: Session = Depends(get_db)):
+    order = db.get(Order, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
+
+    customer = db.get(User, order.user_id)
+    address = db.get(Address, order.address_id)
+
+    # Product names for the items table
+    product_ids = sorted({item.product_id for item in order.items})
+    product_names = {}
+    if product_ids:
+        rows = db.execute(
+            text("SELECT id, name FROM products WHERE id IN :ids").bindparams(
+                bindparam("ids", expanding=True)
+            ),
+            {"ids": product_ids},
+        ).all()
+        product_names = {row.id: row.name for row in rows}
+
+    detail = OrderDetailOut.model_validate(order)
+    detail.actions = OrderActions(
+        can_cancel=order_service.can_customer_cancel(order),
+        can_request_return=return_service.can_request_return(order),
+        return_deadline=return_service.return_deadline(order),
+        # the same list that PUT /api/admin/orders/{id}/status accepts
+        allowed_next_statuses=order_service.admin_next_statuses(order),
+    )
+
+    return AdminOrderDetail(
+        **detail.model_dump(),
+        customer_name=customer.name if customer else "Unknown customer",
+        customer_email=customer.email if customer else None,
+        shipping_address=_format_address(address),
+        product_names=product_names,
+    )
