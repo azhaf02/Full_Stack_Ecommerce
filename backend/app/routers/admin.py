@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
-from sqlalchemy import bindparam, or_, text
+from sqlalchemy import bindparam, func, or_, text
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -14,6 +14,7 @@ from app.models.address import Address
 from app.schemas.order import OrderActions, OrderDetailOut
 from app.services import order_service, return_service
 from app.models.order import Order, OrderStatus
+from app.models.payment import Payment, PaymentMethod, PaymentStatus
 from app.models.role import Role
 from app.models.user import User
 
@@ -359,3 +360,122 @@ def get_order(order_id: int, db: Session = Depends(get_db)):
         shipping_address=_format_address(address),
         product_names=product_names,
     )
+
+
+
+class PaymentListParams(BaseModel):
+    """Search and filter values for the admin payment list. Pydantic rejects anything invalid."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    q: str = Field("", max_length=100)
+    status: PaymentStatus | None = None
+    method: PaymentMethod | None = None
+    page: int = Field(1, ge=1)
+    page_size: int = Field(10, ge=1, le=50)
+
+
+class AdminPaymentRow(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    id: int
+    order_id: int
+    order_number: str
+    customer_name: str
+    method: str
+    status: str
+    transaction_id: str | None = None
+    amount: float
+    created_at: datetime
+
+
+class AdminPaymentList(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    items: list[AdminPaymentRow]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    # Totals over ALL payments, not only the current page or filter
+    collected_amount: float
+    pending_cod_amount: float
+    status_counts: dict[str, int]
+
+
+def _enum_text(value) -> str:
+    # payment.method and payment.status come back as enum members; send their text value
+    return getattr(value, "value", value)
+
+
+# ADM-06: payment records for admins (read only), with search, filters and pagination
+@router.get("/payments", response_model=AdminPaymentList)
+def list_payments(params: Annotated[PaymentListParams, Query()], db: Session = Depends(get_db)):
+    # Outer joins keep a payment in the list even if its order or customer row is missing
+    query = (
+        db.query(Payment, Order.order_number, User.name)
+        .outerjoin(Order, Order.id == Payment.order_id)
+        .outerjoin(User, User.id == Order.user_id)
+    )
+
+    search = params.q.strip()
+    if search:
+        pattern = _like_pattern(search)
+        query = query.filter(
+            or_(
+                Order.order_number.ilike(pattern, escape="\\"),
+                User.name.ilike(pattern, escape="\\"),
+                Payment.transaction_id.ilike(pattern, escape="\\"),
+            )
+        )
+
+    if params.status:
+        query = query.filter(Payment.status == params.status)
+    if params.method:
+        query = query.filter(Payment.method == params.method)
+
+    total = query.count()
+    rows = (
+        query.order_by(Payment.created_at.desc(), Payment.id.desc())
+        .offset((params.page - 1) * params.page_size)
+        .limit(params.page_size)
+        .all()
+    )
+
+    items = [
+        {
+            "id": payment.id,
+            "order_id": payment.order_id,
+            "order_number": order_number or f"Order #{payment.order_id}",
+            "customer_name": name or "Unknown customer",
+            "method": _enum_text(payment.method),
+            "status": _enum_text(payment.status),
+            "transaction_id": payment.transaction_id,
+            "amount": float(payment.amount),
+            "created_at": payment.created_at,
+        }
+        for payment, order_number, name in rows
+    ]
+
+    collected = (
+        db.query(func.coalesce(func.sum(Payment.amount), 0))
+        .filter(Payment.status == PaymentStatus.SUCCESS)
+        .scalar()
+    )
+    pending_cod = (
+        db.query(func.coalesce(func.sum(Payment.amount), 0))
+        .filter(Payment.method == PaymentMethod.COD, Payment.status == PaymentStatus.PENDING)
+        .scalar()
+    )
+    counts = db.query(Payment.status, func.count(Payment.id)).group_by(Payment.status).all()
+
+    return {
+        "items": items,
+        "total": total,
+        "page": params.page,
+        "page_size": params.page_size,
+        "total_pages": max(1, ceil(total / params.page_size)),
+        "collected_amount": float(collected),
+        "pending_cod_amount": float(pending_cod),
+        "status_counts": {_enum_text(status): count for status, count in counts},
+    }

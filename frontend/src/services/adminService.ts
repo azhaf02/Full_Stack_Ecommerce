@@ -261,3 +261,49 @@ export async function updateOrderStatus(id: number, status: string, remarks: str
   });
   return response.data;
 }
+
+export interface AdminPayment {
+  id: number;
+  orderId: number;
+  orderNumber: string;
+  customerName: string;
+  method: string;
+  status: string;
+  transactionId: string | null;
+  amount: number;
+  createdAt: string;
+}
+
+export interface AdminPaymentList {
+  items: AdminPayment[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  // Totals over all payments, not only the current page or filter
+  collectedAmount: number;
+  pendingCodAmount: number;
+  statusCounts: Record<string, number>;
+}
+
+export interface PaymentFilters {
+  q?: string;
+  status?: string;
+  method?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+// Payment records for admins (read only) with search, filters and pagination
+export async function getPayments(filters: PaymentFilters): Promise<AdminPaymentList> {
+  const response = await api.get("/api/admin/payments", {
+    params: {
+      q: filters.q || undefined,
+      status: filters.status || undefined,
+      method: filters.method || undefined,
+      page: filters.page ?? 1,
+      page_size: filters.pageSize ?? 10,
+    },
+  });
+  return response.data;
+}
