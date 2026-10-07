@@ -92,3 +92,50 @@ It interacts with:
 - Cart module for adding selected variants to cart
 - Product Catalog module for product information
 - Customer Dashboard module for displaying wishlist information
+
+
+PDV-05 – Product Search
+
+Overview
+
+Implemented product search so customers can find products using keywords.
+
+Backend
+
+- Added "GET /api/products/search?q"
+- Searches product name and description
+- Uses SQLAlchemy "ILIKE" with parameterized input
+- Search query validation:
+  - Minimum length: 1 character
+  - Maximum length: 100 characters
+  - Empty or whitespace-only queries are rejected
+
+Frontend
+
+- Added "SearchBar" component
+- Added "SearchResultsPage"
+- Search results are displayed in a product grid
+- Added friendly empty state when no products match
+- Product links open the Product Details page
+
+Testing
+
+- Valid keyword search: Passed
+- No-match keyword: Passed
+- Special characters: Passed
+- Empty search: Passed
+- Frontend production build: Passed
+
+API Example
+
+"GET /api/products/search?q=shirt"
+
+Returns matching products based on product name or description.
+
+Files
+
+- "backend/app/api/routes/catalog.py"
+- "frontend/src/components/SearchBar.jsx"
+- "frontend/src/SearchResultsPage.jsx"
+- "backend/app/main.py"
+- "frontend/src/App.jsx"
