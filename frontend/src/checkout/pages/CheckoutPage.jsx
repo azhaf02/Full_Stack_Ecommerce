@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import AddressStep from "../components/AddressStep";
+import "../checkout.css";
 
 const initialAddress = {
   fullName: "",
@@ -63,7 +64,7 @@ function CheckoutPage() {
         setMessage("");
 
         const response = await fetch(
-          "http://127.0.0.1:8000/api/shipping-methods"
+         "http://127.0.0.1:8001/api/shipping-methods"
         );
 
         if (!response.ok) {
