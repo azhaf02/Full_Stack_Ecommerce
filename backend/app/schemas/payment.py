@@ -57,3 +57,15 @@ class PaymentByOrderResponse(BaseModel):
     method: PaymentMethod
     status: str
     transaction_id: str | None = None
+class CODPaymentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    payment_id: int
+
+
+class CODPaymentResponse(BaseModel):
+    payment_id: int
+    order_id: int
+    method: PaymentMethod
+    status: str
+    message: str

@@ -193,3 +193,38 @@ In production:
 7. Only after successful backend verification would the payment be marked `SUCCESS`.
 
 The frontend must never be trusted to directly declare that a payment succeeded.
+
+---
+
+# PAY-05: Cash on Delivery / Pay Later
+
+## Objective
+
+Allow customers to place an order using Cash on Delivery (COD) without requiring an online payment to succeed during checkout.
+
+## COD Workflow
+
+The Cash on Delivery flow is:
+
+Customer selects COD  
+→ Payment record is created with `PENDING` status  
+→ Customer confirms COD  
+→ Order remains valid  
+→ Payment remains `PENDING`  
+→ Customer receives the order  
+→ Authorized admin records payment collection later
+
+COD payments must never be marked `SUCCESS` during customer checkout.
+
+## API
+
+### POST /api/payment/cod
+
+Confirms that an existing payment will use the Cash on Delivery workflow.
+
+Request:
+
+```json
+{
+  "payment_id": 1
+}

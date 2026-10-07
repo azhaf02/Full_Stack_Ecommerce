@@ -425,3 +425,118 @@ def test_get_payment_by_order_wrong_customer_rejected(env):
     )
 
     assert response.status_code == 404
+def test_cod_payment_remains_pending(env):
+    order = create_order(env.db, user_id=1)
+    checkout = create_checkout_session(env.db)
+
+    select_response = env.client.post(
+        "/api/payment/select-method",
+        json={
+            "checkout_session_id": str(checkout.session_id),
+            "order_id": order.id,
+            "method": "COD",
+        },
+    )
+
+    assert select_response.status_code == 200
+    payment_id = select_response.json()["payment_id"]
+
+    response = env.client.post(
+        "/api/payment/cod",
+        json={
+            "payment_id": payment_id,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["payment_id"] == payment_id
+    assert data["order_id"] == order.id
+    assert data["method"] == "COD"
+    assert data["status"] == "PENDING"
+
+    env.db.refresh(order)
+
+    assert order.payment_method == "COD"
+    assert order.payment_status == "PENDING"
+
+
+def test_online_payment_rejected_by_cod_endpoint(env):
+    order = create_order(env.db, user_id=1)
+    checkout = create_checkout_session(env.db)
+
+    select_response = env.client.post(
+        "/api/payment/select-method",
+        json={
+            "checkout_session_id": str(checkout.session_id),
+            "order_id": order.id,
+            "method": "ONLINE",
+        },
+    )
+
+    assert select_response.status_code == 200
+    payment_id = select_response.json()["payment_id"]
+
+    response = env.client.post(
+        "/api/payment/cod",
+        json={
+            "payment_id": payment_id,
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_cod_payment_wrong_customer_rejected(env):
+    order = create_order(env.db, user_id=999)
+
+    from app.models.payment import Payment, PaymentMethod, PaymentStatus
+
+    payment = Payment(
+        order_id=order.id,
+        method=PaymentMethod.COD,
+        status=PaymentStatus.PENDING,
+        amount=order.total_amount,
+    )
+
+    env.db.add(payment)
+    env.db.commit()
+    env.db.refresh(payment)
+
+    response = env.client.post(
+        "/api/payment/cod",
+        json={
+            "payment_id": payment.id,
+        },
+    )
+
+    assert response.status_code == 404
+
+
+def test_cod_request_rejects_extra_status_field(env):
+    order = create_order(env.db, user_id=1)
+    checkout = create_checkout_session(env.db)
+
+    select_response = env.client.post(
+        "/api/payment/select-method",
+        json={
+            "checkout_session_id": str(checkout.session_id),
+            "order_id": order.id,
+            "method": "COD",
+        },
+    )
+
+    assert select_response.status_code == 200
+    payment_id = select_response.json()["payment_id"]
+
+    response = env.client.post(
+        "/api/payment/cod",
+        json={
+            "payment_id": payment_id,
+            "status": "SUCCESS",
+        },
+    )
+
+    assert response.status_code == 422
