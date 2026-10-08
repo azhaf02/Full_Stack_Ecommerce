@@ -63,3 +63,34 @@ export function formatDateTime(value: string): string {
 export function statusLabel(status: string): string {
   return status.toLowerCase().replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 }
+
+export type BadgeTone = OutcomeTone | 'neutral';
+
+const STATUS_TONE: Record<string, BadgeTone> = {
+  PLACED: 'neutral',
+  CONFIRMED: 'info', PROCESSING: 'info', PACKED: 'info', SHIPPED: 'info', OUT_FOR_DELIVERY: 'info',
+  DELIVERED: 'success', REFUNDED: 'success',
+  CANCELLED: 'danger', REJECTED: 'danger',
+  RETURN_REQUESTED: 'warning', RETURN_APPROVED: 'info', RETURNED: 'warning', REFUND_PENDING: 'warning',
+  // return request statuses
+  REQUESTED: 'warning', APPROVED: 'info',
+};
+
+/** Colour group for an order or return status. Unknown statuses stay neutral. */
+export function statusTone(status: string): BadgeTone {
+  return STATUS_TONE[status] ?? 'neutral';
+}
+
+export function itemLabel(productId: number, variantId: number | null): string {
+  return variantId === null ? `Product #${productId}` : `Product #${productId} (variant ${variantId})`;
+}
+
+const PAYMENT_STATUS_LABEL: Record<string, string> = {
+  PENDING: 'Pending', SUCCESS: 'Paid', FAILED: 'Failed', CANCELLED: 'Cancelled',
+  REFUND_PENDING: 'Refund pending', REFUNDED: 'Refunded',
+};
+
+/** "SUCCESS" -> "Paid": the wording a customer expects for a payment. */
+export function paymentLabel(status: string): string {
+  return PAYMENT_STATUS_LABEL[status] ?? statusLabel(status);
+}
