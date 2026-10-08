@@ -167,3 +167,56 @@ def test_a_failing_hook_can_be_rolled_back_with_the_status_change(db):
     db.refresh(order)
     assert order.status == "PLACED"
     assert db.query(OrderStatusHistory).count() == 0
+
+
+# ------------------------------------------------------------------ what the admin dropdown may offer
+
+from app.services.order_service import admin_next_statuses, admin_status_is_blocked, RETURN_ONLY_STATUSES
+
+
+def test_paid_online_order_offers_confirm_and_cancel_in_lifecycle_order(db):
+    assert admin_next_statuses(make_order(db, payment_status="SUCCESS")) == ["CONFIRMED", "CANCELLED"]
+
+
+def test_unpaid_online_order_does_not_offer_confirm(db):
+    assert admin_next_statuses(make_order(db, payment_status="PENDING")) == ["CANCELLED"]
+
+
+def test_cod_order_offers_confirm_without_payment(db):
+    assert admin_next_statuses(make_order(db, payment_method="COD")) == ["CONFIRMED", "CANCELLED"]
+
+
+@pytest.mark.parametrize("status,expected", [
+    ("CONFIRMED", ["PROCESSING", "CANCELLED"]), ("PROCESSING", ["PACKED", "CANCELLED"]),
+    ("PACKED", ["SHIPPED"]), ("SHIPPED", ["OUT_FOR_DELIVERY"]), ("OUT_FOR_DELIVERY", ["DELIVERED"]),
+    ("REFUNDED", []),
+])
+def test_next_options_follow_the_lifecycle(db, status, expected):
+    assert admin_next_statuses(make_order(db, status=status, payment_status="SUCCESS")) == expected
+
+
+def test_delivered_order_offers_nothing_because_returns_use_their_own_workflow(db):
+    assert admin_next_statuses(make_order(db, status="DELIVERED", payment_status="SUCCESS")) == []
+
+
+def test_cancelled_order_offers_a_refund_only_if_it_was_paid(db):
+    assert admin_next_statuses(make_order(db, status="CANCELLED", payment_status="SUCCESS")) == ["REFUND_PENDING"]
+    assert admin_next_statuses(make_order(db, status="CANCELLED", payment_status="PENDING")) == []
+
+
+def test_every_offered_option_is_really_accepted(db):
+    """The dropdown must never offer something update_status would refuse."""
+    for status in OrderStatus:
+        for payment in ("PENDING", "SUCCESS"):
+            for method in ("ONLINE", "COD"):
+                order = make_order(db, status=status.value, payment_status=payment, payment_method=method)
+                for option in admin_next_statuses(order):
+                    update_status(db, order, option)
+                    order.status = status.value  # reset for the next option
+
+
+def test_return_steps_are_blocked_for_the_plain_status_route(db):
+    order = make_order(db, status="DELIVERED", payment_status="SUCCESS")
+    for blocked in RETURN_ONLY_STATUSES:
+        assert admin_status_is_blocked(order, blocked)
+    assert not admin_status_is_blocked(order, "CANCELLED")

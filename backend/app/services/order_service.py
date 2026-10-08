@@ -110,6 +110,39 @@ def can_customer_cancel(order: Order) -> bool:
     return order.status in CUSTOMER_CANCELLABLE
 
 
+# These steps belong to the returns workflow (return_service), which keeps the returns table in step with the
+# order. The admin status route refuses them, and while a return is open it refuses every change.
+RETURN_ONLY_STATUSES: FrozenSet[str] = frozenset(
+    {S.RETURN_REQUESTED.value, S.RETURN_APPROVED.value, S.RETURNED.value})
+IN_RETURN_FLOW: FrozenSet[str] = RETURN_ONLY_STATUSES | {S.REFUND_PENDING.value}
+
+
+def admin_status_is_blocked(order: Order, new_status: str) -> bool:
+    """True if the change must go through the returns workflow instead of the plain status route."""
+    return new_status in RETURN_ONLY_STATUSES or bool(order.returns and order.status in IN_RETURN_FLOW)
+
+
+def admin_next_statuses(order: Order) -> List[str]:
+    """The statuses the admin status route will accept for this order right now, in lifecycle order.
+
+    This is what the admin dropdown should offer. It applies the same rules as update_status(), so an
+    unpaid online order does not offer CONFIRMED and an unpaid cancelled order does not offer a refund.
+    """
+    if order.returns and order.status in IN_RETURN_FLOW:
+        return []
+    options = []
+    for candidate in OrderStatus:
+        value = candidate.value
+        if value not in allowed_next_statuses(order.status) or value in RETURN_ONLY_STATUSES:
+            continue
+        try:
+            _check_rules(order, value)
+        except OrderServiceError:
+            continue
+        options.append(value)
+    return options
+
+
 def _check_rules(order: Order, new_status: str) -> None:
     if new_status == S.CONFIRMED.value:
         is_cod = order.payment_method == PaymentMethod.COD.value
