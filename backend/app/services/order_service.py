@@ -127,24 +127,40 @@ def _check_rules(order: Order, new_status: str) -> None:
 def update_status(db: Session, order: Order, new_status: str, changed_by: int = None, remarks: str = None) -> Order:
     """Move `order` to `new_status`, or raise an OrderServiceError. Does not commit."""
     new_status = new_status.value if isinstance(new_status, OrderStatus) else new_status
+
     if new_status not in {s.value for s in OrderStatus}:
         raise UnknownStatus(new_status)
 
     previous = order.status
+
     if new_status not in allowed_next_statuses(previous):
         raise InvalidTransition(previous, new_status)
+
     _check_rules(order, new_status)
 
     order.status = new_status
+
     if new_status in _PAYMENT_FOLLOWS_ORDER:
         order.payment_status = _PAYMENT_FOLLOWS_ORDER[new_status]
-    order.status_history.append(OrderStatusHistory(
-        previous_status=previous, new_status=new_status, changed_by=changed_by, remarks=remarks,
-    ))
+
+    order.status_history.append(
+        OrderStatusHistory(
+            previous_status=previous,
+            new_status=new_status,
+            changed_by=changed_by,
+            remarks=remarks,
+        )
+    )
+
     db.flush()
 
-    for hook in list(_hooks):
-        hook(db, order, previous, new_status)
+    try:
+        for hook in list(_hooks):
+            hook(db, order, previous, new_status)
+    except Exception:
+        order.status = previous
+        raise
+
     return order
 
 

@@ -1,5 +1,7 @@
 from dotenv import load_dotenv
-
+from app.services.inventory_service import on_order_status_change
+from app.services import order_service
+ 
 load_dotenv()
 
 from fastapi import FastAPI
@@ -21,6 +23,7 @@ from app.routers import (
 from app.api.routes import product
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
+order_service.register_status_hook(on_order_status_change)
 
 # Enable CORS for React frontend
 app.add_middleware(
