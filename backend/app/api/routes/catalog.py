@@ -4,7 +4,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 from app.core.security import require_role
-from app.database.connection import get_db
+from app.database import get_db
 from app.models.product import Product
 from app.models.product_image import ProductImage
 from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
