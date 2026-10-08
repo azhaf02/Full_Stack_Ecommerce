@@ -95,3 +95,23 @@ Implemented category-aware navigation and reusable breadcrumbs for the public pr
 - Home navigation tested.
 - Category filtering with breadcrumbs tested.
 - Pagination reset after category selection verified.
+
+## CAT-07 — Catalog, Inventory & Cart Integration
+
+Implemented stock availability signals for the public product listing.
+
+### Integration Notes
+
+- Listing response includes stable `id`, `price`, `stock_quantity`, and `stock_status` fields for Cart integration.
+- `stock_status` is `IN_STOCK` when stock quantity is greater than zero.
+- `stock_status` is `OUT_OF_STOCK` when stock quantity is zero.
+- Product price continues to use the catalog product price returned by the API.
+- The current branch uses the existing product stock quantity for the stock-status signal.
+- Inventory source-of-truth join will be aligned with Rehan's Inventory module when the Inventory schema/service is available on the shared branch.
+- Cart can use the stable product `id` from the listing response when referencing catalog products.
+
+### Testing
+
+- Verified products with available stock return `IN_STOCK`.
+- Temporarily set product ID 6 stock to zero and verified the `Out of Stock` badge on the public listing.
+- Restored product ID 6 stock to its original quantity of 50.

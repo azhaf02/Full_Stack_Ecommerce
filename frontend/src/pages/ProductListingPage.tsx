@@ -6,6 +6,7 @@ type Product = {
   description?: string;
   price: string | number;
   stock_quantity: number;
+  stock_status: "IN_STOCK" | "OUT_OF_STOCK";
   status: "ACTIVE" | "INACTIVE";
   image_url?: string | null;
   category_id: number;
@@ -214,6 +215,11 @@ export default function ProductListingPage() {
                         {product.status}
                       </span>
                     </div>
+                    {product.stock_status === "OUT_OF_STOCK" && (
+                      <span className="mt-2 inline-block rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
+                        Out of Stock
+                      </span>
+                    )}
 
                     {product.category_name && (
                       <p className="mb-2 text-sm text-gray-500">

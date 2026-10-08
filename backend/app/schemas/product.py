@@ -28,5 +28,8 @@ class ProductUpdate(BaseModel):
 
 class ProductResponse(ProductBase):
     id: int
+    image_url: str | None = None
+    category_name: str | None = None
+    stock_status: str | None = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -14,9 +14,48 @@ def create_product(db: Session, product: ProductCreate):
     return db_product
 
 
-def get_products(db: Session):
-    return db.query(Product).all()
+def get_products(
+    db: Session,
+    page: int = 1,
+    page_size: int = 10,
+    category_id: int | None = None,
+):
+    query = (
+        db.query(Product)
+        .filter(Product.status == "ACTIVE")
+    )
 
+    if category_id is not None:
+        query = query.filter(Product.category_id == category_id)
+
+    products = (
+        query
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    result = []
+
+    for product in products:
+        image = product.images[0] if product.images else None
+
+        result.append({
+            "id": product.id,
+            "category_id": product.category_id,
+            "category_name": product.category.name if product.category else None,
+            "name": product.name,
+            "description": product.description,
+            "price": product.price,
+            "stock_quantity": product.stock_quantity,
+            "stock_status": (
+    "OUT_OF_STOCK" if product.stock_quantity <= 0 else "IN_STOCK"
+),
+            "status": product.status,
+            "image_url": image.image_url if image else None,
+        })
+
+    return result
 
 def get_product(db: Session, product_id: int):
     return (

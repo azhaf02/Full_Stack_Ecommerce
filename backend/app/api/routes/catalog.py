@@ -263,16 +263,19 @@ def get_public_products(
     for product in products:
         image = product.images[0] if product.images else None
 
-        result.append({
-            "id": product.id,
-            "category_id": product.category_id,
-            "category_name": product.category.name if product.category else None,
-            "name": product.name,
-            "description": product.description,
-            "price": product.price,
-            "stock_quantity": product.stock_quantity,
-            "status": product.status,
-            "image_url": image.image_url if image else None,
-        })
+    result.append({
+    "id": product.id,
+    "category_id": product.category_id,
+    "category_name": product.category.name if product.category else None,
+    "name": product.name,
+    "description": product.description,
+    "price": product.price,
+    "stock_quantity": product.stock_quantity,
+    "stock_status": (
+        "OUT_OF_STOCK" if product.stock_quantity <= 0 else "IN_STOCK"
+    ),
+    "status": product.status,
+    "image_url": image.image_url if image else None,
+})
 
     return result
