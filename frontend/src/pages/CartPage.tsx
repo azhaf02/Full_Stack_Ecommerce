@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import './CartPage.css';
 
 import {
@@ -49,7 +49,7 @@ interface CartPageProps {
 const formatINR = (value: number | string): string => {
   const amount = Number(value) || 0;
 
-  return `₹${amount.toLocaleString('en-IN', {
+  return `â‚¹${amount.toLocaleString('en-IN', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })}`;
@@ -221,7 +221,7 @@ export default function CartPage({
       setAppliedCouponData(data);
 
       setCouponMessage(
-        `✓ ${data.code} applied successfully`
+        `âœ“ ${data.code} applied successfully`
       );
 
       /*
@@ -319,7 +319,7 @@ export default function CartPage({
         <div className="viora-cart-inner">
           <div className="viora-empty-cart">
             <div className="viora-empty-icon">
-              🛍
+              ðŸ›
             </div>
 
             <h1 className="viora-empty-title">
@@ -558,7 +558,7 @@ export default function CartPage({
                   <div className="viora-product-image">
 
                     <span className="viora-product-emoji">
-                      {item.icon || '🛍'}
+                      {item.icon || 'ðŸ›'}
                     </span>
 
                   </div>
@@ -592,7 +592,7 @@ export default function CartPage({
                           removingId === item.id
                         }
                       >
-                        × Remove
+                        Ã— Remove
                       </button>
 
                     </div>
@@ -624,7 +624,7 @@ export default function CartPage({
                               `Product ${item.product_id}`
                             }`}
                           >
-                            −
+                            âˆ’
                           </button>
 
                           <span className="viora-qty-value">
@@ -803,10 +803,10 @@ export default function CartPage({
 
                 <strong>
                   {Number(summary.discount) > 0
-                    ? `− ${formatINR(
+                    ? `âˆ’ ${formatINR(
                         summary.discount
                       )}`
-                    : '₹0'}
+                    : 'â‚¹0'}
                 </strong>
 
               </div>
@@ -878,7 +878,7 @@ export default function CartPage({
               </span>
 
               <span className="viora-checkout-arrow">
-                →
+                â†’
               </span>
 
             </button>
@@ -888,7 +888,7 @@ export default function CartPage({
             <div className="viora-secure">
 
               <span className="viora-secure-icon">
-                🔒
+                ðŸ”’
               </span>
 
               <div>
@@ -910,21 +910,21 @@ export default function CartPage({
             <div className="viora-benefits">
 
               <div className="viora-benefit">
-                <span>✓</span>
+                <span>âœ“</span>
                 <small>
                   Easy returns
                 </small>
               </div>
 
               <div className="viora-benefit">
-                <span>✓</span>
+                <span>âœ“</span>
                 <small>
                   Secure payments
                 </small>
               </div>
 
               <div className="viora-benefit">
-                <span>✓</span>
+                <span>âœ“</span>
                 <small>
                   Quality products
                 </small>

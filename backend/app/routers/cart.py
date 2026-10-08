@@ -11,7 +11,10 @@ from app.models.coupon import Coupon
 from app.services.pricing_engine import calculate_pricing
 from app.services.coupon_service import validate_coupon
 
-
+from datetime import datetime
+from pydantic import BaseModel, Field
+from app.core.security import require_role
+from app.models.user import User
 router = APIRouter(
     prefix="/api/cart",
     tags=["Cart"]
@@ -34,7 +37,30 @@ class UpdateCartItemRequest(BaseModel):
 
 class CouponRequest(BaseModel):
     code: str
+class CouponCreateRequest(BaseModel):
+    code: str
+    discount_type: str
+    discount_value: Decimal = Field(gt=0)
+    min_order_value: Decimal | None = Field(default=None, ge=0)
+    max_discount: Decimal | None = Field(default=None, gt=0)
+    start_date: datetime
+    expiry_date: datetime
+    usage_limit: int | None = Field(default=None, gt=0)
+    per_user_limit: int | None = Field(default=None, gt=0)
+    status: bool = True
 
+
+class CouponUpdateRequest(BaseModel):
+    code: str | None = None
+    discount_type: str | None = None
+    discount_value: Decimal | None = Field(default=None, gt=0)
+    min_order_value: Decimal | None = Field(default=None, ge=0)
+    max_discount: Decimal | None = Field(default=None, gt=0)
+    start_date: datetime | None = None
+    expiry_date: datetime | None = None
+    usage_limit: int | None = Field(default=None, gt=0)
+    per_user_limit: int | None = Field(default=None, gt=0)
+    status: bool | None = None
 
 # ============================================================
 # HELPER - GET CURRENT CART
@@ -382,4 +408,227 @@ def apply_coupon(
         "code": coupon.code,
         "discount_type": coupon.discount_type,
         "discount_value": coupon.discount_value
+    }
+# ============================================================
+# CART-07 - ADMIN COUPON MANAGEMENT
+# ============================================================
+
+@router.get("/admin/coupons")
+def get_admin_coupons(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    coupons = (
+        db.query(Coupon)
+        .order_by(Coupon.id.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": coupon.id,
+            "code": coupon.code,
+            "discount_type": coupon.discount_type,
+            "discount_value": coupon.discount_value,
+            "min_order_value": coupon.min_order_value,
+            "max_discount": coupon.max_discount,
+            "start_date": coupon.start_date,
+            "expiry_date": coupon.expiry_date,
+            "usage_limit": coupon.usage_limit,
+            "per_user_limit": coupon.per_user_limit,
+            "status": coupon.status,
+        }
+        for coupon in coupons
+    ]
+
+
+@router.post("/admin/coupons", status_code=201)
+def create_admin_coupon(
+    request: CouponCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    code = request.code.strip().upper()
+
+    if request.start_date >= request.expiry_date:
+        raise HTTPException(
+            status_code=400,
+            detail="Expiry date must be after start date"
+        )
+
+    if request.discount_type not in ["PERCENTAGE", "FIXED"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Discount type must be PERCENTAGE or FIXED"
+        )
+
+    if request.discount_type == "PERCENTAGE" and request.discount_value > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="Percentage discount cannot exceed 100"
+        )
+
+    existing = (
+        db.query(Coupon)
+        .filter(Coupon.code == code)
+        .first()
+    )
+
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="Coupon code already exists"
+        )
+
+    coupon = Coupon(
+        code=code,
+        discount_type=request.discount_type,
+        discount_value=request.discount_value,
+        min_order_value=request.min_order_value,
+        max_discount=request.max_discount,
+        start_date=request.start_date,
+        expiry_date=request.expiry_date,
+        usage_limit=request.usage_limit,
+        per_user_limit=request.per_user_limit,
+        status=request.status,
+    )
+
+    db.add(coupon)
+    db.commit()
+    db.refresh(coupon)
+
+    return {
+        "message": "Coupon created successfully",
+        "coupon": {
+            "id": coupon.id,
+            "code": coupon.code,
+            "discount_type": coupon.discount_type,
+            "discount_value": coupon.discount_value,
+            "status": coupon.status,
+        }
+    }
+
+
+@router.put("/admin/coupons/{coupon_id}")
+def update_admin_coupon(
+    coupon_id: int,
+    request: CouponUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    coupon = db.query(Coupon).filter(
+        Coupon.id == coupon_id
+    ).first()
+
+    if not coupon:
+        raise HTTPException(
+            status_code=404,
+            detail="Coupon not found"
+        )
+
+    if request.code is not None:
+        new_code = request.code.strip().upper()
+
+        duplicate = (
+            db.query(Coupon)
+            .filter(
+                Coupon.code == new_code,
+                Coupon.id != coupon_id
+            )
+            .first()
+        )
+
+        if duplicate:
+            raise HTTPException(
+                status_code=400,
+                detail="Coupon code already exists"
+            )
+
+        coupon.code = new_code
+
+    if request.discount_type is not None:
+        if request.discount_type not in ["PERCENTAGE", "FIXED"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Discount type must be PERCENTAGE or FIXED"
+            )
+
+        coupon.discount_type = request.discount_type
+
+    if request.discount_value is not None:
+        coupon.discount_value = request.discount_value
+
+    if request.min_order_value is not None:
+        coupon.min_order_value = request.min_order_value
+
+    if request.max_discount is not None:
+        coupon.max_discount = request.max_discount
+
+    if request.start_date is not None:
+        coupon.start_date = request.start_date
+
+    if request.expiry_date is not None:
+        coupon.expiry_date = request.expiry_date
+
+    if coupon.start_date >= coupon.expiry_date:
+        raise HTTPException(
+            status_code=400,
+            detail="Expiry date must be after start date"
+        )
+
+    if coupon.discount_type == "PERCENTAGE" and coupon.discount_value > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="Percentage discount cannot exceed 100"
+        )
+
+    if request.usage_limit is not None:
+        coupon.usage_limit = request.usage_limit
+
+    if request.per_user_limit is not None:
+        coupon.per_user_limit = request.per_user_limit
+
+    if request.status is not None:
+        coupon.status = request.status
+
+    db.commit()
+    db.refresh(coupon)
+
+    return {
+        "message": "Coupon updated successfully",
+        "coupon": {
+            "id": coupon.id,
+            "code": coupon.code,
+            "discount_type": coupon.discount_type,
+            "discount_value": coupon.discount_value,
+            "status": coupon.status,
+        }
+    }
+
+
+@router.patch("/admin/coupons/{coupon_id}/deactivate")
+def deactivate_admin_coupon(
+    coupon_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    coupon = db.query(Coupon).filter(
+        Coupon.id == coupon_id
+    ).first()
+
+    if not coupon:
+        raise HTTPException(
+            status_code=404,
+            detail="Coupon not found"
+        )
+
+    coupon.status = False
+
+    db.commit()
+    db.refresh(coupon)
+
+    return {
+        "message": "Coupon deactivated successfully",
+        "coupon_id": coupon.id,
+        "status": coupon.status
     }
