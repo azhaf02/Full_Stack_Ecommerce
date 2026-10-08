@@ -1,89 +1,80 @@
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import notifications, reviews
-from app.database import engine, Base
-import app.models.review
+from fastapi.staticfiles import StaticFiles
 
-# Ensure database tables exist
-Base.metadata.create_all(bind=engine)
+from app.routers import (
+    notifications,
+    reviews,
+    admin,
+    category,
+    account,
+    auth,
+    audit_logs,
+    analytics,
+    orders,
+    payment,
+    checkout_sessions,
+)
 
-app = FastAPI(title="Viora E-Commerce API", version="1.0.0")
+from app.api.routes.catalog import router as catalog_router, public_router
+from app.api.routes.product import router as product_router
 
-# Enable CORS for Vite frontend
+app = FastAPI(title="Customer Dashboard & Reviews API")
+
+# Enable CORS for React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include feature routers with /api prefix
-app.include_router(notifications.router, prefix="/api")
-app.include_router(reviews.router, prefix="/api")
+# Serve uploaded product images
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# Register routers
+app.include_router(notifications.router)
+app.include_router(reviews.router)
+
+# Admin Dashboard
+app.include_router(admin.router)
+app.include_router(category.router)
+
+# Product Catalog
+app.include_router(product_router)
+app.include_router(public_router)
+
+# Authentication / account / audit logging
+app.include_router(account.router)
+app.include_router(auth.router)
+app.include_router(audit_logs.router)
+
+# Analytics
+app.include_router(analytics.router)
+
+# Orders, cancellation and returns
+app.include_router(orders.router)
+
+# Payment
+app.include_router(payment.router)
+
+# Checkout sessions
+app.include_router(checkout_sessions.router)
+
+# Admin product management
+app.include_router(catalog_router)
+
 
 @app.get("/")
-def read_root():
-    return {"status": "online", "message": "Viora Backend API Running"}
-
-# Endpoint for Wishlist (DASH-04)
-@app.get("/api/wishlist")
-def get_wishlist():
-    return [
-        {
-            "id": 1,
-            "product_id": 1,
-            "name": "Bluetooth Noise-Cancelling Headphones",
-            "category": "Electronics / Audio",
-            "price": "₹7,499",
-            "originalPrice": "₹9,999",
-            "inStock": True,
-            "imageIcon": "🎧"
-        },
-        {
-            "id": 2,
-            "product_id": 2,
-            "name": "Smart Fitness Watch v2",
-            "category": "Wearables / Fitness",
-            "price": "₹2,499",
-            "originalPrice": "₹3,999",
-            "inStock": True,
-            "imageIcon": "⌚"
-        },
-        {
-            "id": 3,
-            "product_id": 3,
-            "name": "Ergonomic Mechanical Keyboard",
-            "category": "Peripherals / Office",
-            "price": "₹4,199",
-            "originalPrice": "₹5,499",
-            "inStock": False,
-            "imageIcon": "⌨️"
-        }
-    ]
-
-# Endpoint for Orders (DASH-04)
-@app.get("/api/account/orders")
-def get_orders():
-    return [
-        {
-            "id": 9821,
-            "product_id": 1,
-            "product_name": "Bluetooth Noise-Cancelling Headphones",
-            "image": "🎧",
-            "date": "2026-09-21",
-            "status": "Delivered",
-            "total": "₹7,499",
-            "canReview": True
-        },
-        {
-            "id": 9825,
-            "product_id": 2,
-            "product_name": "Smart Fitness Watch v2",
-            "image": "⌚",
-            "date": "2026-09-24",
-            "status": "Shipped",
-            "total": "₹2,499",
-            "canReview": False
-        }
-    ]
+def root():
+    return {"message": "Customer Dashboard Backend API is running"}
