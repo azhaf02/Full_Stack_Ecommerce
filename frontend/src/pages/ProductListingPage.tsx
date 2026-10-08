@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-
+import Breadcrumb from "../components/Breadcrumb";
 type Product = {
   id: number;
   name: string;
@@ -15,6 +15,15 @@ type Product = {
 type Category = {
   id: number;
   name: string;
+};
+const getImageUrl = (imageUrl?: string | null) => {
+  if (!imageUrl) return null;
+
+  if (imageUrl.startsWith("http")) {
+    return imageUrl;
+  }
+
+  return `http://127.0.0.1:8000${imageUrl}`;
 };
 
 export default function ProductListingPage() {
@@ -43,8 +52,8 @@ export default function ProductListingPage() {
       : "";
 
     fetch(
-      `http://127.0.0.1:8000/api/products/?page=${page}&page_size=${pageSize}${categoryParam}`
-    )
+  `http://127.0.0.1:8000/api/products/?page=${page}&page_size=${pageSize}${categoryParam}`
+)
       .then((res) => {
         if (!res.ok) {
           throw new Error("Failed to load products");
@@ -70,9 +79,28 @@ export default function ProductListingPage() {
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-8">
       <div className="mx-auto max-w-7xl">
-        <h1 className="mb-6 text-3xl font-bold text-gray-900">
-          Products
-        </h1>
+  <Breadcrumb
+    items={[
+      {
+        label: "Home",
+        onClick: () => handleCategoryChange(null),
+      },
+      ...(selectedCategory !== null
+        ? [
+            {
+              label:
+                categories.find(
+                  (category) => category.id === selectedCategory
+                )?.name || "Category",
+            },
+          ]
+        : []),
+    ]}
+  />
+
+  <h1 className="mb-6 text-3xl font-bold text-gray-900">
+    Products
+  </h1>
 
         {/* Category Navigation */}
 <div
@@ -163,13 +191,13 @@ export default function ProductListingPage() {
                   className="overflow-hidden rounded-xl bg-white shadow-sm transition hover:shadow-md"
                 >
                   <div className="h-52 bg-gray-100">
-                    {product.image_url ? (
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
+                    {getImageUrl(product.image_url) ? (
+  <img
+    src={getImageUrl(product.image_url)!}
+    alt={product.name}
+    className="h-full w-full object-cover"
+  />
+) : (
                       <div className="flex h-full items-center justify-center text-gray-400">
                         No Image
                       </div>

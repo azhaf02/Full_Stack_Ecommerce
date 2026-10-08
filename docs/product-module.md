@@ -74,3 +74,24 @@ GET /api/catalog/products?page=1&page_size=8&category_id=4
 - Empty category state implemented
 - Pagination implemented
 - Invalid page and page_size validation verified
+
+## CAT-06 — Category-Based Navigation & Breadcrumbs
+
+Implemented category-aware navigation and reusable breadcrumbs for the public product listing page.
+
+### Navigation
+
+- Added reusable `Breadcrumb` component.
+- Breadcrumb displays `Home > Products` for the main product listing.
+- Breadcrumb displays `Home > Category` when a category is selected.
+- Category navigation highlights the currently selected category.
+- Clicking `Home` resets the category filter and returns to All Products.
+- Category selection resets pagination to page 1.
+
+### Testing
+
+- Breadcrumb navigation tested on the product listing page.
+- Category selection and active category highlighting tested.
+- Home navigation tested.
+- Category filtering with breadcrumbs tested.
+- Pagination reset after category selection verified.
