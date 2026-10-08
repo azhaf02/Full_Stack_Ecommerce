@@ -51,9 +51,9 @@ class Product(Base):
     )
 
     variants = relationship(
-    "ProductVariant",
-    back_populates="product",
-    cascade="all, delete-orphan"
+        "ProductVariant",
+        back_populates="product",
+        cascade="all, delete-orphan"
     )
 
     def __repr__(self):
