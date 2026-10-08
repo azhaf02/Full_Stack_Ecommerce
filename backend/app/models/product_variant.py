@@ -1,7 +1,7 @@
 from sqlalchemy import Column, ForeignKey, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
-from .base import Base
+from app.database import Base
 
 
 class ProductVariant(Base):

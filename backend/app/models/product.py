@@ -11,7 +11,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from .base import Base
+from app.database import Base
 
 
 class Product(Base):
@@ -51,9 +51,9 @@ class Product(Base):
     )
 
     variants = relationship(
-    "ProductVariant",
-    back_populates="product",
-    cascade="all, delete-orphan"
+        "ProductVariant",
+        back_populates="product",
+        cascade="all, delete-orphan"
     )
 
     def __repr__(self):

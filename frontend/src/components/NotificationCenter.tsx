@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import  { useEffect, useState } from 'react';
 
 interface NotificationItem {
   id: number;
@@ -235,7 +235,7 @@ export default function NotificationCenter({ onClearBadge }: NotificationCenterP
                         color: '#A65B4E',
                         fontWeight: 700
                       }}>
-                        • Unread
+                        ï¿½ Unread
                       </span>
                     )}
                   </div>
