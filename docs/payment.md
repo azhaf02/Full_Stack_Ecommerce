@@ -228,3 +228,54 @@ Request:
 {
   "payment_id": 1
 }
+
+## PAY-05 — Admin COD Payment Collection
+
+### Endpoint
+POST /api/payment/admin/cod/{payment_id}/mark-paid
+
+### Purpose
+Allows an authorized administrator to record cash collected
+for a Cash on Delivery (COD) order.
+
+### Authentication
+- Requires an authenticated user with the admin role.
+- Regular customers receive HTTP 403 Forbidden.
+
+### Request
+- Method: POST
+- Path parameter: payment_id (integer)
+- Request body: Not required
+
+### Successful Response (HTTP 200)
+{
+  "payment_id": 1,
+  "order_id": 10,
+  "method": "COD",
+  "status": "SUCCESS",
+  "message": "Cash on Delivery payment marked as paid successfully"
+}
+
+### Validation
+- 404: Payment or related order not found.
+- 400: Payment method is not COD.
+- 409: Payment is not PENDING.
+- 403: User does not have admin permission.
+
+### Workflow
+1. Customer selects Cash on Delivery.
+2. Payment remains PENDING during checkout.
+3. Cash is collected when the order is delivered.
+4. Admin clicks "Mark COD as Paid".
+5. Payment status changes from PENDING to SUCCESS.
+6. The related order's payment status is synchronized to SUCCESS.
+
+### Integration
+Rishi's admin order page should call this endpoint
+using the corresponding payment_id.
+
+### Testing
+- Customer authorization test passed.
+- Admin COD payment confirmation test passed.
+- Duplicate payment confirmation returns HTTP 409.
+- Full payment test suite: 26 passed.

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.security import get_current_user
+from app.core.security import get_current_user, require_role
 from app.database import get_db
 from app.models.checkout_session import CheckoutSession
 from app.models.payment import (
@@ -11,6 +11,7 @@ from app.models.payment import (
     PaymentMethod as ModelPaymentMethod,
     PaymentStatus,
 )
+from app.models.order import Order
 from app.models.user import User
 from app.schemas.payment import (
     PaymentSelectionRequest,
@@ -419,3 +420,62 @@ def confirm_cod_payment(
         status=payment.status.value,
         message="Cash on Delivery confirmed. Payment remains pending until collection.",
     )
+# PAY-05: Admin confirms COD cash collection
+@router.post("/admin/cod/{payment_id}/mark-paid")
+def mark_cod_as_paid(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(require_role("admin")),
+):
+    payment = db.get(Payment, payment_id)
+
+    if payment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment not found",
+        )
+
+    if payment.method != ModelPaymentMethod.COD:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only COD payments can be marked as paid",
+        )
+
+    if payment.status != PaymentStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="COD payment is not pending",
+        )
+
+    order = db.get(Order, payment.order_id)
+
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found",
+        )
+
+    try:
+        payment.status = PaymentStatus.SUCCESS
+
+        apply_payment_result(
+            db,
+            order,
+            PaymentStatus.SUCCESS.value,
+            changed_by=current_admin.id,
+        )
+
+        db.commit()
+        db.refresh(payment)
+
+    except Exception:
+        db.rollback()
+        raise
+
+    return {
+        "payment_id": payment.id,
+        "order_id": order.id,
+        "method": "COD",
+        "status": payment.status.value,
+        "message": "Cash on Delivery payment marked as paid successfully",
+    }
