@@ -1,3 +1,4 @@
+import '../viora-auth.css';
 import type { ReactNode } from 'react';
 import BrandLogo, { BagLeafIcon, TAGLINE } from '../components/BrandLogo';
 
