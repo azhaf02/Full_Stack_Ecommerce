@@ -128,8 +128,122 @@ Frontend production build completed successfully after integrating the Product D
 
 INV-03 integrates with:
 
-- Chandani � Product Catalog / Product Listing
-- Gazala � Product Detail / Product Variants
-- Zubiya � Cart integration
+- Chandani � Product Catalog / Product Listing
+- Gazala � Product Detail / Product Variants
+- Zubiya � Cart integration
 
 Inventory remains the centralized source for customer-facing stock status.
+
+
+## INV-04 Stock Validation at Cart & Checkout
+
+### Overview
+
+INV-04 provides a reusable inventory validation service that prevents customers from purchasing more quantity than is currently available.
+
+The Inventory table is used as the source for purchase-time stock validation.
+
+### Stock Validation Service
+
+File:
+
+`backend/app/services/inventory_service.py`
+
+Reusable function:
+
+`validate_stock(db, product_id, requested_quantity, variant_id=None)`
+
+Parameters:
+
+* `db` - SQLAlchemy database session
+* `product_id` - Product being purchased
+* `requested_quantity` - Quantity requested by the customer
+* `variant_id` - Optional product variant
+
+Behaviour:
+
+* Requested quantity must be greater than 0.
+* The service checks the corresponding Inventory record.
+* If no inventory record exists, the available quantity is treated as 0.
+* If requested quantity is greater than available quantity, validation fails.
+* If sufficient stock is available, the Inventory record is returned.
+
+### Insufficient Stock Handling
+
+The service raises:
+
+`InsufficientStockError`
+
+Example error:
+
+`Insufficient stock for product 2. Available quantity: 3, requested quantity: 5.`
+
+This provides a clear message to the calling module and prevents the purchase from continuing.
+
+### Cart Integration
+
+Stock validation is performed when:
+
+1. A product is added to the cart.
+2. An existing cart item's quantity is changed.
+
+Both operations call the shared `validate_stock()` service.
+
+This prevents customers from placing more quantity in the cart than is currently available.
+
+### Checkout Integration
+
+Stock is revalidated when an order is created.
+
+This is important because inventory may change after a product was added to the cart.
+
+Example:
+
+* Customer adds quantity 5 to cart.
+* Available stock is initially 10.
+* Another operation reduces stock to 3.
+* Checkout requests quantity 5.
+* `validate_stock()` detects that only 3 are available.
+* Checkout is rejected with an insufficient-stock error.
+
+This prevents overselling caused by stock changes between Cart and Checkout.
+
+### Service Reusability
+
+The validation logic is centralized in `inventory_service.py`.
+
+Other backend modules can reuse:
+
+`validate_stock()`
+
+instead of implementing separate stock-checking logic.
+
+### Verification
+
+The following scenarios were tested:
+
+* Quantity within available stock → validation passed.
+* Quantity greater than available stock → validation rejected.
+* Zero stock → validation rejected.
+* Stock changed between Cart and Checkout → Checkout revalidation rejected the request.
+
+Example verification:
+
+`Initial stock: 10`
+
+`Cart quantity: 5 → PASS`
+
+`Stock changed before checkout: 3`
+
+`Checkout quantity: 5 → PASS (correctly rejected as insufficient stock)`
+
+### INV-04 Definition of Done
+
+* Add to Cart validates stock.
+* Cart quantity updates validate stock.
+* Checkout revalidates stock.
+* Overselling is prevented.
+* Clear insufficient-stock errors are returned.
+* Shared validation service is reusable by other modules.
+* Manual validation scenarios passed.
+* Git commit and Pull Request created.
