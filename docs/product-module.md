@@ -115,3 +115,20 @@ Implemented stock availability signals for the public product listing.
 - Verified products with available stock return `IN_STOCK`.
 - Temporarily set product ID 6 stock to zero and verified the `Out of Stock` badge on the public listing.
 - Restored product ID 6 stock to its original quantity of 50.
+## CAT-08 — Checkpoint 1 Authentication & Authorization
+
+Catalog authentication and authorization regression testing completed.
+
+### Checkpoint Testing
+
+- Public product listing endpoint was verified without authentication and returned active catalog products successfully.
+- Public category navigation endpoint is available for storefront access.
+- Admin product management routes are protected by `require_role("admin")`.
+- Unauthenticated access to `/api/admin/products/` was blocked with `Not authenticated`.
+- The `require_role()` implementation returns HTTP 403 `Not enough permissions` when an authenticated user does not have the required role.
+- Admin catalog operations including product listing, creation, retrieval, update, deactivation, and image upload inherit the admin-only dependency from the catalog router.
+- No missing admin authorization dependency was identified during the catalog route review.
+
+### Checkpoint 1 Result
+
+Catalog authentication and authorization checks passed for the available test scenarios. Customer-role verification should be included when an authenticated non-admin test account/token is available.
