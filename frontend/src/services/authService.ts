@@ -1,33 +1,8 @@
+// Admin login through Madeeha's authentication module (POST /api/auth/admin/login).
+// The backend returns a JWT; we keep it and send it with every admin API request.
 import axios from "axios";
-import apiClient from "./apiClient";
-import type { TokenResponse, User } from "../types/auth";
 
-/* =====================================================================
-   Customer auth (Madeeha): used by Login, Register, Profile pages
-   and AuthContext. Uses the shared apiClient, which attaches the token.
-   ===================================================================== */
-export const authService = {
-  register: (name: string, email: string, password: string) =>
-    apiClient.post<User>("/api/auth/register", { name, email, password }).then((r) => r.data),
-
-  login: (email: string, password: string) =>
-    apiClient.post<TokenResponse>("/api/auth/login", { email, password }).then((r) => r.data),
-
-  adminLogin: (email: string, password: string) =>
-    apiClient.post<TokenResponse>("/api/auth/admin/login", { email, password }).then((r) => r.data),
-
-  logout: () => apiClient.post("/api/auth/logout").then(() => undefined),
-
-  me: () => apiClient.get<User>("/api/auth/me").then((r) => r.data),
-};
-
-/* =====================================================================
-   Admin session (Rishi): used by the admin dashboard.
-   Admin login through Madeeha's authentication module (POST /api/auth/admin/login).
-   The backend returns a JWT; we keep it and send it with every admin API request.
-   ===================================================================== */
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
-
 // Shape of the response from /api/auth/login and /api/auth/admin/login
 export interface LoginResponse {
   access_token: string;
