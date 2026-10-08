@@ -1,6 +1,6 @@
 # Inventory Documentation
 
-## INV-05 � Stock Deduction on Order Confirmation
+## INV-05 — Stock Deduction on Order Confirmation
 
 ### Objective
 
@@ -74,3 +74,70 @@ The following scenarios were tested:
 - Online order before payment: stock not deducted.
 - Online payment success: order confirmed and stock deducted.
 - Inventory history: deduction recorded with previous and new quantities.
+
+
+## INV-06 — Stock Restock on Cancellation and Return
+
+### Objective
+
+Stock is restored to inventory when a confirmed order is cancelled or when returned items are marked as `RETURNED`.
+
+### Cancellation Restock Flow
+
+1. An order reaches `CONFIRMED` and stock is deducted.
+2. The customer cancels the order while cancellation is allowed.
+3. The order changes to `CANCELLED`.
+4. The inventory status hook checks whether stock was previously deducted.
+5. `restock()` restores the quantity for each order item.
+6. An `inventory_history` record is created for each restock.
+7. The restock and order status change are handled in the same database transaction.
+
+### Return Restock Flow
+
+1. A delivered order enters the return process.
+2. The return request is approved.
+3. The product is received and the return is marked `RETURNED`.
+4. The inventory status hook calls `restock()` for the returned items.
+5. Only the returned item quantities are restored.
+6. An `inventory_history` record is created for each returned item.
+
+### Inventory History
+
+Each restock records:
+
+- `inventory_id`
+- `product_id`
+- `change_amount` (positive for restock)
+- `changed_by`
+- `change_type = RESTOCK`
+- `quantity_changed`
+- `previous_quantity`
+- `new_quantity`
+- `reason`
+
+Cancellation restocks use:
+
+`reason = cancel`
+
+Return restocks use:
+
+`reason = return`
+
+### Validation
+
+Stock is restored only when appropriate:
+
+- Cancelled orders are restocked only if stock was previously deducted.
+- Returned orders restore only the quantities included in the return.
+- Inventory quantity cannot become negative.
+- Missing inventory records cause the transaction to fail rather than silently creating incorrect stock.
+
+### INV-06 Verification
+
+The following scenarios were tested:
+
+- Confirmed order cancellation: stock restored successfully.
+- Cancellation history: restock recorded with the correct quantity and reason.
+- Returned item: returned quantity restored successfully.
+- Return history: restock recorded with `change_type = RESTOCK`.
+- Relevant cancellation and return workflow tests passed successfully.
