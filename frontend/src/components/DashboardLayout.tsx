@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import SearchBar from './SearchBar';
 import OrdersListView from './OrdersListView';
 import NotificationCenter from './NotificationCenter';
 import ReviewsList from './ReviewsList';
@@ -52,7 +53,7 @@ export default function DashboardLayout() {
         fontWeight: 500,
         borderBottom: '1px solid rgba(255,255,255,0.08)'
       }}>
-        Complimentary Express Shipping on Orders Above ?5,000 — Member Privileges
+        Complimentary Express Shipping on Orders Above ?5,000 ï¿½ Member Privileges
       </div>
 
       {/* Signature Olive Green Navbar with Bag Logo */}
@@ -150,6 +151,7 @@ export default function DashboardLayout() {
             }}>
               A
             </div>
+            <SearchBar />
             <div>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#FAF8F5' }}>Aliza Fayyaz Khan</div>
               <div style={{ fontSize: '9px', letterSpacing: '1.2px', color: '#9EB09A', textTransform: 'uppercase' }}>

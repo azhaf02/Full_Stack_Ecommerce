@@ -1,8 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import notifications, reviews
+from app.api.routes.catalog import router as catalog_router
 from app.database import engine, Base
 import app.models.review
+import app.models.base
+import app.models.category
+import app.models.product
+import app.models.product_image
+import app.models.product_variant
 
 # Ensure database tables exist
 Base.metadata.create_all(bind=engine)
@@ -21,6 +27,7 @@ app.add_middleware(
 # Include existing feature routers (without extra prefix)
 app.include_router(notifications.router)
 app.include_router(reviews.router)
+app.include_router(catalog_router)
 
 @app.get("/")
 def read_root():
