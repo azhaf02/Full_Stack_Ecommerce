@@ -15,18 +15,51 @@ def create_product(db: Session, product: ProductCreate):
     return db_product
 
 
-def get_products(db: Session):
-    products = db.query(Product).all()
+def get_products(
+    db: Session,
+    page: int = 1,
+    page_size: int = 10,
+    category_id: int | None = None,
+):
+    query = (
+        db.query(Product)
+        .filter(Product.status == "ACTIVE")
+    )
+
+    if category_id is not None:
+        query = query.filter(Product.category_id == category_id)
+
+    products = (
+        query
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    result = []
 
     for product in products:
+        image = product.images[0] if product.images else None
+
         stock_data = get_inventory_stock_status(
             db,
             product.id
         )
 
-        product.stock_status = stock_data["stock_status"]
+        result.append({
+            "id": product.id,
+            "category_id": product.category_id,
+            "category_name": product.category.name if product.category else None,
+            "name": product.name,
+            "description": product.description,
+            "price": product.price,
+            "stock_quantity": product.stock_quantity,
+            "stock_status": stock_data["stock_status"],
+            "status": product.status,
+            "image_url": image.image_url if image else None,
+        })
 
-    return products
+    return result
 
 
 def get_product_detail(db: Session, product_id: int):
@@ -87,24 +120,13 @@ def get_product_detail(db: Session, product_id: int):
         ]
     }
 
+
 def get_product(db: Session, product_id: int):
-    product = (
+    return (
         db.query(Product)
         .filter(Product.id == product_id)
         .first()
     )
-
-    if not product:
-        return None
-
-    stock_data = get_inventory_stock_status(
-        db,
-        product.id
-    )
-
-    product.stock_status = stock_data["stock_status"]
-
-    return product
 
 
 def update_product(
