@@ -132,3 +132,97 @@ Catalog authentication and authorization regression testing completed.
 ### Checkpoint 1 Result
 
 Catalog authentication and authorization checks passed for the available test scenarios. Customer-role verification should be included when an authenticated non-admin test account/token is available.
+
+## CAT-09 — Final Testing, Bug Fixing & Documentation
+
+Final functional testing, regression testing, demo data seeding, bug fixing, and documentation were completed for the Product Catalog module.
+
+### Final Testing
+
+* Public product listing was tested using the Catalog API.
+* Pagination was tested with `page=1` and `page_size=50`.
+* All active catalog products were successfully returned.
+* Category listing was verified through `/api/catalog/categories`.
+* Category-based navigation and breadcrumbs were tested on the frontend.
+* All Products and individual category views were verified.
+* Product price, category, stock quantity, stock status, image and active status were verified.
+* Public catalog access was verified without authentication.
+* Admin catalog routes were reviewed for authentication and authorization protection.
+* Unauthenticated access to admin product and category routes was blocked.
+* Product listing bug was identified where only the last product was returned due to incorrect indentation in the result-building loop.
+* The indentation issue was fixed and the public catalog listing was re-tested successfully.
+
+### Final Validation Matrix
+
+| Test Case                      | Result |
+| ------------------------------ | ------ |
+| Public product listing         | PASS   |
+| Public category listing        | PASS   |
+| Active products displayed      | PASS   |
+| Category filtering             | PASS   |
+| Category navigation            | PASS   |
+| Breadcrumb navigation          | PASS   |
+| Pagination                     | PASS   |
+| Product price display          | PASS   |
+| Stock quantity display         | PASS   |
+| Stock status signal            | PASS   |
+| Admin route authentication     | PASS   |
+| Admin authorization dependency | PASS   |
+| Demo category seed data        | PASS   |
+| Demo product seed data         | PASS   |
+| Supabase PostgreSQL seed       | PASS   |
+| Catalog listing bug fix        | PASS   |
+
+### Demo Data
+
+A PostgreSQL-compatible catalog seed script was added in `backend/seed_supabase.py`.
+
+The seed script inserts demo categories and products into Supabase PostgreSQL without duplicating existing demo records.
+
+#### Demo Categories
+
+* Clothing — Everyday clothing and fashion products
+* Home & Kitchen — Useful products for home and kitchen
+* Accessories — Everyday personal and tech accessories
+
+#### Demo Products
+
+* Classic Cotton T-Shirt — ₹599 — Stock 25
+* Stainless Steel Water Bottle — ₹799 — Stock 20
+* Wireless Mouse — ₹999 — Stock 30
+
+Seed execution was verified successfully against the Supabase PostgreSQL database.
+
+### API Documentation
+
+Catalog endpoints were cross-checked against the FastAPI OpenAPI documentation.
+
+#### Public Catalog APIs
+
+* `GET /api/catalog/categories` — List active categories.
+* `GET /api/catalog/products` — List active products.
+* `GET /api/catalog/products?page=1&page_size=8` — Paginated product listing.
+* `GET /api/catalog/products?page=1&page_size=8&category_id={category_id}` — Category-filtered product listing.
+
+#### Admin Product APIs
+
+* `GET /api/admin/products/` — List/search/filter products.
+* `POST /api/admin/products/` — Create product.
+* `GET /api/admin/products/{product_id}` — Get product.
+* `PUT /api/admin/products/{product_id}` — Update product.
+* `DELETE /api/admin/products/{product_id}` — Deactivate product.
+* `POST /api/admin/products/{product_id}/images` — Upload product image.
+
+### Authentication & Authorization
+
+* Public catalog endpoints are available for storefront access.
+* Admin product management routes inherit `require_role("admin")`.
+* Unauthenticated requests to admin catalog routes are rejected.
+* Authenticated non-admin users are expected to receive HTTP 403 from the role dependency.
+* Full admin CRUD execution requires an available admin test account/token.
+
+### Final Result
+
+The Product Catalog module passed the available final regression checks and is documented for deployment.
+
+**CAT-09 Status: COMPLETED**

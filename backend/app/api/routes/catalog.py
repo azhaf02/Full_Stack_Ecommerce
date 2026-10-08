@@ -216,7 +216,7 @@ async def upload_product_image(
     db.refresh(image)
 
     return image
-from app.models.category import Category
+
 
 
 @public_router.get("/categories")
@@ -229,12 +229,7 @@ def get_public_categories(
         .order_by(Category.id)
         .all()
     )
-    return (
-        db.query(Category)
-        .filter(Category.is_active == True)
-        .order_by(Category.id)
-        .all()
-    )
+    
 @public_router.get("/products", response_model=list[ProductResponse])
 def get_public_products(
     page: int = Query(default=1, ge=1),
@@ -263,19 +258,21 @@ def get_public_products(
     for product in products:
         image = product.images[0] if product.images else None
 
-    result.append({
-    "id": product.id,
-    "category_id": product.category_id,
-    "category_name": product.category.name if product.category else None,
-    "name": product.name,
-    "description": product.description,
-    "price": product.price,
-    "stock_quantity": product.stock_quantity,
-    "stock_status": (
-        "OUT_OF_STOCK" if product.stock_quantity <= 0 else "IN_STOCK"
-    ),
-    "status": product.status,
-    "image_url": image.image_url if image else None,
-})
+        result.append({
+            "id": product.id,
+            "category_id": product.category_id,
+            "category_name": product.category.name if product.category else None,
+            "name": product.name,
+            "description": product.description,
+            "price": product.price,
+            "stock_quantity": product.stock_quantity,
+            "stock_status": (
+                "OUT_OF_STOCK"
+                if product.stock_quantity <= 0
+                else "IN_STOCK"
+            ),
+            "status": product.status,
+            "image_url": image.image_url if image else None,
+        })
 
     return result

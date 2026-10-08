@@ -1,69 +1,161 @@
 import os
 import sys
+
 from sqlalchemy import text
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import engine
 
-def deploy_tables_and_seed():
-    print("⏳ Executing DDL for Notifications and Reviews...")
 
-    # Individual SQL statements compatible with both SQLite and PostgreSQL
-    statements = [
+def seed_catalog():
+    print("🌱 Seeding Catalog demo data into Supabase PostgreSQL...")
+
+    category_statements = [
         """
-        CREATE TABLE IF NOT EXISTS notifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            type VARCHAR(50) NOT NULL,
-            message VARCHAR(500) NOT NULL,
-            is_read BOOLEAN NOT NULL DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
+        INSERT INTO categories (name, description, is_active, created_at, updated_at)
+        VALUES (
+            'Clothing',
+            'Everyday clothing and fashion products',
+            TRUE,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (name) DO NOTHING;
         """,
-        "CREATE INDEX IF NOT EXISTS ix_notifications_id ON notifications (id);",
-        "CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications (user_id);",
         """
-        CREATE TABLE IF NOT EXISTS reviews (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            product_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            order_id INTEGER NOT NULL,
-            rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-            title VARCHAR(150),
-            comment TEXT NOT NULL,
-            status VARCHAR(20) NOT NULL DEFAULT 'Approved',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
+        INSERT INTO categories (name, description, is_active, created_at, updated_at)
+        VALUES (
+            'Home & Kitchen',
+            'Useful products for home and kitchen',
+            TRUE,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (name) DO NOTHING;
         """,
-        "CREATE INDEX IF NOT EXISTS ix_reviews_id ON reviews (id);",
-        "CREATE INDEX IF NOT EXISTS ix_reviews_product_id ON reviews (product_id);",
-        "CREATE INDEX IF NOT EXISTS ix_reviews_user_id ON reviews (user_id);",
-        "CREATE INDEX IF NOT EXISTS ix_reviews_order_id ON reviews (order_id);"
+        """
+        INSERT INTO categories (name, description, is_active, created_at, updated_at)
+        VALUES (
+            'Accessories',
+            'Everyday personal and tech accessories',
+            TRUE,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (name) DO NOTHING;
+        """,
     ]
 
-    seed_statements = [
+    product_statements = [
         """
-        INSERT INTO notifications (user_id, type, message, is_read)
-        VALUES (1, 'ORDER_CONFIRMATION', 'Your VIORA order #1001 has been confirmed.', 0);
+        INSERT INTO products
+            (category_id, name, description, price, stock_quantity, status,
+             created_at, updated_at)
+        SELECT
+            c.id,
+            'Classic Cotton T-Shirt',
+            'Comfortable everyday cotton t-shirt',
+            599.00,
+            25,
+            'ACTIVE',
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        FROM categories c
+        WHERE c.name = 'Clothing'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM products
+              WHERE name = 'Classic Cotton T-Shirt'
+          );
         """,
         """
-        INSERT INTO reviews (product_id, user_id, order_id, rating, title, comment, status)
-        VALUES (1, 1, 1, 5, 'Exceptional quality', 'Premium build and fast shipping. Fully satisfied!', 'Approved');
+        INSERT INTO products
+            (category_id, name, description, price, stock_quantity, status,
+             created_at, updated_at)
+        SELECT
+            c.id,
+            'Stainless Steel Water Bottle',
+            'Reusable stainless steel bottle for everyday use',
+            799.00,
+            20,
+            'ACTIVE',
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        FROM categories c
+        WHERE c.name = 'Home & Kitchen'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM products
+              WHERE name = 'Stainless Steel Water Bottle'
+          );
+        """,
         """
+        INSERT INTO products
+            (category_id, name, description, price, stock_quantity, status,
+             created_at, updated_at)
+        SELECT
+            c.id,
+            'Wireless Mouse',
+            'Ergonomic wireless mouse for work and study',
+            999.00,
+            30,
+            'ACTIVE',
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        FROM categories c
+        WHERE c.name = 'Accessories'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM products
+              WHERE name = 'Wireless Mouse'
+          );
+        """,
     ]
 
     with engine.begin() as connection:
-        for stmt in statements:
-            connection.execute(text(stmt.strip()))
-        print("✅ Notifications and Reviews tables created successfully!")
+        for statement in category_statements:
+            connection.execute(text(statement.strip()))
 
-        for seed in seed_statements:
-            try:
-                connection.execute(text(seed.strip()))
-            except Exception as err:
-                print(f"ℹ️ Sample note: {err}")
-        print("✅ Sample notification and review records inserted successfully!")
+        print("✅ Demo categories inserted/verified.")
+
+        for statement in product_statements:
+            connection.execute(text(statement.strip()))
+
+        print("✅ Demo products inserted/verified.")
+
+        categories = connection.execute(
+            text("""
+                SELECT id, name, is_active
+                FROM categories
+                WHERE name IN ('Clothing', 'Home & Kitchen', 'Accessories')
+                ORDER BY id;
+            """)
+        ).fetchall()
+
+        products = connection.execute(
+            text("""
+                SELECT id, name, price, stock_quantity, status
+                FROM products
+                WHERE name IN (
+                    'Classic Cotton T-Shirt',
+                    'Stainless Steel Water Bottle',
+                    'Wireless Mouse'
+                )
+                ORDER BY id;
+            """)
+        ).fetchall()
+
+    print("\n📦 Categories:")
+    for category in categories:
+        print(category)
+
+    print("\n🛍️ Products:")
+    for product in products:
+        print(product)
+
+    print("\n🎉 Catalog seed completed successfully!")
+
 
 if __name__ == "__main__":
-    deploy_tables_and_seed()
+    seed_catalog()
