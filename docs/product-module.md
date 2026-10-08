@@ -39,3 +39,38 @@ The admin product module provides product CRUD operations with image upload supp
 * Stock quantity cannot be negative.
 * Only JPG, PNG and WEBP images are accepted.
 * Image size must not exceed 5 MB.
+## CAT-05 — Public Product Listing
+
+Implemented the customer-facing product listing page with:
+
+- Public category navigation
+- Active products only
+- Product listing by category
+- Responsive product grid
+- Product image, name, price and status
+- Pagination using page and page_size
+- Empty category state
+- Query parameter validation for page, page_size and category_id
+
+### Public APIs
+
+GET /api/catalog/categories
+
+GET /api/catalog/products?page=1&page_size=8
+
+GET /api/catalog/products?page=1&page_size=8&category_id=4
+
+### Validation
+
+- page must be greater than or equal to 1
+- page_size must be between 1 and 50
+- category_id must be greater than or equal to 1
+
+### Testing
+
+- All Products listing tested
+- Category filtering tested
+- Active product filtering verified
+- Empty category state implemented
+- Pagination implemented
+- Invalid page and page_size validation verified

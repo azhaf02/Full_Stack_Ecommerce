@@ -9,7 +9,11 @@ from app.models.product import Product
 from app.models.product_image import ProductImage
 from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
 from app.schemas.product_image import ProductImageResponse
-
+from app.models.category import Category
+public_router = APIRouter(
+    prefix="/api/catalog",
+    tags=["Public Catalog"],
+)
 
 router = APIRouter(
     prefix="/api/admin/products",
@@ -212,3 +216,63 @@ async def upload_product_image(
     db.refresh(image)
 
     return image
+from app.models.category import Category
+
+
+@public_router.get("/categories")
+def get_public_categories(
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(Category)
+        .filter(Category.is_active == True)
+        .order_by(Category.id)
+        .all()
+    )
+    return (
+        db.query(Category)
+        .filter(Category.is_active == True)
+        .order_by(Category.id)
+        .all()
+    )
+@public_router.get("/products", response_model=list[ProductResponse])
+def get_public_products(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=8, ge=1, le=50),
+    category_id: int | None = Query(default=None, ge=1),
+    db: Session = Depends(get_db),
+):
+    query = (
+        db.query(Product)
+        .filter(Product.status == "ACTIVE")
+    )
+
+    if category_id is not None:
+        query = query.filter(Product.category_id == category_id)
+
+    products = (
+        query
+        .order_by(Product.id)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    result = []
+
+    for product in products:
+        image = product.images[0] if product.images else None
+
+        result.append({
+            "id": product.id,
+            "category_id": product.category_id,
+            "category_name": product.category.name if product.category else None,
+            "name": product.name,
+            "description": product.description,
+            "price": product.price,
+            "stock_quantity": product.stock_quantity,
+            "status": product.status,
+            "image_url": image.image_url if image else None,
+        })
+
+    return result

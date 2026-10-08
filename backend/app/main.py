@@ -17,7 +17,8 @@ from app.routers import (
     orders,
 )
 
-from app.api.routes.catalog import router as catalog_router
+from app.api.routes.catalog import router as catalog_router, public_router
+from app.api.routes.product import router as product_router
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
 
@@ -43,7 +44,8 @@ app.include_router(notifications.router)
 app.include_router(reviews.router)
 app.include_router(admin.router)
 app.include_router(category.router)
-
+app.include_router(product_router)
+app.include_router(public_router)
 # Authentication / account / audit logging
 app.include_router(account.router)
 app.include_router(auth.router)
