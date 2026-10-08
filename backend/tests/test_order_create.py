@@ -10,13 +10,23 @@ from sqlalchemy.pool import StaticPool
 from app.core.security import get_current_user
 from app.database import Base, get_db
 from app.models.order import Order, OrderItem, OrderStatusHistory, Return, ReturnItem
+from app.models.inventory import Inventory
+from app.models.inventory_history import InventoryHistory
 from app.routers import orders as orders_router
+from app.services.inventory_service import on_order_status_change
 from app.services.order_service import (
     OutOfStock, apply_payment_result, clear_status_hooks, register_status_hook,
 )
 
-ORDER_TABLES = [Order.__table__, OrderItem.__table__, OrderStatusHistory.__table__,
-                Return.__table__, ReturnItem.__table__]
+ORDER_TABLES = [
+    Order.__table__,
+    OrderItem.__table__,
+    OrderStatusHistory.__table__,
+    Return.__table__,
+    ReturnItem.__table__,
+    Inventory.__table__,
+    InventoryHistory.__table__,
+]
 
 # Stand-ins for tables owned by other modules (their models are not on main yet).
 catalog = MetaData()
@@ -31,28 +41,107 @@ addresses = Table("addresses", catalog, Column("id", Integer, primary_key=True),
 CUSTOMER = SimpleNamespace(id=1, role=SimpleNamespace(name="customer"))
 ADMIN = SimpleNamespace(id=9, role=SimpleNamespace(name="admin"))
 
-
 @pytest.fixture()
 def env():
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool
+    )
+
     Base.metadata.create_all(engine, tables=ORDER_TABLES)
     catalog.create_all(engine)
+
     Session = sessionmaker(bind=engine)
+
     with Session() as db:
-        db.execute(insert(products), [
-            {"id": 1, "name": "T-Shirt", "price": "499.00", "status": "ACTIVE"},
-            {"id": 2, "name": "Laptop", "price": "47999.00", "status": "INACTIVE"},
-            {"id": 3, "name": "Shoe", "price": "100.00", "status": "ACTIVE"},
-            {"id": 4, "name": "Hat", "price": "250.00", "status": "ACTIVE"}])
-        db.execute(insert(variants), [{"id": 1, "product_id": 3, "price_delta": "25.00"},
-                                      {"id": 2, "product_id": 3, "price_delta": "-10.00"}])
-        db.execute(insert(shipping), [{"id": 1, "cost": "50.00", "status": True},
-                                      {"id": 2, "cost": "100.00", "status": True},
-                                      {"id": 3, "cost": "10.00", "status": False}])
-        db.execute(insert(addresses), [{"id": 1, "user_id": 1}, {"id": 2, "user_id": 2}])
+        db.execute(insert(addresses).values(
+            id=1,
+            user_id=1,
+        ))
+
+        db.execute(insert(shipping), [
+            {
+                "id": 1,
+                "cost": 50,
+                "status": True,
+            },
+            {
+                "id": 2,
+                "cost": 100,
+                "status": True,
+            },
+        ])
+
+        db.execute(insert(products).values(
+            id=1,
+            name="Test Product",
+            price=499,
+            status="ACTIVE",
+        ))
+
+        db.execute(insert(products).values(
+            id=3,
+            name="Variant Product",
+            price=200,
+            status="ACTIVE",
+        ))
+
+        db.execute(insert(variants), [
+    {
+        "id": 1,
+        "product_id": 3,
+        "price_delta": -75,
+    },
+    {
+        "id": 2,
+        "product_id": 3,
+        "price_delta": -110,
+    },
+])
+
+        db.execute(insert(products).values(
+            id=4,
+            name="Another Product",
+            price=300,
+            status="ACTIVE",
+        ))
+
+        db.add_all([
+            Inventory(
+                product_id=1,
+                variant_id=None,
+                quantity=100,
+                low_stock_threshold=10,
+                status="IN_STOCK",
+            ),
+            Inventory(
+                product_id=3,
+                variant_id=1,
+                quantity=100,
+                low_stock_threshold=10,
+                status="IN_STOCK",
+            ),
+            Inventory(
+                product_id=3,
+                variant_id=2,
+                quantity=100,
+                low_stock_threshold=10,
+                status="IN_STOCK",
+            ),
+            Inventory(
+                product_id=4,
+                variant_id=None,
+                quantity=100,
+                low_stock_threshold=10,
+                status="IN_STOCK",
+            ),
+        ])
+
         db.commit()
 
     who = {"user": CUSTOMER}
+
     app = FastAPI()
     app.include_router(orders_router.router)
 
@@ -65,11 +154,20 @@ def env():
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: who["user"]
-    clear_status_hooks()
-    yield SimpleNamespace(client=TestClient(app), Session=Session, who=who, app=app)
-    clear_status_hooks()
 
+    clear_status_hooks()
+    register_status_hook(on_order_status_change)
 
+    client = TestClient(app)
+
+    yield SimpleNamespace(
+        client=client,
+        Session=Session,
+        who=who,
+        app=app,
+    )
+
+    clear_status_hooks()
 def body(**overrides):
     base = {"address_id": 1, "shipping_method_id": 1, "payment_method": "COD",
             "items": [{"product_id": 1, "quantity": 2}]}
@@ -86,6 +184,8 @@ def order_count(env):
 
 def test_cod_order_is_priced_by_the_server_and_confirmed(env):
     r = env.client.post("/api/orders", json=body())
+    print("STATUS:", r.status_code)
+    print("RESPONSE:", r.json())
     assert r.status_code == 201
     order = r.json()
     assert order["order_number"].startswith("ORD-")
@@ -99,7 +199,10 @@ def test_cod_order_is_priced_by_the_server_and_confirmed(env):
 
 
 def test_online_order_waits_as_placed_until_payment_is_verified(env):
-    order = env.client.post("/api/orders", json=body(payment_method="ONLINE", shipping_method_id=2)).json()
+    r = env.client.post("/api/orders", json=body(payment_method="ONLINE", shipping_method_id=2))
+    print("STATUS:", r.status_code)
+    print("RESPONSE:", r.json())
+    order = r.json()
     assert order["status"] == "PLACED" and order["payment_status"] == "PENDING"
     assert float(order["total_amount"]) == 998.0 + 100.0
     assert order["actions"]["can_cancel"] is True
@@ -121,14 +224,20 @@ def test_failed_payment_leaves_the_order_unconfirmed(env):
 
 def test_variant_price_is_the_product_price_plus_the_variant_difference(env):
     items = [{"product_id": 3, "variant_id": 1, "quantity": 2}, {"product_id": 3, "variant_id": 2, "quantity": 1}]
-    order = env.client.post("/api/orders", json=body(items=items)).json()
+    r = env.client.post("/api/orders", json=body(items=items))
+    print("STATUS:", r.status_code)
+    print("RESPONSE:", r.json())
+    order = r.json()
     assert sorted((i["variant_id"], float(i["unit_price"])) for i in order["items"]) == [(1, 125.0), (2, 90.0)]
     assert float(order["subtotal"]) == 125.0 * 2 + 90.0
 
 
 def test_the_same_product_listed_twice_becomes_one_line(env):
     items = [{"product_id": 1, "quantity": 1}, {"product_id": 1, "quantity": 2}, {"product_id": 4, "quantity": 1}]
-    order = env.client.post("/api/orders", json=body(items=items)).json()
+    r = env.client.post("/api/orders", json=body(items=items))
+    print("STATUS:", r.status_code)
+    print("RESPONSE:", r.json())
+    order = r.json()
     assert sorted((i["product_id"], i["quantity"]) for i in order["items"]) == [(1, 3), (4, 1)]
 
 
