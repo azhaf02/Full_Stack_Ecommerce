@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import OrdersListView from './OrdersListView';
 import NotificationCenter from './NotificationCenter';
 import ReviewsList from './ReviewsList';
-//import WishlistListView from './WishlistListView';
-import NewTicketPage from '../pages/support/NewTicketPage'; // 💡 Imports your robust inquiry support form path
-import SupportChatbot from './SupportChatbot'; // 💡 Imports your conversational AI widget
+import NewTicketPage from '../pages/support/NewTicketPage'; // 💡 Imports your olive green support form path
+import { SupportChatbot } from './SupportChatbot'; // 💡 Imports your brand-compliant VIORA chatbot widget
 
 function VioraBrandBag() {
   return (
@@ -33,7 +32,7 @@ export default function DashboardLayout() {
     { id: 'wishlist', label: 'Wishlist' },
     { id: 'notifications', label: 'Notifications', count: unreadCount },
     { id: 'reviews', label: 'Product Reviews' },
-    { id: 'support-form', label: 'Support Form' }, // 🎯 YOUR TAB SUCCESSFULLY WIRED IN ALIZA'S NAVIGATION LOOP
+    { id: 'support-form', label: 'Support Form' }, // 🎯 WIRED YOUR TAB EXPLICITLY INTO SIDEBAR LOOP ARRAY
   ];
   return (
     <div style={{
@@ -227,7 +226,7 @@ export default function DashboardLayout() {
             })}
           </nav>
         </aside>
-        {/* Content Section */}
+        {/* Content Section Panels Content Blocks Area */}
         <section>
           {activeTab === 'overview' && (
             <div>
@@ -343,7 +342,6 @@ export default function DashboardLayout() {
 
           {activeTab === 'wishlist' && <div style={{ padding: '20px', color: '#6e776e' }}>Wishlist Content Coming Soon.</div>}
 
-
           {activeTab === 'notifications' && (
             <NotificationCenter onClearBadge={() => setUnreadCount(0)} />
           )}
@@ -368,14 +366,14 @@ export default function DashboardLayout() {
             </div>
           )}
 
-          {/* 🎯 RENDERS YOUR SUPPORT FORM INLINE WHEN THE SIDEBAR TAB IS TRIGGERED 🎯 */}
+          {/* 🎯 RENDERS YOUR PRODUCT-ID VALIDATED OLIVE SUPPORT FORM INLINE WHEN SELECTED 🎯 */}
           {activeTab === 'support-form' && (
             <NewTicketPage onBackToHub={() => setActiveTab('overview')} />
           )}
         </section>
       </main>
 
-      {/* 🤖 GLOBAL CONVERSATIONAL SMART AI CHATBOT WIDGET FLOATS SURROUNDED 🤖 */}
+      {/* 🤖 GLOBAL CONVERSATIONAL SMART AI CHATBOT WITH MESSAGE ICON FLOATS 🤖 */}
       <SupportChatbot />
     </div>
   );

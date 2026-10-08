@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import NewTicketPage from './NewTicketPage';
+import SupportChatbot from '../../components/SupportChatbot';
 
 interface FAQItem {
   id: number;
@@ -22,12 +23,13 @@ const FaqPage: React.FC = () => {
   const [currentCategory, setCurrentCategory] = useState<CategoryMetaData | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // 🎨 Explicit 6 Card Categories Configured with Beautiful Pastel Colors
   const categoryRegistry: CategoryMetaData[] = [
     {
       id: 'account',
       label: 'ACCOUNT MANAGEMENT',
       icon: '👤',
-      bgColor: '#E8F0FE',
+      bgColor: '#E8F0FE', // Pastel Slate Blue
       borderColor: '#B4CDFB',
       tagline: 'Manage profile records, passwords, security tokens, and account access bounds.',
       faqs: [
@@ -39,7 +41,7 @@ const FaqPage: React.FC = () => {
       id: 'orders',
       label: 'ORDERS LEDGER',
       icon: '📦',
-      bgColor: '#E6F4EA',
+      bgColor: '#E6F4EA', // Pastel Mint Green
       borderColor: '#A8DAB5',
       tagline: 'Track active shipments invoices, check purchase history logs, or amend routing values.',
       faqs: [
@@ -51,7 +53,7 @@ const FaqPage: React.FC = () => {
       id: 'payments',
       label: 'CHECKOUT & PAYMENTS',
       icon: '💳',
-      bgColor: '#FEF7E0',
+      bgColor: '#FEF7E0', // Pastel Warm Honey
       borderColor: '#FAD896',
       tagline: 'Verify invoice settlements, check payment method filters, or download receipts.',
       faqs: [
@@ -63,7 +65,7 @@ const FaqPage: React.FC = () => {
       id: 'delivery',
       label: 'LOGISTICS & DELIVERY',
       icon: '🚚',
-      bgColor: '#FCE8E6',
+      bgColor: '#FCE8E6', // Pastel Coral Rose
       borderColor: '#F7B4AE',
       tagline: 'Review courier network schedules, customs validation alerts, or delayed drop flags.',
       faqs: [
@@ -75,19 +77,19 @@ const FaqPage: React.FC = () => {
       id: 'returns',
       label: 'RETURNS & REFUNDS',
       icon: '🔄',
-      bgColor: '#F3E8FD',
+      bgColor: '#F3E8FD', // Pastel Lilac Lavender
       borderColor: '#D7B7F9',
-      tagline: 'Initiate exchange workflows or track pending return status arrays under ORD-07 frameworks.',
+      tagline: 'Initiate exchange workflows or track pending return status arrays under ORDER frameworks.',
       faqs: [
         { id: 501, question: 'WHAT IS THE BASELINE RETURN GRACE DURATION?', answer: 'Return ingestion actions must be registered over our platform panel within 14 calendar days post-parcel arrival.' },
-        { id: 502, question: 'WHEN WILL PENDING CASH REFUNDS REFLECT IN MY BALANCES?', answer: 'Once warehouse scanners cross-verify the items condition, balances process via Aliza\'s billing engines within 48 hours.' }
+        { id: 502, question: 'WHEN WILL PENDING CASH REFUNDS REFLECT IN MY BALANCES?', answer: 'Once warehouse scanners cross-verify the items condition, balances process via billing engines within 48 hours.' }
       ]
     },
     {
       id: 'stock',
       label: 'PRODUCT & STOCK',
       icon: '✨',
-      bgColor: '#EAF6F6',
+      bgColor: '#EAF6F6', // Pastel Teal Aqua
       borderColor: '#AEDCDC',
       tagline: 'Check product sizing charts, limited drop schedules, or inventory restock metrics.',
       faqs: [
@@ -114,47 +116,49 @@ const FaqPage: React.FC = () => {
     });
     return collector;
   };
-  return (
-    <div className="container-fluid min-vh-100 py-5" style={{ backgroundColor: '#FBFBFA', color: '#1A1A1A', fontFamily: 'monospace' }}>
-      <div className="container bg-white p-4 p-md-5 border" style={{ maxWidth: '850px', borderRadius: '0px', borderColor: '#EBEAE4' }}>
+    return (
+    <div className="container-fluid min-vh-100 py-5" style={{ backgroundColor: '#FAF8F5', color: '#1B241C', fontFamily: 'monospace' }}>
+      <div className="container shadow-sm bg-white p-4 p-md-5 border" style={{ maxWidth: '850px', borderRadius: '12px', borderColor: '#E5DFD5' }}>
         
-        {/* Dynamic Navigation Breadcrumb Ribbon */}
-        <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4" style={{ borderColor: '#000000', borderBottomWidth: '2px' }}>
-          <span className="fw-bold tracking-widest text-uppercase" style={{ fontSize: '12px', color: '#000000' }}>
-            VIORA HELPDESK SYSTEM // {activeView === 'hub' ? 'HELP PORTAL' : currentCategory?.id.toUpperCase() || 'SUPPORT'}
+        {/* Dynamic Header Ribbon - Premium Olive Green Controlled */}
+        <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4" style={{ borderColor: '#E5DFD5', borderBottomWidth: '1px' }}>
+          <span className="fw-bold tracking-widest text-uppercase" style={{ fontSize: '12px', color: '#232F24' }}>
+            VIORA'S HELP CENTER // {activeView === 'hub' ? 'HOW CAN WE HELP?' : currentCategory?.id.toUpperCase() || 'SUPPORT'}
           </span>
           {activeView !== 'hub' && (
             <button 
               onClick={() => { setActiveView('hub'); setCurrentCategory(null); }} 
-              className="btn btn-sm btn-outline-dark tracking-wider text-uppercase" 
-              style={{ borderRadius: '0px', fontSize: '10px', fontWeight: 'bold' }}
+              className="btn btn-sm text-white px-3 py-1 text-uppercase" 
+              style={{ borderRadius: '8px', fontSize: '10px', backgroundColor: '#3B4D3C', border: 'none', cursor: 'pointer' }}
             >
               ← BACK TO HELP HUB
             </button>
           )}
         </div>
 
-        {/* -------------------- VIEW 1: MAIN HUB VIEW GRID PANELS -------------------- */}
+        {/* -------------------- VIEW 1: MAIN HUB VIEW (WITH CARDS GRID) -------------------- */}
         {activeView === 'hub' && (
           <div>
-            <div className="text-center py-4 mb-5 bg-light border" style={{ borderColor: '#EBEAE4' }}>
-              <h4 className="fw-bold text-uppercase tracking-widest mb-2" style={{ fontSize: '20px', letterSpacing: '2px' }}>HOW CAN WE ASSIST YOU?</h4>
-              <p className="text-muted small text-uppercase tracking-wider mb-4" style={{ fontSize: '9px' }}>Explore specific categories grids below or query the data logs directly.</p>
-              <div className="px-4 mx-auto" style={{ maxWidth: '500px' }}>
+            {/* Search Input Box Area (Olive Green Aesthetic Header) */}
+            <div className="text-center py-4 mb-4 border text-white" style={{ backgroundColor: '#232F24', borderColor: '#1A241B', borderRadius: '12px' }}>
+              <h4 className="fw-bold text-uppercase tracking-widest mb-1" style={{ fontSize: '18px', color: '#FAF8F5' }}>HELP CENTER</h4>
+              <p className="small text-uppercase tracking-wider mb-3" style={{ fontSize: '9px', color: '#C2CDC0' }}>Search active troubleshooting manuals or catalog indexes before filing formal tickets.</p>
+              <div className="px-4 mx-auto" style={{ maxWidth: '450px' }}>
                 <input 
                   type="text" 
                   className="form-control text-center text-uppercase" 
-                  placeholder="SEARCH ERROR MANUALS REGISTERS INSTANTLY..." 
-                  style={{ borderRadius: '0px', borderColor: '#000000', padding: '10px', fontSize: '12px' }}
+                  placeholder="TYPE KEYWORDS TO SEARCH FAQ MANUALS..." 
+                  style={{ borderRadius: '20px', borderColor: '#E5DFD5', padding: '10px', fontSize: '12px', backgroundColor: '#FAF8F5', color: '#1B241C' }}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                 />
               </div>
             </div>
 
+            {/* Global Search Results Layer */}
             {searchQuery.trim() !== '' && (
-              <div className="mb-5 border border-dark p-3">
-                <span className="badge bg-black text-white text-uppercase font-monospace mb-3" style={{ borderRadius: '0px' }}>SEARCH HITS MATRIX</span>
+              <div className="mb-4 border p-3 bg-white" style={{ borderRadius: '12px', borderColor: '#C5D3C1' }}>
+                <span className="badge text-white text-uppercase font-monospace mb-3" style={{ borderRadius: '0px', backgroundColor: '#3B4D3C' }}>SEARCH HITS MATRIX</span>
                 {globalFilteredFaqs().length > 0 ? (
                   globalFilteredFaqs().map(f => (
                     <div key={f.id} className="pb-3 mb-3 border-bottom" style={{ borderColor: '#F0EDE6' }}>
@@ -169,7 +173,7 @@ const FaqPage: React.FC = () => {
               </div>
             )}
 
-            {/* Savana-Style Category Grids Enclosure (Pastel Accents) */}
+            {/* 📦 Savana-Style Dynamic 6 Pastel Categories Grid Enclosure 📦 */}
             <div className="row g-3 mb-5">
               {categoryRegistry.map((cat) => (
                 <div key={cat.id} className="col-12 col-sm-6">
@@ -177,15 +181,16 @@ const FaqPage: React.FC = () => {
                     onClick={() => handleCategoryClick(cat)}
                     className="card h-100 p-4"
                     style={{ 
-                      borderRadius: '0px', 
-                      borderColor: '#EBEAE4',
+                      borderRadius: '12px', 
+                      borderColor: cat.borderColor,
                       borderWidth: '1px',
                       cursor: 'pointer',
                       backgroundColor: '#FFFFFF',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.01)'
                     }}
                   >
-                    <div className="d-flex align-items-center gap-3 mb-3">
+                    <div className="d-flex align-items-center gap-3 mb-2">
+                      {/* Pastel Color Container Box For Custom Icon */}
                       <div 
                         className="d-flex align-items-center justify-content-center"
                         style={{ 
@@ -199,7 +204,7 @@ const FaqPage: React.FC = () => {
                       >
                         {cat.icon}
                       </div>
-                      <h6 className="fw-bold text-dark tracking-wider text-uppercase mb-0" style={{ fontSize: '13px' }}>{cat.label}</h6>
+                      <h6 className="fw-bold tracking-wider text-uppercase mb-0" style={{ fontSize: '12px', color: '#232F24' }}>{cat.label}</h6>
                     </div>
                     <p className="text-muted mb-0 lh-sm" style={{ fontSize: '11px' }}>{cat.tagline}</p>
                   </div>
@@ -207,22 +212,16 @@ const FaqPage: React.FC = () => {
               ))}
             </div>
 
-            {/* Directive Action Ticket Creation CTA Ingestion Box */}
-            <div className="p-4 border border-dark bg-white mt-5" style={{ borderRadius: '0px', borderWidth: '2px' }}>
-              <div className="border-bottom pb-2 mb-3" style={{ borderColor: '#000000' }}>
-                <h6 className="fw-bold text-uppercase tracking-wider mb-1" style={{ fontSize: '13px' }}>OFFICIAL INCIDENT RESOLUTION TERMINAL</h6>
-                <p className="text-muted small text-uppercase mb-0" style={{ fontSize: '9px' }}>The reporting mechanism securely captures the following parameters:</p>
+            {/* Ingestion CTA Directive (Sir's Catch Specs Locked) */}
+            <div className="p-4 border bg-white mt-5" style={{ borderRadius: '14px', borderColor: '#E5DFD5', borderWidth: '1px' }}>
+              <div className="border-bottom pb-2 mb-3" style={{ borderColor: '#E5DFD5' }}>
+                <h6 className="fw-bold text-uppercase tracking-wider mb-1" style={{ fontSize: '13px', color: '#232F24' }}>OFFICIAL INCIDENT RESOLUTION TERMINAL</h6>
+                <p className="text-muted small text-uppercase mb-0" style={{ fontSize: '9px' }}>The reporting mechanism securely captures Category, Order ID, and Product IDs parameters.</p>
               </div>
-              <ul className="list-unstyled d-flex flex-column gap-2 text-uppercase text-muted mb-4" style={{ fontSize: '11px', letterSpacing: '0.5px' }}>
-                <li><i className="bi bi-dash-lg me-2 text-dark"></i>Category / Routing Matrix</li>
-                <li><i className="bi bi-dash-lg me-2 text-dark"></i>Invoice Order Reference Number ID</li>
-                <li><i className="bi bi-dash-lg me-2 text-dark"></i>Specific Product ID Code <span className="text-dark fw-bold">[Sir's Multi-Item Filter]</span></li>
-                <li><i className="bi bi-dash-lg me-2 text-dark"></i>Descriptive Problem Narrative Text</li>
-              </ul>
               <button 
                 onClick={() => setActiveView('form')} 
-                className="btn btn-dark text-white fw-bold text-uppercase w-100 py-3 tracking-widest text-center"
-                style={{ borderRadius: '0px', backgroundColor: '#000000', fontSize: '12px' }}
+                className="btn text-white fw-bold text-uppercase w-100 py-3 tracking-widest text-center"
+                style={{ borderRadius: '10px', backgroundColor: '#3B4D3C', fontSize: '12px', border: 'none', cursor: 'pointer' }}
               >
                 OPEN OFFICIAL SUPPORT FORM
               </button>
@@ -233,44 +232,51 @@ const FaqPage: React.FC = () => {
         {/* -------------------- VIEW 2: DYNAMIC SPECIFIC CATEGORY DEDICATED PAGE -------------------- */}
         {activeView === 'category' && currentCategory && (
           <div className="py-2">
-            <div className="d-flex align-items-center gap-3 p-4 mb-4 border border-dark" style={{ backgroundColor: currentCategory.bgColor, borderColor: currentCategory.borderColor }}>
+            {/* Category Header Profile Card Layout */}
+            <div className="d-flex align-items-center gap-3 p-4 mb-4 border" style={{ backgroundColor: currentCategory.bgColor, borderColor: currentCategory.borderColor, borderRadius: '12px' }}>
               <div style={{ fontSize: '32px' }}>{currentCategory.icon}</div>
               <div>
-                <h5 className="fw-bold text-dark text-uppercase tracking-wider mb-1" style={{ fontSize: '15px' }}>{currentCategory.label} ARCHIVE</h5>
+                <h5 className="fw-bold text-uppercase tracking-wider mb-1" style={{ fontSize: '14px', color: '#232F24' }}>{currentCategory.label} ARCHIVE</h5>
                 <p className="text-secondary small mb-0 lh-sm" style={{ fontSize: '11px' }}>{currentCategory.tagline}</p>
               </div>
             </div>
 
+            {/* Rendered Questions Stream */}
             <div className="d-flex flex-column gap-3 mb-5">
               {currentCategory.faqs.map(f => (
-                <div key={f.id} className="p-4 bg-white border" style={{ borderColor: '#EBEAE4' }}>
-                  <h6 className="fw-bold text-dark text-uppercase mb-2" style={{ fontSize: '13px' }}>Q: {f.question}</h6>
+                <div key={f.id} className="p-4 bg-white border" style={{ borderColor: '#E5DFD5', borderRadius: '10px' }}>
+                  <h6 className="fw-bold text-uppercase mb-2" style={{ fontSize: '12px', color: '#232F24' }}>Q: {f.question}</h6>
                   <p className="text-muted small mb-0 lh-base" style={{ fontSize: '12px' }}>{f.answer}</p>
                 </div>
               ))}
             </div>
 
-            <div className="text-center py-4 border bg-light">
-              <p className="small text-muted text-uppercase tracking-wider mb-3" style={{ fontSize: '10px' }}>Could not locate structural answers under this category register node?</p>
+            {/* Inner Redirection Callout Button */}
+            <div className="text-center py-4 border bg-light" style={{ borderRadius: '10px' }}>
+              <p className="small text-muted text-uppercase tracking-wider mb-3" style={{ fontSize: '10px' }}>Could not locate structural answers under this category?</p>
               <button 
                 onClick={() => setActiveView('form')} 
-                className="btn btn-sm btn-dark text-uppercase text-white fw-bold px-4 rounded-0"
-                style={{ borderRadius: '0px', backgroundColor: '#000000', fontSize: '11px' }}
+                className="btn btn-sm text-white fw-bold px-4"
+                style={{ borderRadius: '8px', backgroundColor: '#3B4D3C', fontSize: '11px', border: 'none', cursor: 'pointer' }}
               >
-                Proceed To Inquiry Form
+                OPEN OFFICIAL SUPPORT FORM
               </button>
             </div>
           </div>
         )}
 
-                {/* -------------------- VIEW 3: TICKET CREATION INTAKE FORM VIEW -------------------- */}
+        {/* -------------------- VIEW 3: INTAKE SUPPORT TICKETS CREATION FORM VIEW -------------------- */}
         {activeView === 'form' && (
           <NewTicketPage onBackToHub={() => { setActiveView('hub'); setCurrentCategory(null); }} />
         )}
 
       </div>
+
+      {/* 🤖 GLOBAL CONVERSATIONAL CHAT ICON ASSISTANT FLOATS SECURELY IN THE BACKGROUND 🤖 */}
+      <SupportChatbot />
     </div>
   );
 };
 
 export default FaqPage;
+
