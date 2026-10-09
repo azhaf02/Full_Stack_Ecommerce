@@ -1,0 +1,32 @@
+/* VIORA auth pages (Madeeha): loaded only by Login, Register and Profile */
+@layer theme, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) important;
+
+@theme {
+  --color-viora-olive: #556b2f;
+  --color-viora-olive-dark: #3e4f22;
+  --color-viora-sage: #b7c4a2;
+  --color-viora-sage-soft: #e6ecdc;
+  --color-viora-cream: #f4f4ee;
+  --color-viora-ink: #23291c;
+  --color-viora-muted: #66705b;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "DM Sans", system-ui, sans-serif;
+}
+
+@keyframes viora-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes viora-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes viora-leaf { from { opacity: 0; transform: scale(0.3) rotate(-30deg); } to { opacity: 1; transform: none; } }
+
+.viora-fade { animation: viora-fade 0.5s ease-out both; }
+.viora-rise { animation: viora-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.viora-leaf { transform-box: fill-box; transform-origin: bottom left; animation: viora-leaf 0.9s 0.3s cubic-bezier(0.3, 1.4, 0.5, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .viora-fade, .viora-rise, .viora-leaf { animation: none; }
+}
+/* Bootstrap/Tailwind normally set this; auth pages need it on their own now */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
