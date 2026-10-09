@@ -14,7 +14,7 @@ function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [imageChanging, setImageChanging] = useState(false);
+  const [, setImageChanging] = useState(false);
   const [wishlistAdded, setWishlistAdded] = useState(false);
   const [quantity, setQuantity] = useState(1);
 
@@ -197,8 +197,7 @@ function ProductDetailPage() {
   const isInStock = product.stock_status !== "out_of_stock";
   const isLowStock = product.stock_status === "low_stock";
 
-  const selectedImageUrl =
-    selectedImage?.image_url || null;
+  
 
   return (
     <>
