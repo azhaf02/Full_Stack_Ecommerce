@@ -20,7 +20,7 @@ type AddressStepProps = {
 };
 
 // Updated API base URL
-const API_BASE = "http://localhost:8001";
+const API_BASE =  "http://localhost:8000";
 const TOKEN_KEY = "viora_token";
 
 function getAuthHeaders(): Record<string, string> {

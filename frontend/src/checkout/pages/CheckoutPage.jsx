@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import AddressStep from "../components/AddressStep";
 import "../checkout.css";
@@ -12,6 +13,8 @@ const initialAddress = {
   pincode: "",
   country: "India",
 };
+
+const API_BASE = "http://localhost:8000";
 
 const money = (value) =>
   new Intl.NumberFormat("en-IN", {
@@ -31,28 +34,64 @@ const getDeliveryText = (estimatedDays) => {
     return "Estimated delivery in 1 business day";
   }
 
-  return `Estimated delivery in ${days} business days`;
+  return "Estimated delivery in " + days + " business days";
+};
+const getErrorMessage = (data, fallback) => {
+  const detail = data?.detail;
+
+  if (typeof detail === "string") return detail;
+
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => item.msg || "Invalid input")
+      .join(", ");
+  }
+
+  return fallback;
 };
 
 function CheckoutPage() {
   const [step, setStep] = useState(1);
 
   const [address, setAddress] = useState(initialAddress);
-  const [billingAddress, setBillingAddress] = useState(initialAddress);
+  const [billingAddress, setBillingAddress] =
+    useState(initialAddress);
+  const [shippingAddressId, setShippingAddressId] =
+    useState(null);
 
-  // Selected shipping address ID for order creation
-  const [shippingAddressId, setShippingAddressId] = useState(null);
-
-  // Shipping methods loaded from backend
   const [shippingMethods, setShippingMethods] = useState([]);
   const [shipping, setShipping] = useState(null);
   const [shippingLoading, setShippingLoading] = useState(true);
 
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("error");
 
-  // Current demo/test product until shared cart module is connected
-  const subtotal = 499;
-  const discount = 0;
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewValid, setReviewValid] = useState(false);
+  const [reviewData, setReviewData] = useState(null);
+  const [orderLoading, setOrderLoading] = useState(false);
+
+  // Temporary demo values used only when review data is unavailable.
+  // The real order must eventually use the shared cart.
+  const demoSubtotal = 499;
+  const demoDiscount = 0;
+
+  const showError = (text) => {
+    setMessage(text);
+    setMessageType("error");
+  };
+
+  const showSuccess = (text) => {
+    setMessage(text);
+    setMessageType("success");
+  };
+
+  const clearReview = () => {
+    setReviewValid(false);
+    setReviewData(null);
+  };
+
+  const getToken = () => localStorage.getItem("viora_token");
 
   // =========================
   // LOAD SHIPPING METHODS
@@ -61,34 +100,34 @@ function CheckoutPage() {
     const loadShippingMethods = async () => {
       try {
         setShippingLoading(true);
-        setMessage("");
 
         const response = await fetch(
-         "http://127.0.0.1:8001/api/shipping-methods"
+          `${API_BASE}/api/shipping-methods`
         );
 
+        const data = await response.json().catch(() => []);
+
         if (!response.ok) {
-          throw new Error("Failed to load shipping methods.");
+          throw new Error(
+            getErrorMessage(data, "Failed to load shipping methods.")
+          );
         }
 
-        const methods = await response.json();
-
-        if (!Array.isArray(methods) || methods.length === 0) {
+        if (!Array.isArray(data) || data.length === 0) {
           throw new Error("No shipping methods are available.");
         }
 
-        setShippingMethods(methods);
-
-        // Select first active method by default
-        setShipping(methods[0].id);
+        setShippingMethods(data);
+        setShipping(data[0].id);
       } catch (error) {
         console.error("Shipping methods error:", error);
-
         setShippingMethods([]);
         setShipping(null);
 
-        setMessage(
-          "Unable to load shipping methods. Please try again."
+        showError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load shipping methods."
         );
       } finally {
         setShippingLoading(false);
@@ -99,7 +138,7 @@ function CheckoutPage() {
   }, []);
 
   // =========================
-  // SELECTED SHIPPING
+  // SELECTED SHIPPING + TOTALS
   // =========================
   const selectedShipping = shippingMethods.find(
     (method) => Number(method.id) === Number(shipping)
@@ -107,20 +146,113 @@ function CheckoutPage() {
 
   const shippingCharge = Number(selectedShipping?.cost ?? 0);
 
-  const total = subtotal - discount + shippingCharge;
+  const subtotal = Number(
+    reviewData?.summary?.subtotal ?? demoSubtotal
+  );
+
+  const discount = Number(
+    reviewData?.summary?.discount ?? demoDiscount
+  );
+
+  const displayedShipping = Number(
+    reviewData?.summary?.shipping ?? shippingCharge
+  );
+
+  const displayedTotal = Number(
+    reviewData?.summary?.total ??
+      subtotal - discount + displayedShipping
+  );
+
+  // =========================
+  // VALIDATE CHECKOUT REVIEW
+  // =========================
+  const validateReview = async () => {
+    const token = getToken();
+
+    if (!token) {
+      throw new Error("Please login before continuing.");
+    }
+
+    if (!shippingAddressId) {
+      throw new Error("Please select a shipping address.");
+    }
+
+    if (!selectedShipping) {
+      throw new Error("Please select a shipping method.");
+    }
+
+    const response = await fetch(
+      `${API_BASE}/api/checkout/review`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          address_id: Number(shippingAddressId),
+          shipping_method_id: Number(selectedShipping.id),
+        }),
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        getErrorMessage(data, "Checkout validation failed.")
+      );
+    }
+
+    if (data?.ready_for_payment !== true) {
+      throw new Error(
+        data?.message ||
+          "Your checkout could not be validated. Please review your details."
+      );
+    }
+
+    return data;
+  };
 
   // =========================
   // CONTINUE TO REVIEW
   // =========================
-  const continueToReview = () => {
+  const continueToReview = async () => {
     setMessage("");
+    clearReview();
 
-    if (!selectedShipping) {
-      setMessage("Please select a shipping method.");
+    if (!shippingAddressId) {
+      showError("Please select a shipping address.");
+      setStep(1);
       return;
     }
 
-    setStep(3);
+    if (!selectedShipping) {
+      showError("Please select a shipping method.");
+      return;
+    }
+
+    try {
+      setReviewLoading(true);
+
+      const data = await validateReview();
+
+      setReviewData(data);
+      setReviewValid(true);
+      setStep(3);
+      setMessage("");
+    } catch (error) {
+      console.error("Checkout review error:", error);
+
+      showError(
+        error instanceof Error
+          ? error.message
+          : "Unable to validate checkout."
+      );
+    } finally {
+      setReviewLoading(false);
+    }
   };
 
   // =========================
@@ -129,67 +261,89 @@ function CheckoutPage() {
   const placeOrder = async () => {
     setMessage("");
 
-    if (!shippingAddressId) {
-      setMessage("Shipping address is missing.");
+    if (!reviewValid || !reviewData) {
+      showError(
+        "Please validate your order again before placing it."
+      );
       return;
     }
 
-    if (!selectedShipping) {
-      setMessage("Please select a shipping method.");
+    if (!shippingAddressId || !selectedShipping) {
+      clearReview();
+      showError(
+        "Your address or shipping selection is missing. Please review checkout again."
+      );
       return;
     }
 
     try {
-      const token = localStorage.getItem("viora_token");
+      setOrderLoading(true);
 
-      if (!token) {
-        setMessage("Please login before placing the order.");
-        return;
-      }
+      // Revalidate stock, coupon and checkout details immediately
+      // before order creation.
+      const latestReview = await validateReview();
 
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/orders",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            address_id: shippingAddressId,
-            shipping_method_id: Number(selectedShipping.id),
-            payment_method: "COD",
-            items: [
-              {
-                product_id: 2,
-                variant_id: 1,
-                quantity: 1,
-              },
-            ],
-          }),
-        }
-      );
+      setReviewData(latestReview);
+      setReviewValid(true);
 
-      const data = await response.json();
+      /*
+       * TEMPORARY DEMO ORDER:
+       * Replace these hardcoded items when the shared cart
+       * module is integrated. Never send prices or totals.
+       */
+      const response = await fetch(`${API_BASE}/api/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          address_id: Number(shippingAddressId),
+          shipping_method_id: Number(selectedShipping.id),
+          payment_method: "COD",
+          items: [
+            {
+              product_id: 2,
+              variant_id: 1,
+              quantity: 1,
+            },
+          ],
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(
-          data?.detail || "Failed to create order."
+          getErrorMessage(data, "Failed to create order.")
         );
       }
 
-      setMessage(
+      showSuccess(
         `Order placed successfully! Order #${data.order_number}`
       );
     } catch (error) {
       console.error("Order creation error:", error);
 
-      setMessage(
+      // Do not leave a previously successful review marked valid
+      // after a failed revalidation.
+      if (
+        error instanceof Error &&
+        /stock|coupon|address|shipping|checkout|cart|validation|login|insufficient/i.test(
+          error.message
+        )
+      ) {
+        clearReview();
+      }
+
+      showError(
         error instanceof Error
           ? error.message
           : "Unable to place order. Please try again."
       );
+    } finally {
+      setOrderLoading(false);
     }
   };
 
@@ -208,19 +362,15 @@ function CheckoutPage() {
         </span>
       </header>
 
-      {/* Main */}
       <main className="checkout-main">
         <div className="checkout-heading">
           <h1>Checkout</h1>
-
           <p>
             Complete your delivery details and review your order.
           </p>
         </div>
 
-        {/* =========================
-            PROGRESS STEPS
-        ========================== */}
+        {/* Progress steps */}
         <div
           className="checkout-steps"
           aria-label="Checkout progress"
@@ -243,16 +393,12 @@ function CheckoutPage() {
                 <span className="step-number">
                   {step > number ? "✓" : number}
                 </span>
-
                 <span>{label}</span>
               </div>
             );
           })}
         </div>
 
-        {/* =========================
-            CHECKOUT LAYOUT
-        ========================== */}
         <div className="checkout-layout">
           <section className="checkout-card">
             {/* =========================
@@ -264,7 +410,6 @@ function CheckoutPage() {
                   selectedAddress,
                   selectedBillingAddress
                 ) => {
-                  // Save address ID for order creation
                   setShippingAddressId(selectedAddress.id);
 
                   setAddress({
@@ -286,11 +431,11 @@ function CheckoutPage() {
                       selectedBillingAddress.line2 || "",
                     city: selectedBillingAddress.city,
                     state: selectedBillingAddress.state,
-                    pincode:
-                      selectedBillingAddress.postal_code,
+                    pincode: selectedBillingAddress.postal_code,
                     country: selectedBillingAddress.country,
                   });
 
+                  clearReview();
                   setMessage("");
                   setStep(2);
                 }}
@@ -308,14 +453,12 @@ function CheckoutPage() {
                   Select a delivery option for your address.
                 </p>
 
-                {/* Loading */}
                 {shippingLoading && (
                   <div className="checkout-hint">
                     Loading available shipping methods...
                   </div>
                 )}
 
-                {/* Shipping Options */}
                 {!shippingLoading &&
                   shippingMethods.length > 0 && (
                     <div className="shipping-options">
@@ -333,11 +476,11 @@ function CheckoutPage() {
                             name="shipping"
                             value={method.id}
                             checked={
-                              Number(shipping) ===
-                              Number(method.id)
+                              Number(shipping) === Number(method.id)
                             }
                             onChange={() => {
                               setShipping(method.id);
+                              clearReview();
                               setMessage("");
                             }}
                           />
@@ -362,7 +505,6 @@ function CheckoutPage() {
                     </div>
                   )}
 
-                {/* No methods */}
                 {!shippingLoading &&
                   shippingMethods.length === 0 && (
                     <div
@@ -373,17 +515,15 @@ function CheckoutPage() {
                     </div>
                   )}
 
-                {/* Error / validation */}
                 {message && (
                   <div
-                    className="checkout-alert error"
+                    className={`checkout-alert ${messageType}`}
                     role="alert"
                   >
                     {message}
                   </div>
                 )}
 
-                {/* Shipping actions */}
                 <div className="checkout-actions">
                   <button
                     className="checkout-btn secondary"
@@ -401,10 +541,14 @@ function CheckoutPage() {
                     type="button"
                     onClick={continueToReview}
                     disabled={
-                      shippingLoading || !selectedShipping
+                      shippingLoading ||
+                      reviewLoading ||
+                      !selectedShipping
                     }
                   >
-                    Continue to review
+                    {reviewLoading
+                      ? "Validating order..."
+                      : "Continue to review"}
                   </button>
                 </div>
               </>
@@ -418,83 +562,84 @@ function CheckoutPage() {
                 <h2>Review your order</h2>
 
                 <p className="checkout-hint">
-                  Check your address and selected shipping method
-                  before placing the order.
+                  Check your address, shipping method, items and
+                  total before placing the order.
                 </p>
 
-                {/* Shipping Address */}
+                {!reviewValid && (
+                  <div
+                    className="checkout-alert error"
+                    role="alert"
+                  >
+                    Your order has not been validated. Return to
+                    shipping and validate it again.
+                  </div>
+                )}
+
+                {/* Shipping address */}
                 <div className="review-section">
                   <h3>Shipping address</h3>
-
                   <p>
                     <strong>{address.fullName}</strong>
                   </p>
-
                   <p>{address.mobile}</p>
-
                   <p>
                     {address.addressLine1}
                     {address.addressLine2
                       ? `, ${address.addressLine2}`
                       : ""}
                   </p>
-
                   <p>
                     {address.city}, {address.state} -{" "}
                     {address.pincode}
                   </p>
-
                   <p>{address.country}</p>
                 </div>
 
-                {/* Billing Address */}
+                {/* Billing address */}
                 <div className="review-section">
                   <h3>Billing address</h3>
-
                   <p>
                     <strong>{billingAddress.fullName}</strong>
                   </p>
-
                   <p>{billingAddress.mobile}</p>
-
                   <p>
                     {billingAddress.addressLine1}
                     {billingAddress.addressLine2
                       ? `, ${billingAddress.addressLine2}`
                       : ""}
                   </p>
-
                   <p>
-                    {billingAddress.city},{" "}
-                    {billingAddress.state} -{" "}
+                    {billingAddress.city}, {billingAddress.state} -{" "}
                     {billingAddress.pincode}
                   </p>
-
                   <p>{billingAddress.country}</p>
                 </div>
 
-                {/* Selected Shipping */}
+                {/* Server-validated shipping */}
                 <div className="review-section">
                   <h3>Shipping method</h3>
 
-                  {selectedShipping ? (
+                  {reviewData?.shipping || selectedShipping ? (
                     <>
                       <p>
                         <strong>
-                          {selectedShipping.name}
+                          {reviewData?.shipping?.name ||
+                            selectedShipping?.name}
                         </strong>
                       </p>
 
                       <p>
                         {getDeliveryText(
-                          selectedShipping.estimated_days
+                          reviewData?.shipping?.estimated_days ??
+                            selectedShipping?.estimated_days
                         )}
                       </p>
 
                       <p>
                         Shipping charge:{" "}
                         <strong>
-                          {money(selectedShipping.cost)}
+                          {money(displayedShipping)}
                         </strong>
                       </p>
                     </>
@@ -503,32 +648,124 @@ function CheckoutPage() {
                   )}
                 </div>
 
-                {/* Order Items */}
+                {/* Items from the backend review */}
                 <div className="review-section">
                   <h3>Order items</h3>
 
-                  <p className="checkout-hint">
-                    Test T-Shirt — Size S — Qty 1 — ₹499
-                  </p>
+                  {Array.isArray(reviewData?.items) &&
+                  reviewData.items.length > 0 ? (
+                    reviewData.items.map((item) => (
+                      <div
+                        className="review-item"
+                        key={item.cart_item_id}
+                      >
+                        <strong>
+                          Product #{item.product_id}
+                        </strong>
+
+                        {item.variant_id != null && (
+                          <p>Variant: {item.variant_id}</p>
+                        )}
+
+                        <p>Quantity: {item.quantity}</p>
+
+                        <p>
+                          Unit price:{" "}
+                          {money(item.unit_price)}
+                        </p>
+
+                        <p>
+                          Line total:{" "}
+                          <strong>
+                            {money(item.line_total)}
+                          </strong>
+                        </p>
+
+                        <p>
+                          Available stock: {item.available_stock}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="review-item">
+                      <strong>Demo product</strong>
+                      <p>
+                        The backend review did not return cart
+                        items. The demo order item is still
+                        configured for order creation.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
-                {/* Review Message */}
+                {/* Coupon result */}
+                <div className="review-section">
+                  <h3>Coupon</h3>
+
+                  {reviewData?.coupon ? (
+                    <>
+                      <p>
+                        Code:{" "}
+                        <strong>
+                          {reviewData.coupon.code}
+                        </strong>
+                      </p>
+                      <p>
+                        Discount:{" "}
+                        {money(
+                          reviewData.coupon.discount_amount
+                        )}
+                      </p>
+                    </>
+                  ) : (
+                    <p>No coupon applied.</p>
+                  )}
+                </div>
+
+                {/* Server-calculated price breakdown */}
+                <div className="review-section">
+                  <h3>Price breakdown</h3>
+
+                  <div className="summary-row">
+                    <span>Subtotal</span>
+                    <span>{money(subtotal)}</span>
+                  </div>
+
+                  <div className="summary-row">
+                    <span>Discount</span>
+                    <span>{money(discount)}</span>
+                  </div>
+
+                  <div className="summary-row">
+                    <span>Shipping</span>
+                    <span>{money(displayedShipping)}</span>
+                  </div>
+
+                  <div className="summary-divider" />
+
+                  <div className="summary-row total">
+                    <span>Total</span>
+                    <span>{money(displayedTotal)}</span>
+                  </div>
+                </div>
+
                 {message && (
                   <div
-                    className="checkout-alert success"
-                    role="status"
+                    className={`checkout-alert ${messageType}`}
+                    role={messageType === "error" ? "alert" : "status"}
                   >
                     {message}
                   </div>
                 )}
 
-                {/* Review Actions */}
                 <div className="checkout-actions">
                   <button
                     className="checkout-btn secondary"
                     type="button"
+                    disabled={orderLoading}
                     onClick={() => {
                       setStep(2);
+                      clearReview();
                       setMessage("");
                     }}
                   >
@@ -539,9 +776,17 @@ function CheckoutPage() {
                     className="checkout-btn primary"
                     type="button"
                     onClick={placeOrder}
-                    disabled={!selectedShipping}
+                    disabled={
+                      !reviewValid ||
+                      !reviewData ||
+                      reviewLoading ||
+                      orderLoading ||
+                      !selectedShipping
+                    }
                   >
-                    Place order
+                    {orderLoading
+                      ? "Revalidating and placing order..."
+                      : "Place order"}
                   </button>
                 </div>
               </>
@@ -574,7 +819,7 @@ function CheckoutPage() {
 
               <span>
                 {selectedShipping
-                  ? money(shippingCharge)
+                  ? money(displayedShipping)
                   : "—"}
               </span>
             </div>
@@ -583,7 +828,7 @@ function CheckoutPage() {
 
             <div className="summary-row total">
               <span>Total</span>
-              <span>{money(total)}</span>
+              <span>{money(displayedTotal)}</span>
             </div>
 
             {selectedShipping && (
@@ -591,6 +836,14 @@ function CheckoutPage() {
                 {getDeliveryText(
                   selectedShipping.estimated_days
                 )}
+              </p>
+            )}
+
+            {reviewData && (
+              <p className="checkout-hint">
+                {reviewValid
+                  ? "Checkout validation passed."
+                  : "Checkout needs revalidation."}
               </p>
             )}
           </aside>
@@ -601,3 +854,4 @@ function CheckoutPage() {
 }
 
 export default CheckoutPage;
+
