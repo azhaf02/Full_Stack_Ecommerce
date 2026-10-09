@@ -20,7 +20,7 @@ from app.routers import (
     payment,
     checkout_sessions,
 )
-from app.api.routes import product
+from app.api.routes import product, inventory
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
 order_service.register_status_hook(on_order_status_change)
@@ -67,6 +67,8 @@ app.include_router(checkout_sessions.router)
 # Product
 app.include_router(product.router)
 
+
+app.include_router(inventory.router)
 
 @app.get("/")
 def root():
