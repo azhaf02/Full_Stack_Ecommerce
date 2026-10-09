@@ -5,9 +5,10 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Loaded separately so each area's styles stay on its own pages:
-// admin (Tailwind), customer dashboard (Bootstrap), auth pages (VIORA theme).
+// admin (Tailwind), customer dashboard (Bootstrap), VIORA pages (home + auth).
 const AdminApp = lazy(() => import('./AdminApp'));
 const CustomerApp = lazy(() => import('./CustomerApp'));
+const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
@@ -17,6 +18,12 @@ function App() {
     <AuthProvider>
       <Suspense fallback={null}>
         <Routes>
+          {/* Storefront home (Madeeha) */}
+          <Route path="/" element={<HomePage />} />
+
+          {/* Until the product listing page exists, /products opens the Home page product section */}
+          <Route path="/products" element={<HomePage />} />
+
           {/* Admin Dashboard */}
           <Route path="/admin/*" element={<AdminApp />} />
 

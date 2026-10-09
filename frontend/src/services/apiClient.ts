@@ -3,8 +3,11 @@ import axios from 'axios';
 export const TOKEN_KEY = 'viora_token';
 
 // Same backend URL as src/api.js
+// Same backend URL as src/api.js
+export const API_BASE_URL = 'http://localhost:8000';
+
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
