@@ -91,7 +91,8 @@ def place_order(data: OrderCreate, user: User = Depends(customer_only), db: Sess
             address_id=data.address_id, shipping_method_id=data.shipping_method_id,
             payment_method=data.payment_method,
             items=[order_pricing.OrderLine(product_id=i.product_id, variant_id=i.variant_id, quantity=i.quantity)
-                   for i in data.items])
+                   for i in data.items],
+            coupon_code=data.coupon_code)
         return order_service.create_order(db, order_pricing.price_order(db, user.id, request))
     return _detail(_run(db, action))
 

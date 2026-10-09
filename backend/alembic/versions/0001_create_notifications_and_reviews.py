@@ -1,7 +1,7 @@
 """create notifications and reviews tables
 
 Revision ID: 0001_notif_reviews
-Revises: 6658707a12a7
+Revises: 
 Create Date: 2026-09-30 16:45:00.000000
 
 """
@@ -10,7 +10,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision: str = '0001_notif_reviews'
-down_revision: Union[str, None] = '6658707a12a7'
+down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

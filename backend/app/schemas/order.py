@@ -92,6 +92,7 @@ class OrderCreate(BaseModel):
     shipping_method_id: int
     payment_method: Literal["ONLINE", "COD"]
     items: List[OrderLineIn] = Field(min_length=1, max_length=50)
+    coupon_code: Optional[str] = Field(default=None, max_length=50)
 
 
 class CancelRequest(BaseModel):

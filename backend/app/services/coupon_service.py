@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 
 
-def validate_coupon(coupon, order_value, current_date=None):
+def validate_coupon(coupon, order_value, current_date=None, user_usage_count=0, total_usage_count=0):
     """
     Validate a coupon against the cart/order value.
     """
@@ -28,11 +28,11 @@ def validate_coupon(coupon, order_value, current_date=None):
     ):
         return False, "Minimum order value not met"
 
-    if (
-        coupon.usage_limit is not None
-        and coupon.usage_limit <= 0
-    ):
+    if coupon.usage_limit is not None and total_usage_count >= coupon.usage_limit:
         return False, "Coupon usage limit exceeded"
+
+    if coupon.per_user_limit is not None and user_usage_count >= coupon.per_user_limit:
+        return False, "Per-user coupon usage limit exceeded"
 
     return True, "Coupon is valid"
 

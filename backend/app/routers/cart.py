@@ -13,7 +13,7 @@ from app.services.coupon_service import validate_coupon
 
 from datetime import datetime
 from pydantic import BaseModel, Field
-from app.core.security import require_role
+from app.core.security import get_current_user, require_role
 from app.models.user import User
 router = APIRouter(
     prefix="/api/cart",
@@ -66,15 +66,12 @@ class CouponUpdateRequest(BaseModel):
 # HELPER - GET CURRENT CART
 # ============================================================
 
-def get_current_cart(db: Session):
-    """
-    Temporary cart selection until authentication / guest-cart
-    handling is connected with the Auth module.
-    """
-    cart = db.query(Cart).first()
+def get_current_cart(db: Session, current_user: User):
+    """Return only the authenticated user's cart, creating it if needed."""
+    cart = db.query(Cart).filter(Cart.user_id == current_user.id).first()
 
-    if not cart:
-        cart = Cart()
+    if cart is None:
+        cart = Cart(user_id=current_user.id)
         db.add(cart)
         db.commit()
         db.refresh(cart)

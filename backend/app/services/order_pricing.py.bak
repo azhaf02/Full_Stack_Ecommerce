@@ -1,4 +1,4 @@
-"""Server-side pricing for checkout orders."""
+﻿"""Server-side pricing for checkout orders."""
 
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
@@ -8,7 +8,6 @@ from sqlalchemy import Boolean, Integer, Numeric, String, column, select, table
 from sqlalchemy.orm import Session
 
 from app.models.coupon import Coupon
-from app.models.order import Order
 from app.services.order_service import InvalidOrder, OrderInput, OrderItemInput
 from app.services.pricing_engine import calculate_pricing
 from app.services.coupon_service import validate_coupon
@@ -89,30 +88,13 @@ def _merge_lines(
 
 
 def _coupon_discount(
-    db: Session,
-    user_id: int,
     coupon: Coupon,
     subtotal: Decimal,
 ) -> Decimal:
-    total_usage_count = (
-        db.query(Order)
-        .filter(Order.coupon_id == coupon.id)
-        .count()
-    )
-    user_usage_count = (
-        db.query(Order)
-        .filter(
-            Order.coupon_id == coupon.id,
-            Order.user_id == user_id,
-        )
-        .count()
-    )
 
     valid, message = validate_coupon(
         coupon,
         subtotal,
-        user_usage_count=user_usage_count,
-        total_usage_count=total_usage_count,
     )
 
     if not valid:
@@ -348,8 +330,6 @@ def price_order(
             )
 
         discount = _coupon_discount(
-            db,
-            user_id,
             coupon,
             subtotal,
         )

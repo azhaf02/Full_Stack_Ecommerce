@@ -121,3 +121,8 @@ Request:
 {
   "code": "VIORA10"
 }
+
+## Implementation notes
+- Current pricing engine uses a 0% tax rate by default; tax is therefore zero until the project confirms the applicable tax rate.
+- Guest-cart token persistence and merging must be verified against the authentication flow before this module is marked complete.
+- Coupon per-user usage limits must be enforced against persisted order/redemption records, not merely the coupon configuration field.
