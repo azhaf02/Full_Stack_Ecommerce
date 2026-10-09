@@ -1,28 +1,37 @@
+
 import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import ProductDetailPage from './ProductDetailPage';
 import CheckoutPage from './checkout/pages/CheckoutPage';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 
 const AdminApp = lazy(() => import('./AdminApp'));
 const CustomerApp = lazy(() => import('./CustomerApp'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 
 function App() {
   return (
-    <Suspense fallback={null}>
-      <Routes>
-        {/* Admin Dashboard */}
-        <Route path="/admin/*" element={<AdminApp />} />
+    <AuthProvider>
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/admin/*" element={<AdminApp />} />
+          <Route path="/product/:id" element={<ProductDetailPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
 
-        {/* Product Details */}
-        <Route path="/product/:id" element={<ProductDetailPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
-        {/* Checkout */}
-        <Route path="/checkout" element={<CheckoutPage />} />
+          <Route element={<ProtectedRoute role="customer" />}>
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
 
-        {/* Customer Dashboard */}
-        <Route path="*" element={<CustomerApp />} />
-      </Routes>
-    </Suspense>
+          <Route path="*" element={<CustomerApp />} />
+        </Routes>
+      </Suspense>
+    </AuthProvider>
   );
 }
 
