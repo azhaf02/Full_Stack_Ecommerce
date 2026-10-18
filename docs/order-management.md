@@ -195,3 +195,27 @@ Code: `backend/app/services/order_service.py` and `return_service.py`. Neither c
 5. **Foreign keys.** `user_id`, `address_id`, `coupon_id`, `product_id` and `variant_id` are plain integers until those tables exist.
 
 Settled: COD orders are confirmed at creation and stay `PENDING` until paid; the payment statuses match Aaliya's migration; the return window is 7 days.
+
+## CHK-06: Checkout Session Integration Contract
+
+The Checkout module exposes `POST /api/checkout/session` for an authenticated customer.
+
+Request fields:
+
+- `address_id` — selected saved address ID.
+- `shipping_method_id` — selected shipping method ID.
+- `coupon_code` — optional coupon code; may be `null`.
+
+The server validates the address, shipping method, cart stock, and coupon, then persists the validated review snapshot in `checkout_sessions`.
+
+The response contains `checkout_reference_id`, `session_id`, `status`, `expires_at`, and the validated `checkout` object. The `checkout.summary` contains the server-calculated subtotal, discount, shipping cost, and total.
+
+**Integration requirements for Aaliya and Rukhsar:**
+
+1. Use `checkout_reference_id` to identify the pending checkout.
+2. Validate that the session belongs to the authenticated customer and has not expired before continuing.
+3. Use the stored server-side snapshot for payment/order calculations.
+4. Do not accept browser-supplied totals or prices as authoritative.
+5. Agree on the session lookup/status contract before enabling the full Payment handoff.
+
+Current scope creates the checkout session; it does not by itself complete an online payment.

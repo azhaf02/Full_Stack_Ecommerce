@@ -1,4 +1,4 @@
-
+﻿
 import { useEffect, useState } from "react";
 import AddressStep from "../components/AddressStep";
 import "../checkout.css";
@@ -258,45 +258,71 @@ function CheckoutPage() {
   // =========================
   // PLACE ORDER
   // =========================
+  // Checkout-to-order handoff
   const placeOrder = async () => {
     setMessage("");
 
     if (!reviewValid || !reviewData) {
-      showError(
-        "Please validate your order again before placing it."
-      );
+      showError("Please validate your order again before placing it.");
       return;
     }
 
     if (!shippingAddressId || !selectedShipping) {
       clearReview();
-      showError(
-        "Your address or shipping selection is missing. Please review checkout again."
-      );
+      showError("Please select your address and shipping method again.");
+      return;
+    }
+
+    const token = getToken();
+
+    if (!token) {
+      clearReview();
+      showError("Please login before continuing.");
       return;
     }
 
     try {
       setOrderLoading(true);
 
-      // Revalidate stock, coupon and checkout details immediately
-      // before order creation.
       const latestReview = await validateReview();
-
       setReviewData(latestReview);
       setReviewValid(true);
 
-      /*
-       * TEMPORARY DEMO ORDER:
-       * Replace these hardcoded items when the shared cart
-       * module is integrated. Never send prices or totals.
-       */
-      const response = await fetch(`${API_BASE}/api/orders`, {
+      const sessionResponse = await fetch(
+        `${API_BASE}/api/checkout/session`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            address_id: Number(shippingAddressId),
+            shipping_method_id: Number(selectedShipping.id),
+          }),
+        }
+      );
+
+      const sessionData = await readResponse(sessionResponse);
+      const checkoutReferenceId =
+        sessionData.checkout_reference_id || sessionData.session_id;
+
+      if (!checkoutReferenceId) {
+        throw new Error("Checkout reference ID was not returned.");
+      }
+
+      sessionStorage.setItem(
+        "checkout_reference_id",
+        String(checkoutReferenceId)
+      );
+
+      const orderResponse = await fetch(`${API_BASE}/api/orders`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
-          Authorization: `Bearer ${getToken()}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           address_id: Number(shippingAddressId),
@@ -312,41 +338,24 @@ function CheckoutPage() {
         }),
       });
 
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(
-          getErrorMessage(data, "Failed to create order.")
-        );
-      }
+      const orderData = await readResponse(orderResponse);
 
       showSuccess(
-        `Order placed successfully! Order #${data.order_number}`
+        `Order #${orderData.order_number ?? orderData.id ?? ""} created. Checkout reference: ${checkoutReferenceId}`
       );
     } catch (error) {
-      console.error("Order creation error:", error);
-
-      // Do not leave a previously successful review marked valid
-      // after a failed revalidation.
-      if (
-        error instanceof Error &&
-        /stock|coupon|address|shipping|checkout|cart|validation|login|insufficient/i.test(
-          error.message
-        )
-      ) {
-        clearReview();
-      }
+      console.error("Checkout handoff error:", error);
+      clearReview();
 
       showError(
         error instanceof Error
           ? error.message
-          : "Unable to place order. Please try again."
+          : "Unable to complete checkout. Please try again."
       );
     } finally {
       setOrderLoading(false);
     }
   };
-
   const steps = ["Address", "Shipping", "Review"];
 
   return (
@@ -391,7 +400,7 @@ function CheckoutPage() {
                 key={label}
               >
                 <span className="step-number">
-                  {step > number ? "✓" : number}
+                  {step > number ? "âœ“" : number}
                 </span>
                 <span>{label}</span>
               </div>
@@ -820,7 +829,7 @@ function CheckoutPage() {
               <span>
                 {selectedShipping
                   ? money(displayedShipping)
-                  : "—"}
+                  : "â€”"}
               </span>
             </div>
 
