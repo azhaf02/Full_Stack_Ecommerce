@@ -235,7 +235,7 @@ export default function NotificationCenter({ onClearBadge }: NotificationCenterP
                         color: '#A65B4E',
                         fontWeight: 700
                       }}>
-                        • Unread
+                        ï¿½ Unread
                       </span>
                     )}
                   </div>

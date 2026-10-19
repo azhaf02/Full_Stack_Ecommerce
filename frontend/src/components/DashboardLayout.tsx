@@ -1,8 +1,28 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import OrdersListView from './OrdersListView';
 import NotificationCenter from './NotificationCenter';
-import ReviewsList from './ReviewsList';
-import WishlistListView from './WishlistListView';
+import { ReviewsList } from './ReviewsList';
+
+const WishlistListView = () => (
+  <div style={{
+    border: '1px solid rgba(255, 255, 255, 0.7)',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backdropFilter: 'blur(16px)',
+    padding: '36px',
+    borderRadius: '16px',
+    boxShadow: '0 12px 30px rgba(35, 47, 36, 0.05)'
+  }}>
+    <div style={{ paddingBottom: '18px', borderBottom: '1px solid #E5DFD5', marginBottom: '24px' }}>
+      <div style={{ fontSize: '10px', letterSpacing: '2.5px', textTransform: 'uppercase', color: '#768572', fontWeight: 600 }}>
+        Curated Selection
+      </div>
+      <h2 style={{ fontFamily: "'Cinzel', Georgia, serif", fontSize: '24px', fontWeight: 700, color: '#232F24', margin: '4px 0 0' }}>
+        Saved Items & Wishlist
+      </h2>
+    </div>
+    <p style={{ fontSize: '13px', color: '#768572' }}>Your saved pieces will appear here.</p>
+  </div>
+);
 
 function VioraBrandBag() {
   return (
@@ -15,14 +35,176 @@ function VioraBrandBag() {
   );
 }
 
+// Couture Clothing & Silk Wave Interactive Canvas
+function CoutureClothingCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+
+    const handleResize = () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', handleResize);
+
+    let mouseX = width / 2;
+    let mouseY = height / 2;
+    let targetX = mouseX;
+    let targetY = mouseY;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      targetX = e.clientX;
+      targetY = e.clientY;
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+
+    // Floating Couture Fashion Emblems & Silhouettes
+    const fashionSymbols = ['✦', '🪡', '✂', '🏷', '✧', '◈', '𓊔'];
+    const fashionElements = Array.from({ length: 22 }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      symbol: fashionSymbols[Math.floor(Math.random() * fashionSymbols.length)],
+      size: Math.random() * 14 + 14,
+      rotation: Math.random() * Math.PI * 2,
+      vRot: (Math.random() - 0.5) * 0.015,
+      alpha: Math.random() * 0.22 + 0.08
+    }));
+
+    let waveTime = 0;
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+      waveTime += 0.015;
+
+      // Smooth cursor follow interpolation
+      mouseX += (targetX - mouseX) * 0.04;
+      mouseY += (targetY - mouseY) * 0.04;
+
+      // 1. Mouse Spotlight Beam (Bulmaca Style Ambient Glow)
+      const spotlight = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 440);
+      spotlight.addColorStop(0, 'rgba(125, 148, 118, 0.22)');
+      spotlight.addColorStop(0.5, 'rgba(195, 185, 168, 0.08)');
+      spotlight.addColorStop(1, 'rgba(250, 248, 245, 0)');
+      ctx.fillStyle = spotlight;
+      ctx.fillRect(0, 0, width, height);
+
+      // 2. Silk Fabric Ribbon Waves (Couture draping motion)
+      ctx.save();
+      for (let w = 0; w < 3; w++) {
+        ctx.beginPath();
+        const baseOffset = ((w + 0.6) * height) / 3.2;
+        ctx.moveTo(0, baseOffset);
+
+        for (let x = 0; x <= width; x += 30) {
+          const distToMouse = Math.abs(x - mouseX);
+          const mouseFactor = Math.max(0, 1 - distToMouse / 350) * 35;
+          const y = baseOffset + Math.sin(x * 0.003 + waveTime + w) * 28 + Math.cos(waveTime * 0.8 + x * 0.002) * 18 - mouseFactor;
+          ctx.lineTo(x, y);
+        }
+
+        ctx.strokeStyle = `rgba(59, 77, 60, ${0.06 + w * 0.02})`;
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 3. Floating Couture Silhouettes & Tailoring Symbols
+      fashionElements.forEach((item) => {
+        item.x += item.vx;
+        item.y += item.vy;
+        item.rotation += item.vRot;
+
+        if (item.x < -30) item.x = width + 30;
+        if (item.x > width + 30) item.x = -30;
+        if (item.y < -30) item.y = height + 30;
+        if (item.y > height + 30) item.y = -30;
+
+        // Interactive mouse repelling
+        const dx = item.x - mouseX;
+        const dy = item.y - mouseY;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 150) {
+          item.x += (dx / dist) * 2.5;
+          item.y += (dy / dist) * 2.5;
+        }
+
+        ctx.save();
+        ctx.translate(item.x, item.y);
+        ctx.rotate(item.rotation);
+        ctx.font = `${item.size}px 'Playfair Display', Georgia, serif`;
+        ctx.fillStyle = `rgba(35, 47, 36, ${item.alpha})`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(item.symbol, 0, 0);
+        ctx.restore();
+      });
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('mousemove', handleMouseMove);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 0,
+        pointerEvents: 'none',
+        mixBlendMode: 'multiply'
+      }}
+    />
+  );
+}
+
+interface UserProfile {
+  name?: string;
+  full_name?: string;
+  email?: string;
+  role?: string;
+}
+
 export default function DashboardLayout() {
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'wishlist' | 'notifications' | 'reviews'>('overview');
   const [unreadCount, setUnreadCount] = useState<number>(1);
   const [reviewsVersion, setReviewsVersion] = useState<number>(0);
+  const [user, setUser] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem('user') || localStorage.getItem('customer');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
+    } catch (e) {
+      console.warn('Unable to parse stored user profile', e);
+    }
+  }, []);
+
+  const displayName = user?.full_name || user?.name || user?.email?.split('@')[0] || 'Valued Member';
+  const displayRole = user?.role ? `${user.role.toUpperCase()} MEMBER` : 'Private Member';
+  const initialLetter = displayName.charAt(0).toUpperCase();
 
   const handleReviewSubmitted = () => {
     setReviewsVersion((prev) => prev + 1);
-    setActiveTab('reviews');
   };
 
   const navItems = [
@@ -38,8 +220,44 @@ export default function DashboardLayout() {
       minHeight: '100vh',
       backgroundColor: '#FAF8F5',
       color: '#1A211B',
-      fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif"
+      fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+      position: 'relative',
+      overflowX: 'hidden'
     }}>
+      {/* Editorial Running Marquee & Card Reveal Keyframes */}
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(0%); }
+          100% { transform: translateX(-50%); }
+        }
+        @keyframes panelEntrance {
+          from { opacity: 0; transform: translateY(12px) scale(0.99); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .bulmaca-marquee-track {
+          display: flex;
+          width: 200%;
+          animation: marquee 22s linear infinite;
+        }
+        .bulmaca-marquee-track:hover {
+          animation-play-state: paused;
+        }
+        .bulmaca-card {
+          transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.28s ease;
+        }
+        .bulmaca-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 16px 36px rgba(35, 47, 36, 0.08);
+          border-color: rgba(95, 117, 92, 0.45) !important;
+        }
+        .bulmaca-tab-panel {
+          animation: panelEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+
+      {/* Interactive Silk Wave & Tailoring Canvas */}
+      <CoutureClothingCanvas />
+
       {/* Top Banner */}
       <div style={{
         backgroundColor: '#1B241C',
@@ -50,15 +268,18 @@ export default function DashboardLayout() {
         textAlign: 'center',
         padding: '9px 16px',
         fontWeight: 500,
-        borderBottom: '1px solid rgba(255,255,255,0.08)'
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        position: 'relative',
+        zIndex: 50
       }}>
-        Complimentary Express Shipping on Orders Above ?5,000 � Member Privileges
+        Complimentary Express Shipping on Orders Above ₹5,000 • Member Privileges
       </div>
 
-      {/* Signature Olive Green Navbar with Bag Logo */}
+      {/* Signature Navbar */}
       <header style={{
-        backgroundColor: '#232F24',
-        borderBottom: '1px solid #1A241B',
+        backgroundColor: 'rgba(35, 47, 36, 0.95)',
+        backdropFilter: 'blur(14px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
         padding: '0 48px',
         height: '74px',
         display: 'flex',
@@ -66,11 +287,16 @@ export default function DashboardLayout() {
         justifyContent: 'space-between',
         position: 'sticky',
         top: 0,
-        zIndex: 50
+        zIndex: 50,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
       }}>
-        {/* Brand Lockup */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <VioraBrandBag />
+        <div 
+          style={{ display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer' }} 
+          onClick={() => setActiveTab('overview')}
+        >
+          <div style={{ transition: 'transform 0.3s ease' }}>
+            <VioraBrandBag />
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{
               fontFamily: "'Cinzel', 'Playfair Display', Georgia, serif",
@@ -111,7 +337,8 @@ export default function DashboardLayout() {
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              padding: '6px 14px'
+              padding: '6px 14px',
+              transition: 'all 0.25s ease'
             }}
           >
             <span>Alerts</span>
@@ -137,8 +364,8 @@ export default function DashboardLayout() {
             paddingLeft: '22px'
           }}>
             <div style={{
-              width: '32px',
-              height: '32px',
+              width: '36px',
+              height: '36px',
               borderRadius: '50%',
               backgroundColor: '#8E9E86',
               color: '#1B241C',
@@ -148,17 +375,41 @@ export default function DashboardLayout() {
               fontWeight: 700,
               fontSize: '13px'
             }}>
-              A
+              {initialLetter}
             </div>
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#FAF8F5' }}>Aliza Fayyaz Khan</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#FAF8F5' }}>
+                {displayName}
+              </div>
               <div style={{ fontSize: '9px', letterSpacing: '1.2px', color: '#9EB09A', textTransform: 'uppercase' }}>
-                Private Member
+                {displayRole}
               </div>
             </div>
           </div>
         </div>
       </header>
+
+      {/* Bulmaca-Style Bespoke Clothing Ticker Tape */}
+      <div style={{
+        backgroundColor: '#ECE7DD',
+        borderBottom: '1px solid rgba(35, 47, 36, 0.08)',
+        overflow: 'hidden',
+        whiteSpace: 'nowrap',
+        position: 'relative',
+        zIndex: 20,
+        padding: '7px 0'
+      }}>
+        <div className="bulmaca-marquee-track">
+          {[1, 2].map((k) => (
+            <div key={k} style={{ display: 'inline-flex', width: '50%', justifyContent: 'space-around', fontSize: '11px', letterSpacing: '2.5px', textTransform: 'uppercase', color: '#566653', fontWeight: 600 }}>
+              <span>✦ HANDCRAFTED BESPOKE APPAREL</span>
+              <span>✦ LUXURY SILK & CASHMERE WEAVES</span>
+              <span>✦ LIMITED ATELIER EDITION 2026</span>
+              <span>✦ SUSTAINABLE TAILORING PRIVILEGE</span>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Main Container */}
       <main style={{
@@ -167,7 +418,10 @@ export default function DashboardLayout() {
         padding: '44px 48px 80px',
         display: 'grid',
         gridTemplateColumns: '230px 1fr',
-        gap: '48px'
+        gap: '48px',
+        alignItems: 'start',
+        position: 'relative',
+        zIndex: 10
       }}>
         {/* Navigation Sidebar */}
         <aside>
@@ -182,7 +436,7 @@ export default function DashboardLayout() {
             Navigation
           </div>
 
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
               return (
@@ -194,18 +448,33 @@ export default function DashboardLayout() {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     width: '100%',
-                    padding: '12px 14px',
-                    background: isActive ? '#232F24' : 'transparent',
+                    padding: '13px 16px',
+                    background: isActive ? '#232F24' : 'rgba(255, 255, 255, 0.65)',
+                    backdropFilter: 'blur(10px)',
                     color: isActive ? '#FAF8F5' : '#334032',
-                    border: 'none',
-                    borderRadius: '2px',
+                    border: '1px solid',
+                    borderColor: isActive ? '#232F24' : 'rgba(229, 223, 213, 0.8)',
+                    borderRadius: '8px',
                     fontSize: '12px',
                     letterSpacing: '1.2px',
                     textTransform: 'uppercase',
                     fontWeight: isActive ? 600 : 500,
                     cursor: 'pointer',
                     textAlign: 'left',
-                    transition: 'all 0.15s ease'
+                    transition: 'all 0.22s ease',
+                    boxShadow: isActive ? '0 6px 18px rgba(35,47,36,0.18)' : '0 2px 6px rgba(0,0,0,0.02)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.backgroundColor = '#FFFFFF';
+                      e.currentTarget.style.transform = 'translateX(4px)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.65)';
+                      e.currentTarget.style.transform = 'none';
+                    }
                   }}
                 >
                   <span>{item.label}</span>
@@ -214,7 +483,7 @@ export default function DashboardLayout() {
                       fontSize: '10px',
                       backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : '#232F24',
                       color: '#FAF8F5',
-                      padding: '1px 6px',
+                      padding: '2px 7px',
                       borderRadius: '8px'
                     }}>
                       {item.count}
@@ -227,27 +496,34 @@ export default function DashboardLayout() {
         </aside>
 
         {/* Content Section */}
-        <section>
+        <section key={activeTab} className="bulmaca-tab-panel">
           {activeTab === 'overview' && (
             <div>
-              {/* Stat Counters */}
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, 1fr)',
-                border: '1px solid #E5DFD5',
-                backgroundColor: '#FFFFFF',
-                marginBottom: '36px'
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                backgroundColor: 'rgba(255, 255, 255, 0.78)',
+                backdropFilter: 'blur(16px)',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                marginBottom: '36px',
+                boxShadow: '0 8px 30px rgba(35, 47, 36, 0.04)'
               }}>
                 {[
-                  { tag: 'Acquisitions', title: 'Orders Placed', value: '02', note: '1 in transit, 1 delivered' },
-                  { tag: 'Activity', title: 'Unread Alerts', value: String(unreadCount).padStart(2, '0'), note: 'Order & payment alerts' },
-                  { tag: 'Privilege', title: 'Viora Rewards', value: '?450', note: 'Usable at checkout' },
+                  { tag: 'Acquisitions', title: 'Orders Placed', value: '02', note: '1 in transit, 1 delivered', action: () => setActiveTab('orders') },
+                  { tag: 'Activity', title: 'Unread Alerts', value: String(unreadCount).padStart(2, '0'), note: 'Order & payment alerts', action: () => setActiveTab('notifications') },
+                  { tag: 'Privilege', title: 'Viora Rewards', value: '₹450', note: 'Usable at checkout', action: undefined },
                 ].map((stat, i) => (
                   <div
                     key={i}
+                    onClick={stat.action}
+                    className={stat.action ? "bulmaca-card" : ""}
                     style={{
-                      padding: '26px 24px',
-                      borderRight: i < 2 ? '1px solid #E5DFD5' : 'none'
+                      padding: '28px 26px',
+                      borderRight: i < 2 ? '1px solid rgba(229, 223, 213, 0.7)' : 'none',
+                      cursor: stat.action ? 'pointer' : 'default',
+                      backgroundColor: 'transparent'
                     }}
                   >
                     <div style={{ fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', color: '#768572', fontWeight: 600 }}>
@@ -255,7 +531,7 @@ export default function DashboardLayout() {
                     </div>
                     <div style={{
                       fontFamily: "'Cinzel', Georgia, serif",
-                      fontSize: '30px',
+                      fontSize: '32px',
                       fontWeight: 700,
                       color: '#232F24',
                       margin: '10px 0 4px',
@@ -273,8 +549,14 @@ export default function DashboardLayout() {
                 ))}
               </div>
 
-              {/* Recent Orders Card */}
-              <div style={{ border: '1px solid #E5DFD5', backgroundColor: '#FFFFFF', padding: '32px' }}>
+              <div className="bulmaca-card" style={{
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                backgroundColor: 'rgba(255, 255, 255, 0.84)',
+                backdropFilter: 'blur(16px)',
+                padding: '36px',
+                borderRadius: '16px',
+                boxShadow: '0 10px 30px rgba(35, 47, 36, 0.04)'
+              }}>
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -297,23 +579,6 @@ export default function DashboardLayout() {
                       Fulfilled & Active Orders
                     </h3>
                   </div>
-                  <button
-                    onClick={() => setActiveTab('orders')}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      fontSize: '11px',
-                      letterSpacing: '1.5px',
-                      textTransform: 'uppercase',
-                      color: '#232F24',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      borderBottom: '1px solid #232F24',
-                      paddingBottom: '2px'
-                    }}
-                  >
-                    View All
-                  </button>
                 </div>
                 <OrdersListView onReviewSubmitted={handleReviewSubmitted} />
               </div>
@@ -321,7 +586,14 @@ export default function DashboardLayout() {
           )}
 
           {activeTab === 'orders' && (
-            <div style={{ border: '1px solid #E5DFD5', backgroundColor: '#FFFFFF', padding: '36px' }}>
+            <div className="bulmaca-card" style={{
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              backgroundColor: 'rgba(255, 255, 255, 0.84)',
+              backdropFilter: 'blur(16px)',
+              padding: '36px',
+              borderRadius: '16px',
+              boxShadow: '0 10px 30px rgba(35, 47, 36, 0.04)'
+            }}>
               <div style={{ paddingBottom: '18px', borderBottom: '1px solid #E5DFD5', marginBottom: '24px' }}>
                 <div style={{ fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', color: '#768572', fontWeight: 600 }}>
                   Client Ledger
@@ -333,7 +605,7 @@ export default function DashboardLayout() {
                   color: '#232F24',
                   margin: '4px 0 0'
                 }}>
-                  Order History & Fulfillment
+                  My Orders & Fulfillment
                 </h2>
               </div>
               <OrdersListView onReviewSubmitted={handleReviewSubmitted} />
@@ -343,11 +615,27 @@ export default function DashboardLayout() {
           {activeTab === 'wishlist' && <WishlistListView />}
 
           {activeTab === 'notifications' && (
-            <NotificationCenter onClearBadge={() => setUnreadCount(0)} />
+            <div className="bulmaca-card" style={{
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              backgroundColor: 'rgba(255, 255, 255, 0.84)',
+              backdropFilter: 'blur(16px)',
+              padding: '32px',
+              borderRadius: '16px',
+              boxShadow: '0 10px 30px rgba(35, 47, 36, 0.04)'
+            }}>
+              <NotificationCenter onClearBadge={() => setUnreadCount(0)} />
+            </div>
           )}
 
           {activeTab === 'reviews' && (
-            <div style={{ border: '1px solid #E5DFD5', backgroundColor: '#FFFFFF', padding: '36px' }}>
+            <div className="bulmaca-card" style={{
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              backgroundColor: 'rgba(255, 255, 255, 0.84)',
+              backdropFilter: 'blur(16px)',
+              padding: '36px',
+              borderRadius: '16px',
+              boxShadow: '0 10px 30px rgba(35, 47, 36, 0.04)'
+            }}>
               <div style={{ paddingBottom: '18px', borderBottom: '1px solid #E5DFD5', marginBottom: '24px' }}>
                 <div style={{ fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', color: '#768572', fontWeight: 600 }}>
                   Feedback
@@ -362,7 +650,7 @@ export default function DashboardLayout() {
                   Product Reviews & Ratings
                 </h2>
               </div>
-              <ReviewsList productId={1} refreshTrigger={reviewsVersion} />
+              <ReviewsList productId={1} key={reviewsVersion} />
             </div>
           )}
         </section>
