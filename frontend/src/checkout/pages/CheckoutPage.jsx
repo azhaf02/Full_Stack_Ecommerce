@@ -1,4 +1,4 @@
-﻿
+
 import { useEffect, useState } from "react";
 import AddressStep from "../components/AddressStep";
 import "../checkout.css";
@@ -325,16 +325,8 @@ function CheckoutPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          address_id: Number(shippingAddressId),
-          shipping_method_id: Number(selectedShipping.id),
+          checkout_reference_id: String(checkoutReferenceId),
           payment_method: "COD",
-          items: [
-            {
-              product_id: 2,
-              variant_id: 1,
-              quantity: 1,
-            },
-          ],
         }),
       });
 
@@ -400,7 +392,7 @@ function CheckoutPage() {
                 key={label}
               >
                 <span className="step-number">
-                  {step > number ? "âœ“" : number}
+                  {step > number ? "✓" : number}
                 </span>
                 <span>{label}</span>
               </div>
@@ -829,7 +821,7 @@ function CheckoutPage() {
               <span>
                 {selectedShipping
                   ? money(displayedShipping)
-                  : "â€”"}
+                  : "—"}
               </span>
             </div>
 
