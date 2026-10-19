@@ -195,3 +195,24 @@ Code: `backend/app/services/order_service.py` and `return_service.py`. Neither c
 5. **Foreign keys.** `user_id`, `address_id`, `coupon_id`, `product_id` and `variant_id` are plain integers until those tables exist.
 
 Settled: COD orders are confirmed at creation and stay `PENDING` until paid; the payment statuses match Aaliya's migration; the return window is 7 days.
+
+## Placing an order from a checkout session (CHK-06 handoff)
+
+`POST /api/orders` accepts one of two shapes (both need `payment_method`):
+
+| Shape | Body |
+|---|---|
+| From checkout (normal path) | `{"checkout_reference_id": "<id from POST /api/checkout/session>", "payment_method": "COD" or "ONLINE"}` |
+| Direct (buy now) | `{"address_id", "shipping_method_id", "payment_method", "items": [...]}` |
+
+Sending both, or neither, is a `422`. Prices, totals and shipping cost are never accepted from the client.
+
+With a `checkout_reference_id` the order service:
+1. Loads the session and checks it belongs to the logged-in customer (`customer_id` is text, so it compares `str(user.id)`), is `active` and has not expired.
+2. Takes the address, shipping method and items from the stored snapshot. `address_id` / `shipping_method_id` may be sent too, but must match the snapshot.
+3. Re-reads prices and shipping cost from the database. If the subtotal no longer equals the snapshot subtotal, the order is refused ("Prices changed since checkout") so the customer never pays more than the page showed.
+4. Applies the snapshot's `summary.discount` (validated by the server when the session was created, capped at the subtotal).
+5. Marks the session `completed` in the same transaction, so one session makes one order. A failed order leaves the session `active`.
+
+Errors are `422` with a `detail` message. Not done yet: recording the coupon on the order, tax, and clearing the cart (waiting for the cart/pricing PR).
+
