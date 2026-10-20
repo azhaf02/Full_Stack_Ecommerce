@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import AddressStep from "../components/AddressStep";
 import "../checkout.css";
 const API_BASE="http://127.0.0.1:8000";
@@ -53,42 +53,6 @@ function CheckoutPage() {
   // Current demo/test product until shared cart module is connected
   const [cart, setCart] = useState(null);
 const [cartLoading, setCartLoading] = useState(true);
-useEffect(() => {
-  const loadCart = async () => {
-    try {
-      setCartLoading(true);
-
-      const cartResponse = await fetch(
-        "http://127.0.0.1:8000/api/cart"
-      );
-
-      const summaryResponse = await fetch(
-        "http://127.0.0.1:8000/api/cart/summary"
-      );
-
-      if (!cartResponse.ok || !summaryResponse.ok) {
-        throw new Error("Failed to load cart.");
-      }
-
-      const cartData = await cartResponse.json();
-      const summaryData = await summaryResponse.json();
-
-      setCart({
-        ...cartData,
-        summary: summaryData,
-      });
-
-    } catch (error) {
-      console.error("Cart loading error:", error);
-      setMessage("Unable to load your cart.");
-    } finally {
-      setCartLoading(false);
-    }
-  };
-
-  loadCart();
-}, []);
-
 const subtotal = Number(cart?.summary?.subtotal ?? 0);
 const discount = Number(cart?.summary?.discount ?? 0);
   // =========================
@@ -101,7 +65,7 @@ const discount = Number(cart?.summary?.discount ?? 0);
         setMessage("");
 
         const response = await fetch(
-         "http://127.0.0.1:8000/api/shipping-methods"
+         `${API_BASE}/api/shipping-methods`
         );
 
         if (!response.ok) {
@@ -139,9 +103,11 @@ useEffect(() => {
     try {
       setCartLoading(true);
 
+      const token = localStorage.getItem("access_token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const [cartResponse, summaryResponse] = await Promise.all([
-        fetch(`${API_BASE}/api/cart`),
-        fetch(`${API_BASE}/api/cart/summary`),
+        fetch(`${API_BASE}/api/cart`, { headers }),
+        fetch(`${API_BASE}/api/cart/summary`, { headers }),
       ]);
 
       if (!cartResponse.ok || !summaryResponse.ok) {
@@ -219,7 +185,7 @@ if (!cart?.items?.length) {
       }
 
       const response = await fetch(
-        "http://127.0.0.1:8000/api/orders",
+        `${API_BASE}/api/orders`,
         {
           method: "POST",
           headers: {
@@ -231,6 +197,7 @@ if (!cart?.items?.length) {
             address_id: shippingAddressId,
             shipping_method_id: Number(selectedShipping.id),
             payment_method: "COD",
+            coupon_code: couponCode || null,
             items: (cart?.items || []).map((item) => ({
   product_id: item.product_id,
   variant_id: item.variant_id ?? null,
