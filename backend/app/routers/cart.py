@@ -86,7 +86,8 @@ def get_current_cart(db: Session, current_user: User):
 @router.post("/items")
 def add_to_cart(
     request: AddCartItemRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     if request.quantity <= 0:
         raise HTTPException(
@@ -147,7 +148,7 @@ def add_to_cart(
         available_stock = variant["stock"]
 
     # Find current cart.
-    cart = get_current_cart(db)
+    cart = get_current_cart(db, current_user)
 
     # Check whether same product + variant already exists.
     item = (
@@ -203,8 +204,8 @@ def add_to_cart(
 # ============================================================
 
 @router.get("")
-def get_cart(db: Session = Depends(get_db)):
-    cart = db.query(Cart).first()
+def get_cart(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    cart = get_current_cart(db, current_user)
 
     if not cart:
         return {
@@ -242,7 +243,8 @@ def get_cart(db: Session = Depends(get_db)):
 def update_cart_item(
     item_id: int,
     request: UpdateCartItemRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     if request.quantity <= 0:
         raise HTTPException(
@@ -312,7 +314,8 @@ def update_cart_item(
 @router.delete("/items/{item_id}")
 def remove_cart_item(
     item_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     item = db.query(CartItem).filter(
         CartItem.id == item_id
@@ -337,8 +340,8 @@ def remove_cart_item(
 # ============================================================
 
 @router.get("/summary")
-def get_cart_summary(db: Session = Depends(get_db)):
-    cart = db.query(Cart).first()
+def get_cart_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    cart = get_current_cart(db, current_user)
 
     if not cart:
         return {
@@ -365,7 +368,8 @@ def get_cart_summary(db: Session = Depends(get_db)):
 @router.post("/coupon")
 def apply_coupon(
     request: CouponRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     coupon = (
         db.query(Coupon)
@@ -379,7 +383,7 @@ def apply_coupon(
             detail="Invalid coupon code"
         )
 
-    cart = db.query(Cart).first()
+    cart = get_current_cart(db, current_user)
 
     order_value = Decimal("0.00")
 
