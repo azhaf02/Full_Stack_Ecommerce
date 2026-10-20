@@ -252,9 +252,8 @@ def update_cart_item(
             detail="Quantity must be greater than 0"
         )
 
-    item = db.query(CartItem).filter(
-        CartItem.id == item_id
-    ).first()
+    item = (db.query(CartItem).join(Cart, CartItem.cart_id == Cart.id)
+        .filter(CartItem.id == item_id, Cart.user_id == current_user.id).first())
 
     if not item:
         raise HTTPException(
@@ -317,9 +316,8 @@ def remove_cart_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    item = db.query(CartItem).filter(
-        CartItem.id == item_id
-    ).first()
+    item = (db.query(CartItem).join(Cart, CartItem.cart_id == Cart.id)
+        .filter(CartItem.id == item_id, Cart.user_id == current_user.id).first())
 
     if not item:
         raise HTTPException(
