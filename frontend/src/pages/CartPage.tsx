@@ -200,6 +200,7 @@ export default function CartPage({
     const code = coupon.trim().toUpperCase();
 
     if (!code) {
+      localStorage.removeItem('viora_coupon_code');
       setAppliedCoupon(false);
       setAppliedCouponData(null);
       setCouponMessage(
