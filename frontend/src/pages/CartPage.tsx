@@ -39,6 +39,9 @@ interface CouponResponse {
   code: string;
   discount_type: string;
   discount_value: number | string;
+  discount_amount: number | string;
+  subtotal: number | string;
+  total_after_discount: number | string;
 }
 
 interface CartPageProps {
@@ -224,56 +227,18 @@ export default function CartPage({
         `âœ“ ${data.code} applied successfully`
       );
 
-      /*
-       * Get current server pricing.
-       */
-      const summaryResponse =
-        await getCartSummary();
+      // Use the server-calculated discount, including coupon caps.
+      const summaryResponse = await getCartSummary();
+      const latestSummary: CartSummary = summaryResponse.data;
+      const discount = Number(data.discount_amount) || 0;
+      const subtotal = Number(data.subtotal) || Number(latestSummary.subtotal) || 0;
+      const tax = Number(latestSummary.tax) || 0;
 
-      const latestSummary: CartSummary =
-        summaryResponse.data;
-
-      const subtotal =
-        Number(latestSummary.subtotal) || 0;
-
-      const discountValue =
-        Number(data.discount_value) || 0;
-
-      let discount = 0;
-
-      /*
-       * Calculate coupon discount.
-       */
-      if (
-        data.discount_type === 'PERCENTAGE'
-      ) {
-        discount =
-          (subtotal * discountValue) / 100;
-      } else {
-        discount = discountValue;
-      }
-
-      /*
-       * Discount cannot be greater than subtotal.
-       */
-      discount = Math.min(
-        discount,
-        subtotal
-      );
-
-      const tax =
-        Number(latestSummary.tax) || 0;
-
-      const total =
-        subtotal - discount + tax;
-
-      /*
-       * Update order summary immediately.
-       */
       setSummary({
         ...latestSummary,
+        subtotal,
         discount,
-        total,
+        total: Math.max(0, Number(data.total_after_discount) + tax),
       });
 
     } catch (err: any) {
