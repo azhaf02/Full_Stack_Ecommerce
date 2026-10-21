@@ -96,7 +96,10 @@ def _coupon_discount(
 ) -> Decimal:
     total_usage_count = (
         db.query(Order)
-        .filter(Order.coupon_id == coupon.id)
+        .filter(
+            Order.coupon_id == coupon.id,
+            Order.status != "CANCELLED",
+        )
         .count()
     )
     user_usage_count = (
@@ -104,6 +107,7 @@ def _coupon_discount(
         .filter(
             Order.coupon_id == coupon.id,
             Order.user_id == user_id,
+            Order.status != "CANCELLED",
         )
         .count()
     )

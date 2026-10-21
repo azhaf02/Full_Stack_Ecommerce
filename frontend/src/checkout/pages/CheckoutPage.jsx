@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import AddressStep from "../components/AddressStep";
 import "../checkout.css";
 const API_BASE="http://127.0.0.1:8000";
@@ -184,7 +184,8 @@ useEffect(() => {
 
   const shippingCharge = Number(selectedShipping?.cost ?? 0);
 
-  const total = subtotal - discount + shippingCharge;
+  const tax = Number(cart?.summary?.tax ?? cart?.summary?.tax_amount ?? 0);
+  const total = subtotal - discount + tax + shippingCharge;
 
   // =========================
   // CONTINUE TO REVIEW
@@ -588,9 +589,24 @@ if (!cart?.items?.length) {
                 <div className="review-section">
                   <h3>Order items</h3>
 
-                  <p className="checkout-hint">
-                    Test T-Shirt â€” Size S â€” Qty 1 â€” â‚¹499
-                  </p>
+                  {cart?.items?.length ? (
+                    <ul className="checkout-items">
+                      {cart.items.map((item, index) => (
+                        <li key={item.id ?? `${item.product_id}-${item.variant_id ?? "default"}-${index}`}>
+                          <span>
+                            {item.product_name ?? item.name ?? item.title ?? `Product #${item.product_id}`}
+                            {item.variant_name ? ` ? ${item.variant_name}` : ""}
+                            {" "}? {item.quantity}
+                          </span>
+                          <strong>
+                            {money(Number(item.line_total ?? item.total_price ?? ((item.unit_price ?? item.price ?? 0) * item.quantity)))}
+                          </strong>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="checkout-hint">Your cart is empty.</p>
+                  )}
                 </div>
 
                 {/* Review Message */}
