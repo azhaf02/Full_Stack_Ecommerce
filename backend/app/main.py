@@ -1,3 +1,4 @@
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,6 +18,7 @@ from app.routers import (
     orders,
     payment,
     checkout_sessions,
+    cart,
     shipping_methods,
 )
 
@@ -58,6 +60,7 @@ app.include_router(checkout_sessions.address_router)
 
 app.include_router(product.router)
 app.include_router(checkout.router)
+app.include_router(cart.router)
 
 app.include_router(shipping_methods.router)
 

@@ -50,6 +50,18 @@ const getErrorMessage = (data, fallback) => {
   return fallback;
 };
 
+const readResponse = async (response) => {
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      getErrorMessage(data, `Request failed (${response.status}).`)
+    );
+  }
+
+  return data;
+};
+
 function CheckoutPage() {
   const [step, setStep] = useState(1);
 
@@ -71,10 +83,6 @@ function CheckoutPage() {
   const [reviewData, setReviewData] = useState(null);
   const [orderLoading, setOrderLoading] = useState(false);
 
-  // Temporary demo values used only when review data is unavailable.
-  // The real order must eventually use the shared cart.
-  const demoSubtotal = 499;
-  const demoDiscount = 0;
 
   const showError = (text) => {
     setMessage(text);
@@ -147,11 +155,11 @@ function CheckoutPage() {
   const shippingCharge = Number(selectedShipping?.cost ?? 0);
 
   const subtotal = Number(
-    reviewData?.summary?.subtotal ?? demoSubtotal
+    reviewData?.summary?.subtotal ?? 0
   );
 
   const discount = Number(
-    reviewData?.summary?.discount ?? demoDiscount
+    reviewData?.summary?.discount ?? 0
   );
 
   const displayedShipping = Number(
@@ -193,6 +201,7 @@ function CheckoutPage() {
         body: JSON.stringify({
           address_id: Number(shippingAddressId),
           shipping_method_id: Number(selectedShipping.id),
+          coupon_code: localStorage.getItem("viora_coupon_code")?.trim() || null,
         }),
       }
     );
@@ -285,6 +294,9 @@ function CheckoutPage() {
       setOrderLoading(true);
 
       const latestReview = await validateReview();
+      if (!Array.isArray(latestReview.items) || latestReview.items.length === 0) {
+        throw new Error("Checkout review returned no cart items. Please return to your cart and try again.");
+      }
       setReviewData(latestReview);
       setReviewValid(true);
 
@@ -300,6 +312,7 @@ function CheckoutPage() {
           body: JSON.stringify({
             address_id: Number(shippingAddressId),
             shipping_method_id: Number(selectedShipping.id),
+            coupon_code: localStorage.getItem("viora_coupon_code")?.trim() || null,
           }),
         }
       );
@@ -392,7 +405,7 @@ function CheckoutPage() {
                 key={label}
               >
                 <span className="step-number">
-                  {step > number ? "✓" : number}
+                  {step > number ? "âœ“" : number}
                 </span>
                 <span>{label}</span>
               </div>
@@ -688,14 +701,7 @@ function CheckoutPage() {
                       </div>
                     ))
                   ) : (
-                    <div className="review-item">
-                      <strong>Demo product</strong>
-                      <p>
-                        The backend review did not return cart
-                        items. The demo order item is still
-                        configured for order creation.
-                      </p>
-                    </div>
+                    <p>Checkout review returned no cart items. Please return to your cart and try again.</p>
                   )}
                 </div>
 
@@ -821,7 +827,7 @@ function CheckoutPage() {
               <span>
                 {selectedShipping
                   ? money(displayedShipping)
-                  : "—"}
+                  : "â€”"}
               </span>
             </div>
 
@@ -855,4 +861,3 @@ function CheckoutPage() {
 }
 
 export default CheckoutPage;
-
