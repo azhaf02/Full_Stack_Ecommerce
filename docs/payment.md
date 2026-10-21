@@ -279,3 +279,34 @@ using the corresponding payment_id.
 - Admin COD payment confirmation test passed.
 - Duplicate payment confirmation returns HTTP 409.
 - Full payment test suite: 26 passed.
+## Invoice Generation (PAY-06)
+
+### Endpoint
+`GET /api/orders/{order_id}/invoice`
+
+### Authorization
+- Customer authentication is required.
+- Customers can access invoices only for their own orders.
+- Returns `404 Not Found` if the order does not exist or does not belong to the customer.
+
+### Invoice Details
+The response includes:
+- Invoice ID, unique invoice number, and issue date.
+- Order ID and order number.
+- Customer name and email.
+- Subtotal, discount, tax, shipping cost, and total amount.
+- Payment method and payment status.
+- Order items, quantities, unit prices, and line totals.
+
+### Generation Workflow
+1. The authenticated customer requests an invoice for their order.
+2. The API verifies that the order belongs to the customer.
+3. If an invoice does not exist, the API creates and stores one linked to the order.
+4. If an invoice already exists, the API returns the existing invoice.
+5. The customer can view the invoice and use the browser's print dialog to print it or save it as a PDF.
+
+### Testing
+- COD invoice generation test passed.
+- Successful online-order invoice generation test passed.
+- Access to another customer's order was rejected.
+- Invoice, payment, and payment integration tests: **29 passed**.
