@@ -9,7 +9,7 @@ from app.database import get_db
 from app.models.cart import Cart, CartItem
 from app.models.coupon import Coupon
 from app.services.pricing_engine import calculate_pricing
-from app.services.coupon_service import validate_coupon
+from app.services.coupon_service import validate_coupon, calculate_coupon_discount
 
 from datetime import datetime
 from pydantic import BaseModel, Field
@@ -86,7 +86,8 @@ def get_current_cart(db: Session, current_user: User):
 @router.post("/items")
 def add_to_cart(
     request: AddCartItemRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     if request.quantity <= 0:
         raise HTTPException(
@@ -147,7 +148,7 @@ def add_to_cart(
         available_stock = variant["stock"]
 
     # Find current cart.
-    cart = get_current_cart(db)
+    cart = get_current_cart(db, current_user)
 
     # Check whether same product + variant already exists.
     item = (
@@ -203,8 +204,11 @@ def add_to_cart(
 # ============================================================
 
 @router.get("")
-def get_cart(db: Session = Depends(get_db)):
-    cart = db.query(Cart).first()
+def get_cart(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    cart = get_current_cart(db, current_user)
 
     if not cart:
         return {
@@ -242,7 +246,8 @@ def get_cart(db: Session = Depends(get_db)):
 def update_cart_item(
     item_id: int,
     request: UpdateCartItemRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     if request.quantity <= 0:
         raise HTTPException(
@@ -250,8 +255,10 @@ def update_cart_item(
             detail="Quantity must be greater than 0"
         )
 
+    cart = get_current_cart(db, current_user)
     item = db.query(CartItem).filter(
-        CartItem.id == item_id
+        CartItem.id == item_id,
+        CartItem.cart_id == cart.id,
     ).first()
 
     if not item:
@@ -312,10 +319,13 @@ def update_cart_item(
 @router.delete("/items/{item_id}")
 def remove_cart_item(
     item_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    cart = get_current_cart(db, current_user)
     item = db.query(CartItem).filter(
-        CartItem.id == item_id
+        CartItem.id == item_id,
+        CartItem.cart_id == cart.id,
     ).first()
 
     if not item:
@@ -337,8 +347,11 @@ def remove_cart_item(
 # ============================================================
 
 @router.get("/summary")
-def get_cart_summary(db: Session = Depends(get_db)):
-    cart = db.query(Cart).first()
+def get_cart_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    cart = get_current_cart(db, current_user)
 
     if not cart:
         return {
@@ -365,7 +378,8 @@ def get_cart_summary(db: Session = Depends(get_db)):
 @router.post("/coupon")
 def apply_coupon(
     request: CouponRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     coupon = (
         db.query(Coupon)
@@ -379,7 +393,7 @@ def apply_coupon(
             detail="Invalid coupon code"
         )
 
-    cart = db.query(Cart).first()
+    cart = get_current_cart(db, current_user)
 
     order_value = Decimal("0.00")
 
@@ -400,11 +414,16 @@ def apply_coupon(
             detail=message
         )
 
+    discount = calculate_coupon_discount(coupon, order_value)
+
     return {
         "message": "Coupon applied successfully",
         "code": coupon.code,
         "discount_type": coupon.discount_type,
-        "discount_value": coupon.discount_value
+        "discount_value": coupon.discount_value,
+        "discount_amount": discount,
+        "subtotal": order_value,
+        "total_after_discount": max(Decimal("0.00"), order_value - discount),
     }
 # ============================================================
 # CART-07 - ADMIN COUPON MANAGEMENT
