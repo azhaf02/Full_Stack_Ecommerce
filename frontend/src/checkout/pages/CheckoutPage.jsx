@@ -259,6 +259,7 @@ if (!cart?.items?.length) {
         );
       }
 
+      localStorage.removeItem("viora_coupon_code");
       setMessage(
         `Order placed successfully! Order #${data.order_number}`
       );
