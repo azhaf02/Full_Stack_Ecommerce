@@ -121,7 +121,45 @@ useEffect(() => {
       }
 
       const cartData = await cartResponse.json();
-      const summaryData = await summaryResponse.json();
+      let summaryData = await summaryResponse.json();
+
+      // Revalidate the coupon from Cart on the server and use its current totals.
+      const savedCoupon = localStorage.getItem("viora_coupon_code");
+      if (savedCoupon) {
+        try {
+          const couponResponse = await fetch(`${API_BASE}/api/cart/coupon`, {
+            method: "POST",
+            headers: {
+              ...headers,
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify({ code: savedCoupon }),
+          });
+          const couponData = await couponResponse.json().catch(() => ({}));
+          if (!couponResponse.ok) {
+            throw new Error(
+              typeof couponData?.detail === "string"
+                ? couponData.detail
+                : "Saved coupon is no longer valid."
+            );
+          }
+          summaryData = {
+            ...summaryData,
+            subtotal: couponData.subtotal ?? summaryData.subtotal,
+            discount: couponData.discount_amount ?? 0,
+            tax: couponData.tax ?? summaryData.tax,
+            total: couponData.total_after_discount ?? summaryData.total,
+          };
+        } catch (couponError) {
+          localStorage.removeItem("viora_coupon_code");
+          setMessage(
+            couponError instanceof Error
+              ? couponError.message
+              : "Saved coupon is no longer valid."
+          );
+        }
+      }
 
       setCart({
         ...cartData,
