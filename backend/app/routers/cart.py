@@ -415,6 +415,7 @@ def apply_coupon(
         )
 
     discount = calculate_coupon_discount(coupon, order_value)
+    pricing = calculate_pricing(cart.items if cart else [], discount=discount)
 
     return {
         "message": "Coupon applied successfully",
@@ -422,8 +423,9 @@ def apply_coupon(
         "discount_type": coupon.discount_type,
         "discount_value": coupon.discount_value,
         "discount_amount": discount,
-        "subtotal": order_value,
-        "total_after_discount": max(Decimal("0.00"), order_value - discount),
+        "subtotal": pricing["subtotal"],
+        "tax": pricing["tax"],
+        "total_after_discount": pricing["total"],
     }
 # ============================================================
 # CART-07 - ADMIN COUPON MANAGEMENT
