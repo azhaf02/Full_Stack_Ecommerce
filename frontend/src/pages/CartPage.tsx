@@ -133,19 +133,29 @@ export default function CartPage({
       await loadCart();
 
       if (appliedCouponData) {
-        const couponResponse = await applyCouponApi(appliedCouponData.code);
-        const data: CouponResponse = couponResponse.data;
-        const latestSummaryResponse = await getCartSummary();
-        const latestSummary: CartSummary = latestSummaryResponse.data;
+        try {
+          const couponResponse = await applyCouponApi(appliedCouponData.code);
+          const data: CouponResponse = couponResponse.data;
+          const latestSummaryResponse = await getCartSummary();
+          const latestSummary: CartSummary = latestSummaryResponse.data;
 
-        setAppliedCouponData(data);
-        setSummary({
-          ...latestSummary,
-          subtotal: Number(data.subtotal) || 0,
-          discount: Number(data.discount_amount) || 0,
-          tax: Number(data.tax) || 0,
-          total: Number(data.total_after_discount) || 0,
-        });
+          setAppliedCouponData(data);
+          setAppliedCoupon(true);
+          setCouponMessage(`✓ ${data.code} applied successfully`);
+          setSummary({
+            ...latestSummary,
+            subtotal: Number(data.subtotal) || 0,
+            discount: Number(data.discount_amount) || 0,
+            tax: Number(data.tax) || 0,
+            total: Number(data.total_after_discount) || 0,
+          });
+        } catch (couponError: any) {
+          // A changed cart can make a coupon invalid (e.g. minimum order value).
+          setAppliedCoupon(false);
+          setAppliedCouponData(null);
+          setCouponMessage(couponError?.response?.data?.detail || 'Coupon is no longer valid');
+          await loadCart();
+        }
       }
     } catch (err) {
       console.error('Failed to update quantity:', err);
