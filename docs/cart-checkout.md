@@ -69,6 +69,7 @@ The `feature/cart` version of `backend/app/main.py` registers the cart router bu
 - **CART-05:** Central pricing function exists and uses Decimal; checkout reuse and live database/runtime tests are not verified.
 - **CART-06:** Validation functions and persisted-order usage counting exist in the cart route; atomic redemption/overuse protection at order creation is not verified.
 - **CART-07:** Admin CRUD routes and a CouponsPage file exist; frontend build and server authorization tests are not run.
+- **Cart-to-order coupon handoff:** `CartPage.tsx` now stores the successfully applied coupon code in `localStorage.viora_coupon_code` and clears it when the coupon becomes invalid or a cart item is removed. The existing checkout order request sends that code as `coupon_code` to `POST /api/orders`; the backend `OrderCreate` schema and `order_pricing.price_order()` support server-side coupon pricing. This change is committed on `feature/cart`, but browser/API integration tests have not been run.
 - **CART-08:** **Blocked pending integration.** Cart's `/checkout` route points to a checkout UI, but the checkout review API is on a separate branch and does not yet consume the shared pricing engine contract.
 - **CART-09:** **Not signed off.** Runtime end-to-end tests, regression tests, frontend build, migration validation, and shared-branch integration have not been run from this environment.
 
