@@ -140,6 +140,7 @@ export default function CartPage({
           const latestSummary: CartSummary = latestSummaryResponse.data;
 
           setAppliedCouponData(data);
+          localStorage.setItem('viora_coupon_code', data.code);
           setAppliedCoupon(true);
           setCouponMessage(`✓ ${data.code} applied successfully`);
           setSummary({
@@ -153,6 +154,7 @@ export default function CartPage({
           // A changed cart can make a coupon invalid (e.g. minimum order value).
           setAppliedCoupon(false);
           setAppliedCouponData(null);
+          localStorage.removeItem('viora_coupon_code');
           setCouponMessage(couponError?.response?.data?.detail || 'Coupon is no longer valid');
           await loadCart();
         }
@@ -178,6 +180,7 @@ export default function CartPage({
 
       await removeCartItem(id);
 
+      localStorage.removeItem('viora_coupon_code');
       setAppliedCoupon(false);
       setAppliedCouponData(null);
       setCouponMessage('');
@@ -214,6 +217,7 @@ export default function CartPage({
 
       setAppliedCoupon(true);
       setAppliedCouponData(data);
+      localStorage.setItem('viora_coupon_code', data.code);
 
       setCouponMessage(
         `âœ“ ${data.code} applied successfully`
@@ -242,6 +246,7 @@ export default function CartPage({
 
       setAppliedCoupon(false);
       setAppliedCouponData(null);
+      localStorage.removeItem('viora_coupon_code');
 
       const message =
         err?.response?.data?.detail ||
