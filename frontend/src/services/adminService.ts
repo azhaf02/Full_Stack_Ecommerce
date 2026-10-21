@@ -1,3 +1,4 @@
+
 import axios from "axios";
 import { API_BASE_URL, getSession, logout } from "./authService";
 
@@ -11,7 +12,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// 401 means the token is missing, invalid or expired: log out and go back to the login page
+// 401 means the token is missing, invalid or expired
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -23,6 +24,10 @@ api.interceptors.response.use(
   }
 );
 
+// =========================================================
+// DASHBOARD
+// =========================================================
+
 export interface DashboardKpis {
   totalRevenue: number;
   ordersToday: number;
@@ -30,31 +35,60 @@ export interface DashboardKpis {
   lowStockCount: number;
 }
 
-// Asks the backend for the four dashboard numbers
 export async function getDashboardSummary(): Promise<DashboardKpis> {
   const response = await api.get("/api/admin/dashboard-summary");
   return response.data.kpis;
 }
 
+// =========================================================
+// CUSTOMERS
+// =========================================================
+
 export interface Customer {
   id: number;
   name: string;
   email: string;
-  status: string; // "active" or "inactive"
+  status: string;
   createdAt: string | null;
 }
 
-// Customer list, optionally filtered by a name or email search
 export async function getCustomers(q: string): Promise<Customer[]> {
   const response = await api.get("/api/admin/customers", { params: { q } });
   return response.data.items;
 }
 
-// Activates or deactivates one customer and returns the updated customer
-export async function updateCustomerStatus(id: number, status: "active" | "inactive"): Promise<Customer> {
-  const response = await api.put(`/api/admin/customers/${id}/status`, { status });
+export async function updateCustomerStatus(
+  id: number,
+  status: "active" | "inactive"
+): Promise<Customer> {
+  const response = await api.put(`/api/admin/customers/${id}/status`, {
+    status,
+  });
   return response.data;
 }
+
+export interface CustomerOrder {
+  id: number;
+  orderNumber: string;
+  status: string;
+  totalAmount: number;
+  createdAt: string;
+}
+
+export interface CustomerDetail extends Customer {
+  ordersCount: number;
+  totalSpent: number;
+  recentOrders: CustomerOrder[];
+}
+
+export async function getCustomer(id: number): Promise<CustomerDetail> {
+  const response = await api.get(`/api/admin/customers/${id}`);
+  return response.data;
+}
+
+// =========================================================
+// CATEGORIES
+// =========================================================
 
 export interface Category {
   id: number;
@@ -111,27 +145,9 @@ export async function deactivateCategory(
   return response.data;
 }
 
-
-export interface CustomerOrder {
-  id: number;
-  orderNumber: string;
-  status: string;
-  totalAmount: number;
-  createdAt: string;
-}
-
-export interface CustomerDetail extends Customer {
-  ordersCount: number;
-  totalSpent: number;
-  recentOrders: CustomerOrder[];
-}
-
-// One customer's profile with their order summary
-export async function getCustomer(id: number): Promise<CustomerDetail> {
-  const response = await api.get(`/api/admin/customers/${id}`);
-  return response.data;
-}
-
+// =========================================================
+// ORDERS
+// =========================================================
 
 export interface AdminOrder {
   id: number;
@@ -160,8 +176,9 @@ export interface OrderFilters {
   pageSize?: number;
 }
 
-// Order list for admins with search, status/date filters and pagination
-export async function getOrders(filters: OrderFilters): Promise<AdminOrderList> {
+export async function getOrders(
+  filters: OrderFilters
+): Promise<AdminOrderList> {
   const response = await api.get("/api/admin/orders", {
     params: {
       q: filters.q || undefined,
@@ -175,44 +192,6 @@ export async function getOrders(filters: OrderFilters): Promise<AdminOrderList> 
   return response.data;
 }
 
-
-// Shapes returned by the analytics API (GET /api/admin/analytics/...)
-export interface AnalyticsSummary {
-  total_orders: number;
-  total_sales: number;
-  total_customers: number;
-  total_products: number;
-  pending_orders: number;
-  completed_orders: number;
-  cancelled_orders: number;
-  pending_payments: number;
-  low_stock_count: number;
-}
-
-export interface AnalyticsCharts {
-  sales_over_time: { date: string; sales: number }[];
-  orders_over_time: { date: string; orders: number }[];
-  top_products: { product_id: number; product_name: string; quantity: number }[];
-  top_categories: { category_id: number; category_name: string; quantity: number }[];
-  revenue_by_category: { category_id: number; category_name: string; revenue: number }[];
-  order_status_distribution: { status: string; orders: number }[];
-}
-
-// KPI numbers shared with the Analytics page
-export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
-  const response = await api.get("/api/admin/analytics/summary");
-  return response.data;
-}
-
-// Chart data shared with the Analytics page
-export async function getAnalyticsCharts(): Promise<AnalyticsCharts> {
-  const response = await api.get("/api/admin/analytics/charts");
-  return response.data;
-}
-
-
-// One order as returned by GET /api/admin/orders/{id} and PUT /api/admin/orders/{id}/status.
-// Field names follow the orders module (snake_case). Money values arrive as text, e.g. "599.00".
 export interface AdminOrderDetail {
   id: number;
   order_number: string;
@@ -240,27 +219,44 @@ export interface AdminOrderDetail {
     changed_at: string;
   }[];
   actions: { allowed_next_statuses: string[] | null } | null;
-  // Only in the GET response
-  customer_name?: string;
-  customer_email?: string | null;
-  shipping_address?: string | null;
-  product_names?: Record<string, string>;
+  // From the orders module's admin response; null if that row no longer exists
+  user_id: number;
+  customer: { id: number; name: string; email: string } | null;
+  address: {
+    id: number;
+    full_name: string;
+    phone: string;
+    line1: string;
+    line2: string | null;
+    city: string;
+    state: string;
+    postal_code: string;
+    country: string;
+  } | null;
 }
 
-// One order with items, history and the statuses the admin may move it to
-export async function getOrder(id: number): Promise<AdminOrderDetail> {
+export async function getOrder(
+  id: number
+): Promise<AdminOrderDetail> {
   const response = await api.get(`/api/admin/orders/${id}`);
   return response.data;
 }
 
-// Moves an order to a new status; the reply has the updated history and next allowed statuses
-export async function updateOrderStatus(id: number, status: string, remarks: string): Promise<AdminOrderDetail> {
+export async function updateOrderStatus(
+  id: number,
+  status: string,
+  remarks: string
+): Promise<AdminOrderDetail> {
   const response = await api.put(`/api/admin/orders/${id}/status`, {
     status,
     remarks: remarks.trim() || null,
   });
   return response.data;
 }
+
+// =========================================================
+// PAYMENTS
+// =========================================================
 
 export interface AdminPayment {
   id: number;
@@ -280,7 +276,6 @@ export interface AdminPaymentList {
   page: number;
   pageSize: number;
   totalPages: number;
-  // Totals over all payments, not only the current page or filter
   collectedAmount: number;
   pendingCodAmount: number;
   statusCounts: Record<string, number>;
@@ -294,8 +289,10 @@ export interface PaymentFilters {
   pageSize?: number;
 }
 
-// Payment records for admins (read only) with search, filters and pagination
-export async function getPayments(filters: PaymentFilters): Promise<AdminPaymentList> {
+// Payment records for admins with search, filters and pagination
+export async function getPayments(
+  filters: PaymentFilters
+): Promise<AdminPaymentList> {
   const response = await api.get("/api/admin/payments", {
     params: {
       q: filters.q || undefined,
@@ -304,6 +301,96 @@ export async function getPayments(filters: PaymentFilters): Promise<AdminPayment
       page: filters.page ?? 1,
       page_size: filters.pageSize ?? 10,
     },
+  });
+  return response.data;
+}
+
+// =========================================================
+// ADMIN COD: MARK AS PAID
+// Aliya's endpoint
+// =========================================================
+
+export async function markCodPaymentAsPaid(
+  paymentId: number
+): Promise<void> {
+  await api.post(
+    `/api/payment/admin/cod/${paymentId}/mark-paid`
+  );
+}
+
+// =========================================================
+// ANALYTICS
+// =========================================================
+
+export interface AnalyticsSummary {
+  total_orders: number;
+  total_sales: number;
+  total_customers: number;
+  total_products: number;
+  pending_orders: number;
+  completed_orders: number;
+  cancelled_orders: number;
+  pending_payments: number;
+  low_stock_count: number;
+}
+
+export interface AnalyticsCharts {
+  sales_over_time: { date: string; sales: number }[];
+  orders_over_time: { date: string; orders: number }[];
+  top_products: {
+    product_id: number;
+    product_name: string;
+    quantity: number;
+  }[];
+  top_categories: {
+    category_id: number;
+    category_name: string;
+    quantity: number;
+  }[];
+  revenue_by_category: {
+    category_id: number;
+    category_name: string;
+    revenue: number;
+  }[];
+  order_status_distribution: {
+    status: string;
+    orders: number;
+  }[];
+}
+
+export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
+  const response = await api.get("/api/admin/analytics/summary");
+  return response.data;
+}
+
+export async function getAnalyticsCharts(): Promise<AnalyticsCharts> {
+  const response = await api.get("/api/admin/analytics/charts");
+  return response.data;
+}
+
+// =========================================================
+// ADMIN ROLES
+// =========================================================
+
+export interface AdminRoleUser {
+  id: number;
+  name: string;
+  email: string;
+  role: "ADMIN" | "CUSTOMER";
+  status: string;
+}
+
+export async function getAdminRoleUsers(): Promise<AdminRoleUser[]> {
+  const response = await api.get("/api/admin/users");
+  return response.data;
+}
+
+export async function updateAdminUserRole(
+  id: number,
+  role: "admin" | "customer"
+): Promise<AdminRoleUser> {
+  const response = await api.put(`/api/admin/users/${id}/role`, {
+    role,
   });
   return response.data;
 }

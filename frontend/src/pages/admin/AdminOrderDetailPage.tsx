@@ -110,7 +110,18 @@ export default function AdminOrderDetailPage() {
   }
 
   const options = order.actions?.allowed_next_statuses ?? [];
-  const productName = (productId: number) => order.product_names?.[String(productId)] ?? `Product #${productId}`;
+  // The orders API does not send product names yet
+  const productName = (productId: number) => `Product #${productId}`;
+  const address = order.address;
+  const addressLines = address
+    ? [
+        address.full_name,
+        address.line1,
+        address.line2,
+        `${address.city}, ${address.state} ${address.postal_code}`,
+        address.country,
+      ].filter(Boolean)
+    : [];
 
   return (
     <div className="space-y-6">
@@ -187,12 +198,19 @@ export default function AdminOrderDetailPage() {
         {/* Right column: customer, address, payment */}
         <div className="space-y-6">
           <InfoCard icon={User} title="Customer">
-            <p className="font-medium">{order.customer_name ?? "Unknown customer"}</p>
-            {order.customer_email && <p className="text-slate-500">{order.customer_email}</p>}
+            <p className="font-medium">{order.customer?.name ?? "Unknown customer"}</p>
+            {order.customer?.email && <p className="text-slate-500">{order.customer.email}</p>}
+            {address?.phone && <p className="text-slate-500">{address.phone}</p>}
           </InfoCard>
 
           <InfoCard icon={MapPin} title="Shipping address">
-            <p className="text-slate-600">{order.shipping_address ?? "No address on record"}</p>
+            {addressLines.length === 0 ? (
+              <p className="text-slate-600">No address on record</p>
+            ) : (
+              addressLines.map((line, i) => (
+                <p key={i} className="text-slate-600">{line}</p>
+              ))
+            )}
           </InfoCard>
 
           <InfoCard icon={CreditCard} title="Payment">

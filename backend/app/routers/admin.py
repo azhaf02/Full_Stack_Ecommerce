@@ -1,3 +1,4 @@
+
 from datetime import date, datetime, time, timedelta, timezone
 from math import ceil
 from typing import Annotated, Literal
@@ -5,18 +6,16 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
-from sqlalchemy import bindparam, func, or_, text
+from sqlalchemy import func, or_, text
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.core.security import require_role
-from app.models.address import Address
-from app.schemas.order import OrderActions, OrderDetailOut
-from app.services import order_service, return_service
 from app.models.order import Order, OrderStatus
 from app.models.payment import Payment, PaymentMethod, PaymentStatus
 from app.models.role import Role
 from app.models.user import User
+from app.models.audit_log import AuditLog
 
 router = APIRouter(
     prefix="/api/admin",
@@ -24,12 +23,11 @@ router = APIRouter(
     dependencies=[Depends(require_role("admin"))],
 )
 
-# A product counts as "low stock" at or below this quantity
-LOW_STOCK_THRESHOLD = 10
-
+# ============================================================
+# DASHBOARD SUMMARY
+# ============================================================
 
 class DashboardKpis(BaseModel):
-    # Python uses snake_case, the JSON sent to React uses camelCase (totalRevenue)
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
     total_revenue: float
@@ -42,12 +40,12 @@ class DashboardSummary(BaseModel):
     kpis: DashboardKpis
 
 
-
 @router.get("/dashboard-summary", response_model=DashboardSummary)
 def dashboard_summary(db: Session = Depends(get_db)):
-    start_of_today = datetime.combine(datetime.now(timezone.utc).date(), time.min)
+    start_of_today = datetime.combine(
+        datetime.now(timezone.utc).date(), time.min
+    )
 
-    # Money from every order that was not cancelled or refunded
     total_revenue = db.execute(
         text(
             "SELECT COALESCE(SUM(total_amount), 0) FROM orders "
@@ -60,7 +58,6 @@ def dashboard_summary(db: Session = Depends(get_db)):
         {"start": start_of_today},
     ).scalar()
 
-    # Orders the store still has to pack and ship
     pending_orders = db.execute(
         text(
             "SELECT COUNT(*) FROM orders "
@@ -68,9 +65,10 @@ def dashboard_summary(db: Session = Depends(get_db)):
         )
     ).scalar()
 
+    # Real stock is kept in the inventory module; each item has its own threshold.
+    # Out-of-stock items (quantity 0) count as low stock too. Same rule as the analytics API.
     low_stock_count = db.execute(
-        text("SELECT COUNT(*) FROM products WHERE stock_quantity <= :limit"),
-        {"limit": LOW_STOCK_THRESHOLD},
+        text("SELECT COUNT(*) FROM inventory WHERE quantity <= low_stock_threshold")
     ).scalar()
 
     return DashboardSummary(
@@ -83,8 +81,16 @@ def dashboard_summary(db: Session = Depends(get_db)):
     )
 
 
+# ============================================================
+# CUSTOMER MANAGEMENT — ADM-03
+# ============================================================
+
 class CustomerOut(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+    )
 
     id: int
     name: str
@@ -98,7 +104,6 @@ class CustomerList(BaseModel):
     total: int
 
 
-# ADM-03: list customers, with optional search by name or email
 @router.get("/customers", response_model=CustomerList)
 def list_customers(q: str = "", db: Session = Depends(get_db)):
     query = db.query(User).join(Role).filter(Role.name == "customer")
@@ -106,19 +111,21 @@ def list_customers(q: str = "", db: Session = Depends(get_db)):
     search = q.strip()
     if search:
         pattern = f"%{search}%"
-        # ilike = case-insensitive match, so "sara" also finds "Sara"
-        query = query.filter(or_(User.name.ilike(pattern), User.email.ilike(pattern)))
+        query = query.filter(
+            or_(
+                User.name.ilike(pattern),
+                User.email.ilike(pattern),
+            )
+        )
 
     customers = query.order_by(User.created_at.desc()).all()
     return {"items": customers, "total": len(customers)}
-
 
 
 class CustomerStatusUpdate(BaseModel):
     status: Literal["active", "inactive"]
 
 
-# ADM-03: activate or deactivate a customer account
 @router.put("/customers/{customer_id}/status", response_model=CustomerOut)
 def update_customer_status(
     customer_id: int,
@@ -126,9 +133,11 @@ def update_customer_status(
     db: Session = Depends(get_db),
     current_admin: User = Depends(require_role("admin")),
 ):
-    # An admin must not lock themselves out
     if customer_id == current_admin.id:
-        raise HTTPException(status_code=409, detail="You cannot change the status of your own account")
+        raise HTTPException(
+            status_code=409,
+            detail="You cannot change the status of your own account",
+        )
 
     customer = (
         db.query(User)
@@ -136,6 +145,7 @@ def update_customer_status(
         .filter(User.id == customer_id, Role.name == "customer")
         .first()
     )
+
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -145,9 +155,12 @@ def update_customer_status(
     return customer
 
 
-
 class CustomerOrder(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+    )
 
     id: int
     order_number: str
@@ -162,7 +175,6 @@ class CustomerDetail(CustomerOut):
     recent_orders: list[CustomerOrder]
 
 
-# ADM-03: one customer's profile with a summary of their orders
 @router.get("/customers/{customer_id}", response_model=CustomerDetail)
 def get_customer(customer_id: int, db: Session = Depends(get_db)):
     customer = (
@@ -171,6 +183,7 @@ def get_customer(customer_id: int, db: Session = Depends(get_db)):
         .filter(User.id == customer_id, Role.name == "customer")
         .first()
     )
+
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -180,9 +193,11 @@ def get_customer(customer_id: int, db: Session = Depends(get_db)):
         .order_by(Order.created_at.desc())
         .all()
     )
-    # Cancelled and refunded orders do not count as money spent
+
     total_spent = sum(
-        float(o.total_amount) for o in orders if o.status not in ("CANCELLED", "REFUNDED")
+        float(order.total_amount)
+        for order in orders
+        if order.status not in ("CANCELLED", "REFUNDED")
     )
 
     return {
@@ -197,9 +212,12 @@ def get_customer(customer_id: int, db: Session = Depends(get_db)):
     }
 
 
+# ============================================================
+# ORDER MANAGEMENT — ADM-04 / ADM-05
+# ============================================================
 
 class OrderListParams(BaseModel):
-    """Search and filter values for the admin order list. Pydantic rejects anything invalid."""
+    """Search and filter values for the admin order list."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -240,16 +258,15 @@ class AdminOrderList(BaseModel):
 
 
 def _like_pattern(value: str) -> str:
-    # Escape % and _ so they are searched as normal characters, not wildcards
     escaped = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     return f"%{escaped}%"
 
 
-# ADM-04: order list for admins with search, status/date filters and pagination
 @router.get("/orders", response_model=AdminOrderList)
-def list_orders(params: Annotated[OrderListParams, Query()], db: Session = Depends(get_db)):
-    # orders.user_id has no foreign key yet, so join users by id.
-    # Outer join keeps an order in the list even if its user row is missing.
+def list_orders(
+    params: Annotated[OrderListParams, Query()],
+    db: Session = Depends(get_db),
+):
     query = db.query(Order, User.name).outerjoin(User, User.id == Order.user_id)
 
     search = params.q.strip()
@@ -266,13 +283,18 @@ def list_orders(params: Annotated[OrderListParams, Query()], db: Session = Depen
         query = query.filter(Order.status == params.status.value)
 
     if params.date_from:
-        query = query.filter(Order.created_at >= datetime.combine(params.date_from, time.min))
+        query = query.filter(
+            Order.created_at >= datetime.combine(params.date_from, time.min)
+        )
+
     if params.date_to:
-        # include the whole "to" day
         day_after = params.date_to + timedelta(days=1)
-        query = query.filter(Order.created_at < datetime.combine(day_after, time.min))
+        query = query.filter(
+            Order.created_at < datetime.combine(day_after, time.min)
+        )
 
     total = query.count()
+
     rows = (
         query.order_by(Order.created_at.desc(), Order.id.desc())
         .offset((params.page - 1) * params.page_size)
@@ -302,69 +324,16 @@ def list_orders(params: Annotated[OrderListParams, Query()], db: Session = Depen
     }
 
 
-
-class AdminOrderDetail(OrderDetailOut):
-    """The order detail from the orders module, plus what the admin screen shows next to it."""
-
-    customer_name: str
-    customer_email: str | None = None
-    shipping_address: str | None = None
-    product_names: dict[int, str] = {}
+# The admin order detail (GET /api/admin/orders/{id}) and status change
+# (PUT /api/admin/orders/{id}/status) live in the orders module (routers/orders.py).
 
 
-def _format_address(address: Address | None) -> str | None:
-    if address is None:
-        return None
-    parts = [
-        address.full_name, address.line1, address.line2, address.city,
-        f"{address.state} {address.postal_code}", address.country, address.phone,
-    ]
-    return ", ".join(part for part in parts if part)
-
-
-# ADM-05: one order with its items, history and the statuses an admin may move it to
-@router.get("/orders/{order_id}", response_model=AdminOrderDetail)
-def get_order(order_id: int, db: Session = Depends(get_db)):
-    order = db.get(Order, order_id)
-    if order is None:
-        raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
-
-    customer = db.get(User, order.user_id)
-    address = db.get(Address, order.address_id)
-
-    # Product names for the items table
-    product_ids = sorted({item.product_id for item in order.items})
-    product_names = {}
-    if product_ids:
-        rows = db.execute(
-            text("SELECT id, name FROM products WHERE id IN :ids").bindparams(
-                bindparam("ids", expanding=True)
-            ),
-            {"ids": product_ids},
-        ).all()
-        product_names = {row.id: row.name for row in rows}
-
-    detail = OrderDetailOut.model_validate(order)
-    detail.actions = OrderActions(
-        can_cancel=order_service.can_customer_cancel(order),
-        can_request_return=return_service.can_request_return(order),
-        return_deadline=return_service.return_deadline(order),
-        # the same list that PUT /api/admin/orders/{id}/status accepts
-        allowed_next_statuses=order_service.admin_next_statuses(order),
-    )
-
-    return AdminOrderDetail(
-        **detail.model_dump(),
-        customer_name=customer.name if customer else "Unknown customer",
-        customer_email=customer.email if customer else None,
-        shipping_address=_format_address(address),
-        product_names=product_names,
-    )
-
-
+# ============================================================
+# PAYMENT MANAGEMENT — ADM-06
+# ============================================================
 
 class PaymentListParams(BaseModel):
-    """Search and filter values for the admin payment list. Pydantic rejects anything invalid."""
+    """Search and filter values for the admin payment list."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -397,21 +366,20 @@ class AdminPaymentList(BaseModel):
     page: int
     page_size: int
     total_pages: int
-    # Totals over ALL payments, not only the current page or filter
     collected_amount: float
     pending_cod_amount: float
     status_counts: dict[str, int]
 
 
 def _enum_text(value) -> str:
-    # payment.method and payment.status come back as enum members; send their text value
     return getattr(value, "value", value)
 
 
-# ADM-06: payment records for admins (read only), with search, filters and pagination
 @router.get("/payments", response_model=AdminPaymentList)
-def list_payments(params: Annotated[PaymentListParams, Query()], db: Session = Depends(get_db)):
-    # Outer joins keep a payment in the list even if its order or customer row is missing
+def list_payments(
+    params: Annotated[PaymentListParams, Query()],
+    db: Session = Depends(get_db),
+):
     query = (
         db.query(Payment, Order.order_number, User.name)
         .outerjoin(Order, Order.id == Payment.order_id)
@@ -431,10 +399,12 @@ def list_payments(params: Annotated[PaymentListParams, Query()], db: Session = D
 
     if params.status:
         query = query.filter(Payment.status == params.status)
+
     if params.method:
         query = query.filter(Payment.method == params.method)
 
     total = query.count()
+
     rows = (
         query.order_by(Payment.created_at.desc(), Payment.id.desc())
         .offset((params.page - 1) * params.page_size)
@@ -462,12 +432,21 @@ def list_payments(params: Annotated[PaymentListParams, Query()], db: Session = D
         .filter(Payment.status == PaymentStatus.SUCCESS)
         .scalar()
     )
+
     pending_cod = (
         db.query(func.coalesce(func.sum(Payment.amount), 0))
-        .filter(Payment.method == PaymentMethod.COD, Payment.status == PaymentStatus.PENDING)
+        .filter(
+            Payment.method == PaymentMethod.COD,
+            Payment.status == PaymentStatus.PENDING,
+        )
         .scalar()
     )
-    counts = db.query(Payment.status, func.count(Payment.id)).group_by(Payment.status).all()
+
+    counts = (
+        db.query(Payment.status, func.count(Payment.id))
+        .group_by(Payment.status)
+        .all()
+    )
 
     return {
         "items": items,
@@ -477,5 +456,136 @@ def list_payments(params: Annotated[PaymentListParams, Query()], db: Session = D
         "total_pages": max(1, ceil(total / params.page_size)),
         "collected_amount": float(collected),
         "pending_cod_amount": float(pending_cod),
-        "status_counts": {_enum_text(status): count for status, count in counts},
+        "status_counts": {
+            _enum_text(status): count for status, count in counts
+        },
     }
+
+
+# ============================================================
+# USER ROLE MANAGEMENT — ADM-07
+# ============================================================
+
+class AdminRoleUserOut(BaseModel):
+    """User information returned to the admin roles screen."""
+
+    id: int
+    name: str
+    email: str
+    role: str
+    status: str
+
+
+class UserRoleUpdate(BaseModel):
+    """Only the two roles supported by this project's role system."""
+
+    role: Literal["admin", "customer"]
+
+
+# GET /api/admin/users
+# List users and their current roles.
+@router.get("/users", response_model=list[AdminRoleUserOut])
+def list_users_for_role_management(db: Session = Depends(get_db)):
+    users = (
+        db.query(User)
+        .join(Role, User.role_id == Role.id)
+        .order_by(User.name.asc())
+        .all()
+    )
+
+    return [
+        AdminRoleUserOut(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            role=user.role.name.upper(),
+            status=user.status,
+        )
+        for user in users
+    ]
+
+
+# PUT /api/admin/users/{user_id}/role
+# Promote a customer to admin or demote an admin to customer.
+@router.put("/users/{user_id}/role", response_model=AdminRoleUserOut)
+def update_user_role(
+    user_id: int,
+    payload: UserRoleUpdate,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(require_role("admin")),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    target_role = (
+        db.query(Role)
+        .filter(Role.name == payload.role)
+        .first()
+    )
+
+    if target_role is None:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Role '{payload.role}' is missing from the roles table",
+        )
+
+    old_role = user.role.name.lower()
+
+    if old_role == payload.role:
+        raise HTTPException(
+            status_code=409,
+            detail="User already has this role",
+        )
+
+    # Do not allow the logged-in admin to demote themselves.
+    if user.id == current_admin.id and payload.role == "customer":
+        raise HTTPException(
+            status_code=409,
+            detail="You cannot demote your own account",
+        )
+
+    # Do not allow demotion of the last remaining admin.
+    if old_role == "admin" and payload.role == "customer":
+        admin_count = (
+            db.query(User)
+            .join(Role, User.role_id == Role.id)
+            .filter(Role.name == "admin")
+            .count()
+        )
+
+        if admin_count <= 1:
+            raise HTTPException(
+                status_code=409,
+                detail="At least one admin must remain",
+            )
+
+    try:
+        user.role = target_role
+
+        audit_entry = AuditLog(
+            actor_id=current_admin.id,
+            action="USER_ROLE_CHANGED",
+            entity_type="user",
+            entity_id=user.id,
+            details=(
+                f"Role changed from {old_role} to {payload.role}"
+            ),
+        )
+
+        db.add(audit_entry)
+        db.commit()
+        db.refresh(user)
+
+    except Exception:
+        db.rollback()
+        raise
+
+    return AdminRoleUserOut(
+        id=user.id,
+        name=user.name,
+        email=user.email,
+        role=user.role.name.upper(),
+        status=user.status,
+    )

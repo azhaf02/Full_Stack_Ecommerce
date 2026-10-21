@@ -7,8 +7,6 @@ import RevenueChart from "../../components/admin/RevenueChart";
 import OrderStatusChart from "../../components/admin/OrderStatusChart";
 import WeeklyOrdersChart from "../../components/admin/WeeklyOrdersChart";
 import ProgressList from "../../components/admin/ProgressList";
-import DataTable from "../../components/admin/DataTable";
-import type { Column } from "../../components/admin/DataTable";
 import StatusBadge from "../../components/admin/StatusBadge";
 import { getAnalyticsCharts, getDashboardSummary, getOrders } from "../../services/adminService";
 import type { AdminOrder, AnalyticsCharts, DashboardKpis } from "../../services/adminService";
@@ -34,13 +32,6 @@ const statusLabel = (status: string) => {
   const text = status.replace(/_/g, " ").toLowerCase();
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
-
-const orderColumns: Column<AdminOrder>[] = [
-  { key: "orderNumber", label: "Order" },
-  { key: "customerName", label: "Customer" },
-  { key: "totalAmount", label: "Total", render: (o) => formatINR(o.totalAmount) },
-  { key: "status", label: "Status", render: (o) => <StatusBadge status={o.status} /> },
-];
 
 function NoData() {
   return (
@@ -188,7 +179,26 @@ export default function AdminDashboardPage() {
           {recentOrders.length === 0 ? (
             <NoData />
           ) : (
-            <DataTable columns={orderColumns} rows={recentOrders} rowKey={(o) => o.id} />
+            // Compact list: the card has a fixed height, so a full table would overflow it
+            <ul className="h-full overflow-y-auto divide-y pr-1">
+              {recentOrders.map((o) => (
+                <li key={o.id}>
+                  <Link
+                    to={`/admin/orders/${o.id}`}
+                    className="flex items-center justify-between gap-3 py-2.5 hover:bg-cream-100 rounded-lg px-1"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{o.orderNumber}</p>
+                      <p className="text-xs text-slate-500 truncate">{o.customerName}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className="text-sm font-medium text-slate-800">{formatINR(o.totalAmount)}</span>
+                      <StatusBadge status={o.status} />
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
         </ChartCard>
       </div>
