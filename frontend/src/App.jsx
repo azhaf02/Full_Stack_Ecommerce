@@ -4,17 +4,17 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DashboardLayout from "./components/DashboardLayout";
 import ProductDetailPage from "./ProductDetailPage";
 import SearchResultsPage from "./SearchResultsPage";
-
+import WishlistPage from "./pages/WishlistPage";
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        
+       <Routes>
         <Route path="/" element={<DashboardLayout />} />
         <Route path="/products/:id" element={<ProductDetailPage />} />
         <Route path="/search" element={<SearchResultsPage />} />
-      </Routes>
+        <Route path="/wishlist" element={<WishlistPage />} />
+       </Routes>
     </BrowserRouter>
   );
 }

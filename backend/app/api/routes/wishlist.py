@@ -1,60 +1,109 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session, joinedload
 
 from app.database.connection import get_db
-from app.services import wishlist_service
-from app.schemas.wishlist import WishlistItemCreate, WishlistResponse
+from app.core.security import get_current_user
+from app.models.user import User
+from app.models.product import Product
+from app.models.wishlist import Wishlist, WishlistItem
+
+router = APIRouter(prefix="/api/wishlist", tags=["Wishlist"])
 
 
-router = APIRouter(
-    prefix="/api/wishlist",
-    tags=["Wishlist"]
-)
+class WishlistAddRequest(BaseModel):
+    product_id: int = Field(..., gt=0)
 
 
-@router.get("/{user_id}", response_model=WishlistResponse)
-def get_wishlist(
-    user_id: int,
-    db: Session = Depends(get_db)
-):
-    wishlist = wishlist_service.get_or_create_wishlist(db, user_id)
-
-    return wishlist
-
-
-@router.post("/{user_id}/items", response_model=WishlistResponse)
+@router.post("/")
 def add_to_wishlist(
-    user_id: int,
-    item: WishlistItemCreate,
-    db: Session = Depends(get_db)
+    payload: WishlistAddRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    try:
-        return wishlist_service.add_item(
-            db,
-            user_id,
-            item.product_id
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
+    product = db.query(Product).filter(
+        Product.id == payload.product_id
+    ).first()
+
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    wishlist = db.query(Wishlist).filter(
+        Wishlist.user_id == current_user.id
+    ).first()
+
+    if not wishlist:
+        wishlist = Wishlist(user_id=current_user.id)
+        db.add(wishlist)
+        db.flush()
+
+    existing = db.query(WishlistItem).filter(
+        WishlistItem.wishlist_id == wishlist.id,
+        WishlistItem.product_id == payload.product_id,
+    ).first()
+
+    if existing:
+        return {"message": "Product already in wishlist"}
+
+    item = WishlistItem(
+        wishlist_id=wishlist.id,
+        product_id=payload.product_id,
+    )
+    db.add(item)
+    db.commit()
+
+    return {"message": "Product added to wishlist"}
 
 
-@router.delete("/{user_id}/items/{product_id}", response_model=WishlistResponse)
+@router.get("/")
+def get_wishlist(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    wishlist = db.query(Wishlist).options(
+        joinedload(Wishlist.items).joinedload(WishlistItem.product)
+    ).filter(
+        Wishlist.user_id == current_user.id
+    ).first()
+
+    if not wishlist:
+        return []
+
+    return [
+        {
+            "id": item.product.id,
+            "name": item.product.name,
+            "price": item.product.price,
+            "stock_quantity": item.product.stock_quantity,
+            "wishlist_item_id": item.id,
+        }
+        for item in wishlist.items
+        if item.product is not None
+    ]
+
+
+@router.delete("/")
 def remove_from_wishlist(
-    user_id: int,
     product_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    try:
-        return wishlist_service.remove_item(
-            db,
-            user_id,
-            product_id
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=404,
-            detail=str(e)
-        )
+    wishlist = db.query(Wishlist).filter(
+        Wishlist.user_id == current_user.id
+    ).first()
+
+    if not wishlist:
+        raise HTTPException(status_code=404, detail="Wishlist not found")
+
+    item = db.query(WishlistItem).filter(
+        WishlistItem.wishlist_id == wishlist.id,
+        WishlistItem.product_id == product_id,
+    ).first()
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Product not in wishlist")
+
+    db.delete(item)
+    db.commit()
+
+    return {"message": "Product removed from wishlist"}

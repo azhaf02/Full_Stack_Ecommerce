@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 
 from app.database.connection import get_db
 from app.models.product import Product
+from app.services.product_service import get_products
 
 router = APIRouter(
     prefix="/api/products",
@@ -68,3 +69,29 @@ def get_product_detail(
             for item in related_products
         ]
     }
+
+@router.get("/")
+def list_products(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    category_id: int | None = Query(None, ge=1),
+    min_price: float | None = Query(None, ge=0),
+    max_price: float | None = Query(None, ge=0),
+    in_stock: bool | None = None,
+    sort: str = Query("newest", pattern="^(newest|price_asc|price_desc)$"),
+    db: Session = Depends(get_db),
+):
+    if min_price is not None and max_price is not None and min_price > max_price:
+        raise HTTPException(status_code=400, detail="Minimum price cannot exceed maximum price")
+
+    return get_products(
+        db=db,
+        page=page,
+        page_size=page_size,
+        category_id=category_id,
+        min_price=min_price,
+        max_price=max_price,
+        in_stock=in_stock,
+        sort=sort,
+    )
+

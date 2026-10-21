@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import type { Product, ProductImage } from "./types/product";
 import { getProductById } from "./services/productService";
 import VariantSelector from "./components/VariantSelector";
-
+import apiClient from './services/apiClient';
 interface ProductVariant {
   id: number;
   product_id: number;
@@ -904,9 +904,29 @@ function ProductDetailPage() {
     className={`wishlist-button ${
       wishlistAdded ? "added" : ""
     }`}
-    onClick={() =>
-      setWishlistAdded((current) => !current)
+    onClick={async () => {
+  if (!localStorage.getItem('token')) {
+    navigate('/login');
+    return;
+  }
+
+  try {
+    if (wishlistAdded) {
+      await apiClient.delete('/api/wishlist/', {
+        params: { product_id: product.id },
+      });
+      setWishlistAdded(false);
+    } else {
+      await apiClient.post('/api/wishlist/', {
+        product_id: product.id,
+      });
+      setWishlistAdded(true);
     }
+  } catch (error) {
+    console.error('Wishlist update failed:', error);
+    alert('Unable to update wishlist. Please try again.');
+  }
+}}
     aria-label="Add to wishlist"
   >
     {wishlistAdded ? "♥" : "♡"}
