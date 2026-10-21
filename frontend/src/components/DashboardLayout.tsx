@@ -217,6 +217,30 @@ export default function DashboardLayout() {
             flexShrink: 0,
           }}
         >
+          {/* Cart shortcut: keep the existing header styling and route to CartPage */}
+          <button
+            type="button"
+            aria-label="Open shopping cart"
+            title="Shopping cart"
+            onClick={() => { window.location.href = '/cart'; }}
+            style={{
+              position: 'relative',
+              background: 'rgba(255,255,255,0.12)',
+              border: '1px solid rgba(255,255,255,0.18)',
+              borderRadius: '50%',
+              width: '40px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              fontSize: '18px',
+              color: '#ffffff',
+            }}
+          >
+            🛒
+          </button>
+
           {/* Notifications */}
           <button
             onClick={() => setActiveTab('notifications')}
