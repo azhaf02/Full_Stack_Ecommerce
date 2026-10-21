@@ -19,6 +19,7 @@ _products = table(
     column("id", Integer),
     column("name", String),
     column("price", Numeric),
+    column("stock_quantity", Integer),
     column("status", String),
 )
 
@@ -27,6 +28,7 @@ _variants = table(
     column("id", Integer),
     column("product_id", Integer),
     column("price_delta", Numeric),
+    column("stock", Integer),
 )
 
 _shipping = table(
@@ -94,19 +96,16 @@ def _coupon_discount(
     coupon: Coupon,
     subtotal: Decimal,
 ) -> Decimal:
-    total_usage_count = (
-        db.query(Order)
-        .filter(Order.coupon_id == coupon.id)
-        .count()
+    # Keep checkout validation consistent with POST /api/cart/coupon:
+    # cancelled orders must not consume a coupon redemption.
+    usage_query = db.query(Order).filter(
+        Order.coupon_id == coupon.id,
+        Order.status != "CANCELLED",
     )
-    user_usage_count = (
-        db.query(Order)
-        .filter(
-            Order.coupon_id == coupon.id,
-            Order.user_id == user_id,
-        )
-        .count()
-    )
+    total_usage_count = usage_query.count()
+    user_usage_count = usage_query.filter(
+        Order.user_id == user_id,
+    ).count()
 
     valid, message = validate_coupon(
         coupon,
@@ -224,6 +223,7 @@ def price_order(
                 _products.c.id,
                 _products.c.name,
                 _products.c.price,
+                _products.c.stock_quantity,
                 _products.c.status,
             ).where(
                 _products.c.id.in_(product_ids)
@@ -238,6 +238,7 @@ def price_order(
                 _variants.c.id,
                 _variants.c.product_id,
                 _variants.c.price_delta,
+                _variants.c.stock,
             ).where(
                 _variants.c.product_id.in_(product_ids)
             )
@@ -295,6 +296,18 @@ def price_order(
 
             raise InvalidOrder(
                 f"Choose a variant for '{product.name}'"
+            )
+
+        # Recheck stock on the server during checkout; cart stock can change
+        # between adding an item and placing the order.
+        available_stock = (
+            variant.stock
+            if line.variant_id is not None
+            else product.stock_quantity
+        )
+        if available_stock is not None and line.quantity > available_stock:
+            raise InvalidOrder(
+                f"Insufficient stock for product {line.product_id}"
             )
 
         if unit_price < 0:

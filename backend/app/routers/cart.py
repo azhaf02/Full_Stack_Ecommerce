@@ -384,7 +384,7 @@ def apply_coupon(
 ):
     coupon = (
         db.query(Coupon)
-        .filter(Coupon.code == request.code.upper())
+        .filter(Coupon.code == request.code.strip().upper())
         .first()
     )
 
