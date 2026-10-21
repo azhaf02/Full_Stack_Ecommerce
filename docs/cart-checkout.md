@@ -75,3 +75,10 @@ The `feature/cart` version of `backend/app/main.py` registers the cart router bu
 ## 7. Verification log
 
 Repository inspection was performed through GitHub file/branch/PR APIs and the uploaded internship-plan PDF. No local checkout of the repository, configured Supabase connection, browser session, or runnable project environment was available in this tool session. Therefore no pytest, TypeScript build, browser navigation, database migration, or live API test is claimed as passed.
+
+
+## 8. Follow-up inspection (2026-10-21)
+
+- Added forward migration `backend/alembic/versions/0005_cart_guest_token.py` after `0004_cart_coupons` to add the model's nullable unique `guest_token` column/index without dropping existing rows. This migration has **not** been run against any database; validate the Alembic graph and target database before applying it.
+- Safiya's PR #48 is open and not merged. It targets `feat/chk-06-checkout-handoff` from `feat/chk-07-checkpoint3`. The PR description says the frontend production build and no-coupon checkout review/order creation were manually verified by its author; coupon checkout and full Cart-to-Checkout integration remain pending. These are reported PR claims, not independently reproduced tests in this session.
+- The Cart PR branch diverges from `main` (14 commits ahead, 84 behind at the latest comparison). Avoid merging/rebasing without a deliberate integration plan.
