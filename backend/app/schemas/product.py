@@ -28,8 +28,9 @@ class ProductUpdate(BaseModel):
 
 class ProductResponse(ProductBase):
     id: int
-    stock_status: str = "out_of_stock"
-    category_name: Optional[str] = None
+    image_url: str | None = None
+    category_name: str | None = None
+    stock_status: str | None = None
     images: list[dict] = []
     related_products: list[dict] = []
 

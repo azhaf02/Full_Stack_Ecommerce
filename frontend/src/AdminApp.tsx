@@ -11,6 +11,8 @@ import AdminRolesPage from "./pages/admin/AdminRolesPage";
 import AdminOrderDetailPage from "./pages/admin/AdminOrderDetailPage";
 import AdminCategoriesPage from "./pages/admin/AdminCategoriesPage";
 import AnalyticsPage from "./pages/admin/AnalyticsPage";
+import ProductsPage from "./pages/admin/ProductsPage";
+import ProductFormPage from "./pages/admin/ProductFormPage";
 
 // Mounted at /admin/* by App.tsx, so the paths here are relative to /admin
 export default function AdminApp() {
@@ -34,6 +36,11 @@ export default function AdminApp() {
         <Route path="roles" element={<AdminRolesPage />} />
         <Route path="categories" element={<AdminCategoriesPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
+
+        {/* Product Catalog */}
+        <Route path="products" element={<ProductsPage />} />
+        <Route path="products/new" element={<ProductFormPage />} />
+        <Route path="products/:id/edit" element={<ProductFormPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/admin" replace />} />
