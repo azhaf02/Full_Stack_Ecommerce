@@ -53,42 +53,6 @@ function CheckoutPage() {
   // Current demo/test product until shared cart module is connected
   const [cart, setCart] = useState(null);
 const [cartLoading, setCartLoading] = useState(true);
-useEffect(() => {
-  const loadCart = async () => {
-    try {
-      setCartLoading(true);
-
-      const cartResponse = await fetch(
-        "http://127.0.0.1:8000/api/cart"
-      );
-
-      const summaryResponse = await fetch(
-        "http://127.0.0.1:8000/api/cart/summary"
-      );
-
-      if (!cartResponse.ok || !summaryResponse.ok) {
-        throw new Error("Failed to load cart.");
-      }
-
-      const cartData = await cartResponse.json();
-      const summaryData = await summaryResponse.json();
-
-      setCart({
-        ...cartData,
-        summary: summaryData,
-      });
-
-    } catch (error) {
-      console.error("Cart loading error:", error);
-      setMessage("Unable to load your cart.");
-    } finally {
-      setCartLoading(false);
-    }
-  };
-
-  loadCart();
-}, []);
-
 const subtotal = Number(cart?.summary?.subtotal ?? 0);
 const discount = Number(cart?.summary?.discount ?? 0);
   // =========================
@@ -138,10 +102,18 @@ useEffect(() => {
   const loadCart = async () => {
     try {
       setCartLoading(true);
+      const token =
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("token") ||
+        localStorage.getItem("authToken");
+      if (!token) {
+        throw new Error("Please login before loading your cart.");
+      }
+      const headers = { Authorization: `Bearer ${token}` };
 
       const [cartResponse, summaryResponse] = await Promise.all([
-        fetch(`${API_BASE}/api/cart`),
-        fetch(`${API_BASE}/api/cart/summary`),
+        fetch(`${API_BASE}/api/cart`, { headers }),
+        fetch(`${API_BASE}/api/cart/summary`, { headers }),
       ]);
 
       if (!cartResponse.ok || !summaryResponse.ok) {
