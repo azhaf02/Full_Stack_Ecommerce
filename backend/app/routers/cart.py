@@ -3,6 +3,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
+from app.models.order import Order
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -403,9 +404,22 @@ def apply_coupon(
                 Decimal(str(item.unit_price)) * item.quantity
             )
 
+    # Enforce total and per-customer usage limits using persisted orders.
+    # Cancelled orders do not consume a coupon redemption.
+    usage_query = db.query(Order).filter(
+        Order.coupon_id == coupon.id,
+        Order.status != "CANCELLED",
+    )
+    total_usage_count = usage_query.count()
+    user_usage_count = usage_query.filter(
+        Order.user_id == current_user.id,
+    ).count()
+
     valid, message = validate_coupon(
         coupon,
-        order_value
+        order_value,
+        user_usage_count=user_usage_count,
+        total_usage_count=total_usage_count,
     )
 
     if not valid:
