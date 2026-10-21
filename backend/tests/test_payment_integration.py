@@ -28,7 +28,10 @@ def env():
 
 	Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 	db = Session()
-	user = SimpleNamespace(id=1)
+	user = SimpleNamespace(
+    id=1,
+    role=SimpleNamespace(name="customer")
+)
 
 	app = FastAPI()
 	app.include_router(payment_router.router)
@@ -540,3 +543,58 @@ def test_cod_request_rejects_extra_status_field(env):
     )
 
     assert response.status_code == 422
+
+
+def test_customer_cannot_mark_cod_as_paid(env):
+    # A regular customer must not access the admin payment endpoint.
+    response = env.client.post(
+        "/api/payment/admin/cod/1/mark-paid"
+    )
+
+    assert response.status_code == 403
+
+def test_admin_can_mark_cod_as_paid(env):
+    order = create_order(env.db, user_id=1)
+    checkout = create_checkout_session(env.db)
+
+    select_response = env.client.post(
+        "/api/payment/select-method",
+        json={
+            "checkout_session_id": str(checkout.session_id),
+            "order_id": order.id,
+            "method": "COD",
+        },
+    )
+
+    assert select_response.status_code == 200
+    payment_id = select_response.json()["payment_id"]
+
+    cod_response = env.client.post(
+        "/api/payment/cod",
+        json={"payment_id": payment_id},
+    )
+    assert cod_response.status_code == 200
+
+    # Simulate an authenticated administrator.
+    env.user.role = SimpleNamespace(name="admin")
+
+    response = env.client.post(
+        f"/api/payment/admin/cod/{payment_id}/mark-paid"
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "SUCCESS"
+
+    payment = env.db.get(Payment, payment_id)
+    env.db.refresh(payment)
+    env.db.refresh(order)
+
+    assert payment.status == PaymentStatus.SUCCESS
+    assert order.payment_status == "SUCCESS"
+
+    # A COD payment must not be marked as paid twice.
+    second_response = env.client.post(
+        f"/api/payment/admin/cod/{payment_id}/mark-paid"
+    )
+
+    assert second_response.status_code == 409

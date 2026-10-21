@@ -96,6 +96,7 @@ Code: `backend/app/routers/orders.py`, schemas in `backend/app/schemas/order.py`
 | `GET /api/account/orders/{id}` | customer | One of my orders: items, status timeline, returns, and `actions` (`can_cancel`, `can_request_return`, `return_deadline`) so the page knows which buttons to show |
 | `POST /api/account/orders/{id}/cancel` | customer | Body `{"reason": "..."}` (optional). A paid order moves on to a refund. |
 | `POST /api/account/orders/{id}/return` | customer | Body `{"reason": "...", "items": [{"order_item_id": 1, "quantity": 1}]}`. Returns `201`. |
+| `GET /api/admin/orders/{id}` | admin | One order for the admin detail page: items, `status_history`, `returns`, `user_id`, `customer` {id, name, email}, `address` (shipping address), and `actions.allowed_next_statuses`. `customer`/`address` are null if that row is gone. 404 if the order does not exist. |
 | `PUT /api/admin/orders/{id}/status` | admin | Body `{"status": "PROCESSING", "remarks": "..."}`. Returns the updated order. `actions.allowed_next_statuses` lists what the admin can pick next (use it for the dropdown instead of a copy of the table; it already leaves out `CONFIRMED` for an unpaid online order). Return steps (`RETURN_*`, `RETURNED`) are refused here and go through the returns route. Every change is saved in `order_status_history` with the previous and new status, who changed it, the time and the remarks. |
 | `GET /api/admin/returns?status=&page=&page_size=` | admin | Return requests, newest first |
 | `PUT /api/admin/returns/{id}` | admin | Body `{"action": "approve" \| "reject" \| "mark_returned" \| "complete_refund", "remarks": "..."}` |
@@ -124,11 +125,11 @@ It shows the **Order ID** (`order_number`) with a Copy button, the payment metho
 
 It also handles loading, errors (with a Try again button), and phone widths. Item names are not shown yet because the order API only returns product ids.
 
-**Not wired into the app yet:** `main` has no router. Once the auth module (PR #20, `react-router-dom`) is merged, add a route such as `/orders/:id/confirmation` and navigate to it after `orderService.place()` succeeds. `orderService` uses the same token key as the auth module (`viora_token`); switch it to the shared `apiClient` after that PR merges.
+**Routes:** the page is at `/orders/:orderId/confirmation` (see "Routes" below). After `orderService.place()` succeeds, send the customer there: `navigate(`/orders/${order.id}/confirmation`)`. `orderService` uses the same token key as the auth module (`viora_token`); switch it to the shared `apiClient` once that file is on `main`.
 
 ## Frontend: my orders, tracking, cancel and return
 
-Plain components that take an order id (or nothing) and call `orderService`; they work as soon as they are put on a route. All are in `frontend/src`; tests are next to them in `__tests__` (55 tests in total with the confirmation page).
+Plain components that take an order id (or nothing) and call `orderService`. All are in `frontend/src`; tests are next to them in `__tests__`.
 
 | Component | Props | What it does |
 |---|---|---|
@@ -140,14 +141,21 @@ Plain components that take an order id (or nothing) and call `orderService`; the
 
 The page never works out the rules itself: the Cancel and Return buttons appear only when `actions.can_cancel` / `actions.can_request_return` say so, and the return deadline comes from `actions.return_deadline`. Server messages (for example "The 7-day return window ... has closed") are shown as they are.
 
-Wiring (once the auth module's router is on `main`), for example:
+### Routes
 
-```tsx
-<Route path="/orders" element={<MyOrdersPage onSelectOrder={(id) => navigate(`/orders/${id}`)} />} />
-<Route path="/orders/:id" element={<OrderTrackingPage orderId={Number(id)} onBack={() => navigate('/orders')} />} />
-```
+`frontend/src/routes/orderRoutes.tsx` defines the three customer routes, and `CustomerApp.tsx` mounts them above the dashboard's catch-all route:
 
-Checked in a real browser at desktop and 390px phone widths.
+| Address | Shows |
+|---|---|
+| `/orders` | My orders (click View to open one) |
+| `/orders/:orderId` | Track, cancel or return one order |
+| `/orders/:orderId/confirmation` | The "order placed" page with the Order ID |
+
+A bad id (`/orders/abc`, `/orders/0`) shows "We could not find that order" without calling the API. Every other address still shows the dashboard.
+
+**No login guard yet.** Without a token the API answers 401 and the pages show "Please log in to see your orders." When the auth module's `ProtectedRoute` is on `main`, wrap the three elements in `orderRoutes.tsx` in it. The dashboard's own "My Orders" tab still shows sample data; the real list is at `/orders`.
+
+Checked in a real browser (real API and login token, throwaway database) at desktop and 390px phone widths; 66 Vitest tests in total.
 
 ### How an order is priced
 

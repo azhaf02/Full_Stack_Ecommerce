@@ -14,10 +14,11 @@ from sqlalchemy.orm import Session
 from app.core.security import require_role
 from app.database import get_db
 from app.models.order import Order, OrderStatus, Return, ReturnStatus
+from app.models.address import Address
 from app.models.user import User
 from app.schemas.order import (
-    CancelRequest, OrderActions, OrderCreate, OrderDetailOut, OrderSummaryOut, ReturnOut, ReturnRequest,
-    ReturnReview, StatusUpdate,
+    AddressBrief, AdminOrderDetailOut, CancelRequest, CustomerBrief, OrderActions, OrderCreate, OrderDetailOut,
+    OrderSummaryOut, ReturnOut, ReturnRequest, ReturnReview, StatusUpdate,
 )
 from app.services import order_pricing, order_service, return_service
 from app.services.order_service import OrderServiceError
@@ -59,8 +60,8 @@ def _run(db: Session, action):
         raise
 
 
-def _detail(order: Order, for_admin: bool = False) -> OrderDetailOut:
-    out = OrderDetailOut.model_validate(order)
+def _detail(order: Order, for_admin: bool = False, db: Session = None) -> OrderDetailOut:
+    out = (AdminOrderDetailOut if for_admin else OrderDetailOut).model_validate(order)
     out.actions = OrderActions(
         can_cancel=order_service.can_customer_cancel(order),
         can_request_return=return_service.can_request_return(order),
@@ -68,6 +69,11 @@ def _detail(order: Order, for_admin: bool = False) -> OrderDetailOut:
         # Only the admin screens need this; it is what PUT /api/admin/orders/{id}/status will accept.
         allowed_next_statuses=order_service.admin_next_statuses(order) if for_admin else None,
     )
+    if for_admin and db is not None:
+        customer = db.get(User, order.user_id)
+        address = db.get(Address, order.address_id)
+        out.customer = CustomerBrief.model_validate(customer) if customer else None
+        out.address = AddressBrief.model_validate(address) if address else None
     return out
 
 
@@ -130,7 +136,17 @@ def request_my_return(order_id: int, data: ReturnRequest,
 
 # ---------------------------------------------------------------- admin
 
-@router.put("/api/admin/orders/{order_id}/status", response_model=OrderDetailOut)
+@router.get("/api/admin/orders/{order_id}", response_model=AdminOrderDetailOut)
+def admin_get_order(order_id: int, admin: User = Depends(admin_only), db: Session = Depends(get_db)):
+    """One order for the admin page: items, status history, returns, the customer, the shipping address, and
+    `actions.allowed_next_statuses` for the status dropdown."""
+    order = db.get(Order, order_id)
+    if order is None:
+        raise _http_error(order_service.OrderNotFound(f"Order {order_id} not found"))
+    return _detail(order, for_admin=True, db=db)
+
+
+@router.put("/api/admin/orders/{order_id}/status", response_model=AdminOrderDetailOut)
 def admin_update_status(order_id: int, data: StatusUpdate,
                         admin: User = Depends(admin_only), db: Session = Depends(get_db)):
     def action():
@@ -141,7 +157,7 @@ def admin_update_status(order_id: int, data: StatusUpdate,
             raise order_service.OrderServiceError(
                 "This step belongs to the returns workflow; use PUT /api/admin/returns/{id}")
         return order_service.update_status(db, order, data.status, changed_by=admin.id, remarks=data.remarks)
-    return _detail(_run(db, action), for_admin=True)
+    return _detail(_run(db, action), for_admin=True, db=db)
 
 
 @router.get("/api/admin/returns", response_model=List[ReturnOut])

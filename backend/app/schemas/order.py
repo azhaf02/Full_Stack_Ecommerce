@@ -77,6 +77,31 @@ class OrderDetailOut(OrderSummaryOut):
     actions: Optional[OrderActions] = None  # filled in by the route
 
 
+class CustomerBrief(_Out):
+    id: int
+    name: str
+    email: str
+
+
+class AddressBrief(_Out):
+    id: int
+    full_name: str
+    phone: str
+    line1: str
+    line2: Optional[str] = None
+    city: str
+    state: str
+    postal_code: str
+    country: str
+
+
+class AdminOrderDetailOut(OrderDetailOut):
+    """What the admin order page needs in one call. customer/address are null if that row no longer exists."""
+    user_id: int
+    customer: Optional[CustomerBrief] = None
+    address: Optional[AddressBrief] = None
+
+
 # ---------------------------------------------------------------- requests
 
 class OrderLineIn(BaseModel):

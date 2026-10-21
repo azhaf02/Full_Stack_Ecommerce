@@ -28,7 +28,10 @@ ADMIN = SimpleNamespace(id=9, role=SimpleNamespace(name="admin"))
 @pytest.fixture()
 def env():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
-    Base.metadata.create_all(engine, tables=TABLES)
+    from app.models.address import Address
+    from app.models.role import Role
+    from app.models.user import User
+    Base.metadata.create_all(engine, tables=TABLES + [Role.__table__, User.__table__, Address.__table__])
     Session = sessionmaker(bind=engine)
     who = {"user": CUSTOMER}
 
@@ -420,3 +423,57 @@ def test_admin_history_records_every_change_in_order(env):
         ("CONFIRMED", "PROCESSING", 9, "picking"), ("PROCESSING", "PACKED", 9, "boxed"),
         ("PACKED", "SHIPPED", 9, "handed to courier")]
     assert all(h["changed_at"] for h in history)
+
+
+# ------------------------------------------------------------------ admin order detail
+
+def _seed_customer_and_address(env):
+    from app.models.address import Address
+    from app.models.role import Role
+    from app.models.user import User
+
+    Base.metadata.create_all(env.Session.kw["bind"], tables=[Role.__table__, User.__table__, Address.__table__])
+    with env.Session() as db:
+        role = Role(name="customer")
+        db.add(role)
+        db.flush()
+        db.add(User(id=1, name="Asha Rao", email="asha@example.com", password_hash="x", role_id=role.id))
+        db.add(Address(id=1, user_id=1, full_name="Asha Rao", phone="9999999999", line1="12 MG Road",
+                       city="Pune", state="MH", postal_code="411001"))
+        db.commit()
+
+
+def test_admin_can_read_one_order_with_customer_and_address(env):
+    _seed_customer_and_address(env)
+    order_id = make(env)
+    env.who["user"] = ADMIN
+    r = env.client.get(f"/api/admin/orders/{order_id}")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["id"] == order_id and body["user_id"] == 1
+    assert body["customer"] == {"id": 1, "name": "Asha Rao", "email": "asha@example.com"}
+    assert body["address"]["city"] == "Pune" and body["address"]["line1"] == "12 MG Road"
+    assert len(body["items"]) == 2 and body["status_history"]
+    assert body["actions"]["allowed_next_statuses"] == ["PROCESSING", "CANCELLED"]
+
+
+def test_admin_order_detail_survives_a_missing_customer_row(env):
+    _seed_customer_and_address(env)
+    order_id = make(env, user_id=42)
+    env.who["user"] = ADMIN
+    body = env.client.get(f"/api/admin/orders/{order_id}").json()
+    assert body["customer"] is None and body["user_id"] == 42
+
+
+def test_admin_order_detail_rules(env):
+    _seed_customer_and_address(env)
+    order_id = make(env)
+    assert env.client.get(f"/api/admin/orders/{order_id}").status_code == 403   # customer
+    env.who["user"] = ADMIN
+    assert env.client.get("/api/admin/orders/9999").status_code == 404
+    # customers' own detail does not leak admin-only fields
+    env.who["user"] = CUSTOMER
+    mine = env.client.get(f"/api/account/orders/{order_id}").json()
+    assert "customer" not in mine and mine["actions"]["allowed_next_statuses"] is None
+    env.app.dependency_overrides.pop(get_current_user)
+    assert env.client.get(f"/api/admin/orders/{order_id}").status_code == 401
