@@ -1,4 +1,4 @@
-﻿"""create payments and invoices
+"""create payments and invoices
 
 Revision ID: 0d01fe9783e7
 Revises: 0008_order_payment_method

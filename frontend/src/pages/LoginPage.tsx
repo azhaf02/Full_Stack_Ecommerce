@@ -1,141 +1,77 @@
-﻿import React, { useState } from "react";
-
-const API_BASE = "http://127.0.0.1:8000";
+import { useState, type FormEvent } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import AuthLayout from '../layouts/AuthLayout';
+import FormField from '../components/FormField';
+import Button from '../components/Button';
+import Alert from '../components/Alert';
+import { useAuth } from '../hooks/useAuth';
+import { getErrorMessage } from '../services/apiClient';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const state = location.state as { from?: string; registered?: boolean; email?: string } | null;
+  const redirectTo = state?.from ?? '/';
+  const justRegistered = Boolean(state?.registered);
 
-  async function handleLogin(e: React.FormEvent) {
+  const [email, setEmail] = useState(state?.email ?? '');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setMessage("");
-
+    setError('');
+    if (!email.trim() || !password) {
+      setError('Enter your email and password.');
+      return;
+    }
+    setSubmitting(true);
     try {
-      const response = await fetch(`${API_BASE}/api/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Invalid email or password");
-      }
-
-      if (!data.access_token) {
-        throw new Error("Login succeeded but no access token was returned.");
-      }
-
-      localStorage.setItem("access_token", data.access_token);
-
-      if (data.user) {
-        localStorage.setItem("auth_user", JSON.stringify(data.user));
-      }
-
-      window.location.href = "/checkout";
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Login failed"
-      );
+      await login(email.trim(), password);
+      navigate(redirectTo, { replace: true });
+    } catch (err) {
+      setError(getErrorMessage(err, 'Could not log in. Please try again.'));
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "#f5f0e6",
-      padding: "20px"
-    }}>
-      <form
-        onSubmit={handleLogin}
-        style={{
-          width: "100%",
-          maxWidth: "400px",
-          background: "white",
-          padding: "32px",
-          borderRadius: "16px",
-          boxShadow: "0 8px 30px rgba(0,0,0,.12)"
-        }}
-      >
-        <h1 style={{ color: "#53652f", marginBottom: "8px" }}>
-          VIORA
-        </h1>
-
-        <p style={{ color: "#666", marginBottom: "25px" }}>
-          Login to continue to checkout
-        </p>
-
-        {message && (
-          <div style={{
-            background: "#ffe5e5",
-            color: "#b00020",
-            padding: "10px",
-            borderRadius: "8px",
-            marginBottom: "15px"
-          }}>
-            {message}
-          </div>
-        )}
-
-        <input
+    <AuthLayout title="Welcome back" subtitle="Log in to your account.">
+      <form onSubmit={handleSubmit} noValidate>
+        {justRegistered && !error && <Alert type="success">Account created successfully. Please log in.</Alert>}
+        {error && <Alert>{error}</Alert>}
+        <FormField
+          label="Email"
+          name="email"
           type="email"
-          placeholder="Email"
+          autoComplete="email"
+          placeholder="name@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          style={inputStyle}
         />
-
-        <input
+        <FormField
+          label="Password"
+          name="password"
           type="password"
-          placeholder="Password"
+          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          style={inputStyle}
         />
-
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            width: "100%",
-            padding: "13px",
-            border: "none",
-            borderRadius: "8px",
-            background: "#68783b",
-            color: "white",
-            fontSize: "16px",
-            cursor: "pointer"
-          }}
-        >
-          {loading ? "Logging in..." : "Login"}
-        </button>
+        <Button type="submit" loading={submitting} className="mt-2 w-full py-3.5 text-base">
+          Log in
+        </Button>
       </form>
-    </div>
+      <p className="mt-8 text-center text-sm text-viora-muted">
+        New here?{' '}
+        <Link to="/register" className="font-semibold text-viora-olive underline decoration-viora-olive/40 underline-offset-4 hover:decoration-viora-olive">
+          Create an account
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "12px",
-  marginBottom: "14px",
-  border: "1px solid #ddd",
-  borderRadius: "8px",
-  fontSize: "15px"
-};

@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+/* Brand colours (olive + cream, matching the ShopEase reference design).
+   Change these hex codes to re-theme the whole app. */
+@theme {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* Olive green: buttons, active links, sidebar, charts */
+  --color-primary-50: #f4f5ee;
+  --color-primary-100: #e7ead9;
+  --color-primary-200: #d0d6b6;
+  --color-primary-300: #b1bb8a;
+  --color-primary-400: #8f9c63;
+  --color-primary-500: #6f7d48;
+  --color-primary-600: #586638;
+  --color-primary-700: #47522e;
+  --color-primary-800: #3c4528;
+  --color-primary-900: #333b23;
+
+  /* Warm cream: page background, cards, borders */
+  --color-cream-50: #fcfbf8;
+  --color-cream-100: #f5f2ea;
+  --color-cream-200: #e9e4d6;
+  --color-cream-300: #d9d2bf;
+}
+
+@layer base {
+  /* Tailwind v4 draws borders in the text colour by default; use soft beige instead */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-cream-200);
+  }
+
+  body {
+    background-color: var(--color-cream-100);
+    color: #2f3322;
+  }
+
+  /* White form fields stand out on cream cards, like the reference search bar */
+  input,
+  select,
+  textarea {
+    background-color: #ffffff;
+  }
+}

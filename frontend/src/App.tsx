@@ -1,39 +1,38 @@
-﻿import LoginPage from './pages/LoginPage';
-import React from 'react';
-import DashboardLayout from './components/DashboardLayout';
-import CartPage from './pages/CartPage';
-import CouponsPage from './pages/admin/CouponsPage';
+
+import { lazy, Suspense } from 'react';
+import { Routes, Route } from 'react-router-dom';
+import ProductDetailPage from './ProductDetailPage';
 import CheckoutPage from './checkout/pages/CheckoutPage';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+
+const AdminApp = lazy(() => import('./AdminApp'));
+const CustomerApp = lazy(() => import('./CustomerApp'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 
 function App() {
-  if (window.location.pathname === "/login") {
-    return <LoginPage />;
-  }
+  return (
+    <AuthProvider>
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/admin/*" element={<AdminApp />} />
+          <Route path="/product/:id" element={<ProductDetailPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
 
-  const path = window.location.pathname;
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
-  if (path === '/checkout') {
-    return <CheckoutPage />;
-  }
+          <Route element={<ProtectedRoute role="customer" />}>
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
 
-  if (path === '/cart') {
-    return (
-      <CartPage
-        onContinueShopping={() => {
-          window.location.href = '/';
-        }}
-        onCheckout={() => {
-          window.location.href = '/checkout';
-        }}
-      />
-    );
-  }
-
-  if (path === '/admin/coupons') {
-    return <CouponsPage />;
-  }
-
-  return <DashboardLayout />;
+          <Route path="*" element={<CustomerApp />} />
+        </Routes>
+      </Suspense>
+    </AuthProvider>
+  );
 }
 
 export default App;

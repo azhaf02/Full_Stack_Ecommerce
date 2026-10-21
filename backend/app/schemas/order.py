@@ -1,7 +1,7 @@
-﻿from datetime import datetime
+from datetime import datetime
 from decimal import Decimal
 from typing import List, Literal, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class _Out(BaseModel):
@@ -58,6 +58,8 @@ class OrderActions(BaseModel):
     can_cancel: bool
     can_request_return: bool
     return_deadline: Optional[datetime] = None
+    # Admin responses only: the statuses PUT /api/admin/orders/{id}/status will accept right now.
+    allowed_next_statuses: Optional[List[str]] = None
 
 
 class OrderDetailOut(OrderSummaryOut):
@@ -75,6 +77,31 @@ class OrderDetailOut(OrderSummaryOut):
     actions: Optional[OrderActions] = None  # filled in by the route
 
 
+class CustomerBrief(_Out):
+    id: int
+    name: str
+    email: str
+
+
+class AddressBrief(_Out):
+    id: int
+    full_name: str
+    phone: str
+    line1: str
+    line2: Optional[str] = None
+    city: str
+    state: str
+    postal_code: str
+    country: str
+
+
+class AdminOrderDetailOut(OrderDetailOut):
+    """What the admin order page needs in one call. customer/address are null if that row no longer exists."""
+    user_id: int
+    customer: Optional[CustomerBrief] = None
+    address: Optional[AddressBrief] = None
+
+
 # ---------------------------------------------------------------- requests
 
 class OrderLineIn(BaseModel):
@@ -86,13 +113,28 @@ class OrderLineIn(BaseModel):
 
 class OrderCreate(BaseModel):
     """What a customer sends to place an order. There is deliberately no price, total or shipping cost:
-    extra fields are rejected so nobody can try to supply one."""
+    extra fields are rejected so nobody can try to supply one.
+
+    Two ways to say what is being bought:
+      * `checkout_reference_id` - the id returned by POST /api/checkout/session. The order is built from that
+        server-side snapshot (address, shipping, items, discount). address_id / shipping_method_id are
+        optional here and must match the snapshot if sent.
+      * `items` (+ address_id, shipping_method_id) - a direct order, e.g. "buy now".
+    """
     model_config = ConfigDict(extra="forbid")
-    address_id: int
-    shipping_method_id: int
     payment_method: Literal["ONLINE", "COD"]
-    items: List[OrderLineIn] = Field(min_length=1, max_length=50)
-    coupon_code: Optional[str] = Field(default=None, max_length=50)
+    checkout_reference_id: Optional[str] = Field(default=None, min_length=1, max_length=64)
+    address_id: Optional[int] = None
+    shipping_method_id: Optional[int] = None
+    items: Optional[List[OrderLineIn]] = Field(default=None, min_length=1, max_length=50)
+
+    @model_validator(mode="after")
+    def _one_source(self):
+        if (self.checkout_reference_id is None) == (self.items is None):
+            raise ValueError("Send either checkout_reference_id or items, not both and not neither")
+        if self.items is not None and (self.address_id is None or self.shipping_method_id is None):
+            raise ValueError("address_id and shipping_method_id are required when sending items")
+        return self
 
 
 class CancelRequest(BaseModel):
@@ -117,4 +159,3 @@ class StatusUpdate(BaseModel):
 class ReturnReview(BaseModel):
     action: Literal["approve", "reject", "mark_returned", "complete_refund"]
     remarks: Optional[str] = Field(default=None, max_length=500)
-

@@ -1,4 +1,4 @@
-﻿"""create inventory and inventory history"""
+"""create inventory and inventory history"""
 
 from typing import Sequence, Union
 
