@@ -347,34 +347,72 @@ def remove_cart_item(
 # CART-05 - PRICING SUMMARY
 # ============================================================
 
+
 @router.get("/summary")
 def get_cart_summary(
+    coupon_code: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     cart = get_current_cart(db, current_user)
 
-    if not cart:
+    if not cart or not cart.items:
+        if coupon_code and coupon_code.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot apply a coupon to an empty cart",
+            )
         return {
             "subtotal": Decimal("0.00"),
             "discount": Decimal("0.00"),
             "tax": Decimal("0.00"),
-            "total": Decimal("0.00")
+            "total": Decimal("0.00"),
         }
 
-    pricing = calculate_pricing(cart.items)
+    discount = Decimal("0.00")
+    if coupon_code and coupon_code.strip():
+        code = coupon_code.strip().upper()
+        coupon = db.query(Coupon).filter(Coupon.code == code).first()
+        if coupon is None:
+            raise HTTPException(status_code=400, detail="Invalid coupon code")
 
+        usage = db.query(Order).filter(
+            Order.coupon_id == coupon.id,
+            Order.status != "CANCELLED",
+        )
+        total_usage_count = usage.count()
+        user_usage_count = usage.filter(
+            Order.user_id == current_user.id,
+        ).count()
+
+        valid, message = validate_coupon(
+            coupon,
+            sum(
+                (Decimal(str(item.unit_price)) * item.quantity for item in cart.items),
+                Decimal("0.00"),
+            ),
+            user_usage_count=user_usage_count,
+            total_usage_count=total_usage_count,
+        )
+        if not valid:
+            raise HTTPException(status_code=400, detail=message)
+
+        discount = calculate_coupon_discount(
+            coupon,
+            sum(
+                (Decimal(str(item.unit_price)) * item.quantity for item in cart.items),
+                Decimal("0.00"),
+            ),
+        )
+
+    pricing = calculate_pricing(cart.items, discount=discount)
     return {
         "subtotal": pricing["subtotal"],
         "discount": pricing["discount"],
         "tax": pricing["tax"],
-        "total": pricing["total"]
+        "total": pricing["total"],
     }
 
-
-# ============================================================
-# CART-06 - APPLY COUPON
-# ============================================================
 
 @router.post("/coupon")
 def apply_coupon(

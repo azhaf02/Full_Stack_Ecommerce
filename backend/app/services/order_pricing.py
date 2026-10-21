@@ -120,12 +120,12 @@ def _coupon_discount(
 
     discount_value = _money(coupon.discount_value)
 
-    if coupon.discount_type == "PERCENTAGE":
-        discount = (
-            subtotal * discount_value / Decimal("100")
-        )
+    discount_type = str(coupon.discount_type).strip().lower()
 
-    elif coupon.discount_type == "FIXED":
+    if discount_type == "percentage":
+        discount = subtotal * discount_value / Decimal("100")
+
+    elif discount_type == "fixed":
         discount = discount_value
 
     else:
