@@ -18,14 +18,15 @@ from app.routers import (
     orders,
     payment,
     checkout_sessions,
+    shipping_methods,
 )
 
+from app.api.routes import checkout
 from app.api.routes.catalog import router as catalog_router, public_router
 from app.api.routes.product import router as product_router
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
 
-# Enable CORS for React frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -46,7 +47,6 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.include_router(notifications.router)
 app.include_router(reviews.router)
 
-# Admin Dashboard
 app.include_router(admin.router)
 app.include_router(category.router)
 
@@ -59,20 +59,21 @@ app.include_router(account.router)
 app.include_router(auth.router)
 app.include_router(audit_logs.router)
 
-# Analytics
 app.include_router(analytics.router)
 
-# Orders, cancellation and returns
 app.include_router(orders.router)
 
-# Payment
 app.include_router(payment.router)
 
-# Checkout sessions
 app.include_router(checkout_sessions.router)
+app.include_router(checkout_sessions.address_router)
 
 # Admin product management
 app.include_router(catalog_router)
+
+# Checkout and shipping
+app.include_router(checkout.router)
+app.include_router(shipping_methods.router)
 
 
 @app.get("/")

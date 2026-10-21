@@ -91,6 +91,12 @@ def place_order(data: OrderCreate, user: User = Depends(customer_only), db: Sess
     """Place an order. A COD order comes back CONFIRMED; an online order comes back PLACED and is confirmed
     when the payment module reports a verified SUCCESS."""
     def action():
+        if data.checkout_reference_id is not None:
+            priced = order_pricing.price_checkout_session(
+                db, user.id, data.checkout_reference_id, data.payment_method,
+                address_id=data.address_id, shipping_method_id=data.shipping_method_id)
+            order_pricing.consume_checkout_session(db, user.id, data.checkout_reference_id)
+            return order_service.create_order(db, priced)
         request = order_pricing.OrderRequest(
             address_id=data.address_id, shipping_method_id=data.shipping_method_id,
             payment_method=data.payment_method,

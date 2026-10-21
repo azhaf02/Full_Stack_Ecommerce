@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link, Route, useNavigate, useParams } from 'react-router-dom';
+import ProtectedRoute from '../components/ProtectedRoute';
 import MyOrdersPage from '../pages/MyOrdersPage';
 import OrderConfirmationPage from '../pages/OrderConfirmationPage';
 import OrderTrackingPage from '../pages/OrderTrackingPage';
@@ -10,9 +11,8 @@ import OrderTrackingPage from '../pages/OrderTrackingPage';
  *   /orders/:orderId               track, cancel or return one order
  *   /orders/:orderId/confirmation  "order placed" page; send customers here after POST /api/orders
  *
- * These are not wrapped in a login guard yet. Without a token the API answers 401 and the pages show
- * "Please log in to see your orders." When the auth module's ProtectedRoute is on main, wrap the three
- * elements below in it.
+ * All three sit behind the auth module's ProtectedRoute (customers only): a visitor who is not logged in
+ * is sent to /login, and an admin is sent back to /. This must be rendered inside <AuthProvider> (App.tsx does).
  */
 
 function Shell({ children }: { children: ReactNode }) {
@@ -86,9 +86,9 @@ function OrderConfirmationRoute() {
 
 // A fragment of <Route>s, placed inside a <Routes> by the caller.
 export const orderRoutes = (
-  <>
+  <Route element={<ProtectedRoute role="customer" />}>
     <Route path="/orders" element={<OrdersRoute />} />
     <Route path="/orders/:orderId" element={<OrderTrackingRoute />} />
     <Route path="/orders/:orderId/confirmation" element={<OrderConfirmationRoute />} />
-  </>
+  </Route>
 );

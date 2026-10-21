@@ -2,6 +2,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AuthContext } from '../../context/AuthContext';
+import type { User } from '../../types/auth';
 import { orderRoutes, parseOrderId } from '../orderRoutes';
 import { orderService } from '../../services/orderService';
 import { makeOrder, makeSummary } from '../../test-utils/orderFixtures';
@@ -23,15 +25,23 @@ function Where() {
   return <div data-testid="where">{useLocation().pathname}</div>;
 }
 
-function renderAt(path: string) {
+const customer: User = { id: 1, name: 'Asha', email: 'a@example.com', role: 'customer', status: 'active' };
+
+function renderAt(path: string, user: User | null = customer) {
+  const auth = {
+    user, loading: false, login: vi.fn(), adminLogin: vi.fn(), register: vi.fn(), logout: vi.fn(), setUser: vi.fn(),
+  };
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        {orderRoutes}
-        <Route path="*" element={<div>the dashboard</div>} />
-      </Routes>
-      <Where />
-    </MemoryRouter>,
+    <AuthContext.Provider value={auth}>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          {orderRoutes}
+          <Route path="/login" element={<div>the login page</div>} />
+          <Route path="*" element={<div>the dashboard</div>} />
+        </Routes>
+        <Where />
+      </MemoryRouter>
+    </AuthContext.Provider>,
   );
 }
 
@@ -107,6 +117,19 @@ describe('order routes', () => {
 
   it('leaves every other address to the dashboard', () => {
     renderAt('/anything/else');
+    expect(screen.getByText('the dashboard')).toBeTruthy();
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  it.each(['/orders', '/orders/5', '/orders/5/confirmation'])('sends a visitor who is not logged in from %s to /login', (path) => {
+    renderAt(path, null);
+    expect(screen.getByText('the login page')).toBeTruthy();
+    expect(list).not.toHaveBeenCalled();
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it('sends an admin away from the customer order pages', () => {
+    renderAt('/orders', { ...customer, role: 'admin' });
     expect(screen.getByText('the dashboard')).toBeTruthy();
     expect(list).not.toHaveBeenCalled();
   });
