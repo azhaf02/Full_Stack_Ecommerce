@@ -41,6 +41,7 @@ interface CouponResponse {
   discount_value: number | string;
   discount_amount: number | string;
   subtotal: number | string;
+  tax: number | string;
   total_after_discount: number | string;
 }
 
@@ -128,41 +129,22 @@ export default function CartPage({
 
       await updateCartItem(item.id, newQuantity);
 
-      /*
-       * Reload cart and pricing after quantity change.
-       * If a coupon is active, reapply its discount locally.
-       */
+      // Reload cart and pricing; revalidate any applied coupon on the server.
       await loadCart();
 
       if (appliedCouponData) {
-        const cartSummaryResponse = await getCartSummary();
-        const latestSummary: CartSummary =
-          cartSummaryResponse.data;
+        const couponResponse = await applyCouponApi(appliedCouponData.code);
+        const data: CouponResponse = couponResponse.data;
+        const latestSummaryResponse = await getCartSummary();
+        const latestSummary: CartSummary = latestSummaryResponse.data;
 
-        const subtotal = Number(latestSummary.subtotal) || 0;
-        const discountValue =
-          Number(appliedCouponData.discount_value) || 0;
-
-        let discount = 0;
-
-        if (
-          appliedCouponData.discount_type ===
-          'PERCENTAGE'
-        ) {
-          discount =
-            (subtotal * discountValue) / 100;
-        } else {
-          discount = discountValue;
-        }
-
-        discount = Math.min(discount, subtotal);
-
-        const tax = Number(latestSummary.tax) || 0;
-
+        setAppliedCouponData(data);
         setSummary({
           ...latestSummary,
-          discount,
-          total: subtotal - discount + tax,
+          subtotal: Number(data.subtotal) || 0,
+          discount: Number(data.discount_amount) || 0,
+          tax: Number(data.tax) || 0,
+          total: Number(data.total_after_discount) || 0,
         });
       }
     } catch (err) {
@@ -232,13 +214,14 @@ export default function CartPage({
       const latestSummary: CartSummary = summaryResponse.data;
       const discount = Number(data.discount_amount) || 0;
       const subtotal = Number(data.subtotal) || Number(latestSummary.subtotal) || 0;
-      const tax = Number(latestSummary.tax) || 0;
+      const tax = Number(data.tax) || 0;
 
       setSummary({
         ...latestSummary,
         subtotal,
         discount,
-        total: Math.max(0, Number(data.total_after_discount) + tax),
+        tax,
+        total: Math.max(0, Number(data.total_after_discount) || 0),
       });
 
     } catch (err: any) {
