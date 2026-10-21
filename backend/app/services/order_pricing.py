@@ -94,19 +94,16 @@ def _coupon_discount(
     coupon: Coupon,
     subtotal: Decimal,
 ) -> Decimal:
-    total_usage_count = (
-        db.query(Order)
-        .filter(Order.coupon_id == coupon.id)
-        .count()
+    # Keep checkout validation consistent with POST /api/cart/coupon:
+    # cancelled orders must not consume a coupon redemption.
+    usage_query = db.query(Order).filter(
+        Order.coupon_id == coupon.id,
+        Order.status != "CANCELLED",
     )
-    user_usage_count = (
-        db.query(Order)
-        .filter(
-            Order.coupon_id == coupon.id,
-            Order.user_id == user_id,
-        )
-        .count()
-    )
+    total_usage_count = usage_query.count()
+    user_usage_count = usage_query.filter(
+        Order.user_id == user_id,
+    ).count()
 
     valid, message = validate_coupon(
         coupon,
