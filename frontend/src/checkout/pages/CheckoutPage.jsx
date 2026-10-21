@@ -50,6 +50,18 @@ const getErrorMessage = (data, fallback) => {
   return fallback;
 };
 
+const readResponse = async (response) => {
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      getErrorMessage(data, `Request failed (${response.status}).`)
+    );
+  }
+
+  return data;
+};
+
 function CheckoutPage() {
   const [step, setStep] = useState(1);
 
@@ -392,7 +404,7 @@ function CheckoutPage() {
                 key={label}
               >
                 <span className="step-number">
-                  {step > number ? "✓" : number}
+                  {step > number ? "âœ“" : number}
                 </span>
                 <span>{label}</span>
               </div>
@@ -821,7 +833,7 @@ function CheckoutPage() {
               <span>
                 {selectedShipping
                   ? money(displayedShipping)
-                  : "—"}
+                  : "â€”"}
               </span>
             </div>
 
@@ -855,4 +867,3 @@ function CheckoutPage() {
 }
 
 export default CheckoutPage;
-

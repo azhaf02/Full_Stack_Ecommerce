@@ -1,4 +1,5 @@
 ﻿
+import logging
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import uuid4
@@ -14,6 +15,8 @@ from app.database import get_db
 from app.models.checkout_session import CheckoutSession
 from app.models.user import User
 
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/checkout",
@@ -391,11 +394,16 @@ def create_checkout_session(
         db.add(session)
         db.commit()
         db.refresh(session)
+
     except Exception:
         db.rollback()
+
+        # Print the real database/model error in the backend terminal.
+        logger.exception("Failed to create checkout session")
+
         raise HTTPException(
             status_code=500,
-            detail="Could not create checkout session.",
+            detail="Could not create checkout session. Check backend logs.",
         )
 
     return {
