@@ -166,3 +166,65 @@ Server-side Order Pricing
 
 Final Order Total
 
+
+## CHK-06: Checkout-to-Order Handoff
+
+### Create checkout session
+
+`POST /api/checkout/session`
+
+Authentication: customer bearer token required.
+
+Request body:
+
+```json
+{
+  "address_id": 1,
+  "shipping_method_id": 1,
+  "coupon_code": null
+}
+```
+
+The session endpoint revalidates the checkout on the server. Product availability, prices, coupon discount, shipping cost, and final total must come from the validated checkout review, not client-supplied totals.
+
+Successful response includes:
+
+- `checkout_reference_id`: reference for the pending checkout.
+- `session_id`: checkout session identifier.
+- `status`: session status.
+- `expires_at`: session expiry.
+- `checkout`: validated review snapshot, including items, coupon, and summary totals.
+
+The checkout session stores the server-generated review snapshot for the Payment handoff. Session lifetime is 30 minutes.
+
+### Payment handoff contract
+
+The frontend should retain `checkout_reference_id` and pass it to the Payment module. The Payment module should use the reference to retrieve or validate the pending checkout; it must not trust totals supplied by the browser.
+
+
+## CHK-07: Checkpoint 3 Integration — Cart + Checkout + Address + Shipping
+
+### Expected customer flow
+
+Cart with coupon ? Address ? Shipping ? Review ? Order handoff
+
+### Verification status
+
+- Frontend production build: PASS (`npm.cmd --prefix frontend run build`).
+- Checkout review and order creation without a coupon: MANUALLY VERIFIED.
+- Coupon application and discounted checkout: PENDING VERIFICATION.
+- Full Cart-to-Checkout integration: PENDING FINAL VERIFICATION.
+- Cart API integration: Depends on the Cart module owner; Cart implementation is outside this assigned scope.
+- Mentor sign-off: PENDING.
+
+### Integration requirements
+
+- Checkout must use actual cart items, not hard-coded demo items.
+- Address and shipping selections must be retained through review.
+- Prices, discounts, shipping costs, and totals must be validated server-side.
+- Order handoff must use the server-generated `checkout_reference_id`.
+- Cart implementation remains the responsibility of the Cart module owner.
+
+### Submission status
+
+The frontend production build passes, and the no-coupon checkout/order flow has been manually verified. Coupon testing, full Cart-to-Checkout integration verification, and mentor sign-off remain pending. Do not mark Checkpoint 3 complete until the outstanding checks are confirmed.
