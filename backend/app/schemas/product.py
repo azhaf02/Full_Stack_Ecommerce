@@ -2,7 +2,7 @@ from decimal import Decimal
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
-
+from app.schemas.product_image import ProductImageResponse
 
 class ProductBase(BaseModel):
     category_id: int
@@ -31,7 +31,7 @@ class ProductResponse(ProductBase):
     image_url: str | None = None
     category_name: str | None = None
     stock_status: str | None = None
-    images: list[dict] = []
-    related_products: list[dict] = []
+    images: list[ProductImageResponse] = Field(default_factory=list)
+    related_products: list[dict] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
