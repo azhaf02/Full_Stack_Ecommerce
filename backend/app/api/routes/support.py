@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.db.session import get_db
-from app.core.security import get_current_user, require_role
+from app.core.security import get_current_user
 from app.models.support_ticket import SupportTicket
 from app.models.support_message import SupportMessage
 
@@ -28,7 +28,6 @@ def create_support_ticket(payload: TicketCreateSchema, current_user = Depends(ge
     if not payload.subject or not payload.description:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Subject and description narratives required.")
     
-    
     new_ticket = SupportTicket(
         customer_id=current_user.id,
         order_id=payload.order_id,
@@ -38,16 +37,14 @@ def create_support_ticket(payload: TicketCreateSchema, current_user = Depends(ge
         status="Open"
     )
     
-    
     if payload.product_id:
-      
         new_ticket.description += f" [System Product Context Note: Linked to Item ID #{payload.product_id}]"
 
     db.add(new_ticket)
     db.flush()
     db.add(SupportMessage(ticket_id=new_ticket.id, sender_type="Customer", message=payload.description))
     db.commit()
-    return {"status": "success", "ticket_id": new_ticket.id, "status": "Open"}
+    return {"status": "success", "ticket_id": new_ticket.id, "ticket_status": "Open"}
 
 
 @router.get("/account/tickets")
@@ -68,7 +65,6 @@ def get_specific_ticket_details(ticket_id: int, current_user = Depends(get_curre
     if not ticket:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket context node not located.")
     
-   
     if ticket.customer_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access Denied: Customer profile bounds mismatch.")
         
@@ -88,7 +84,6 @@ def customer_append_thread_reply(ticket_id: int, payload: TicketReplySchema, cur
     if ticket.customer_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access Denied: Scope containment mismatch.")
         
-
     if ticket.status.lower() in ["closed", "resolved"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Operation Aborted: Support conversation thread is closed.")
         
