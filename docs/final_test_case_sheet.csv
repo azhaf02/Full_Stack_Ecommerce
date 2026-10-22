@@ -1,0 +1,7 @@
+Test Case ID,Module Scope,Target Endpoint / Component,Input Parameters,Expected Outcome,Runtime Verification Status
+TC-SUP-09-01,Ticketing Ingestion,POST /api/support/tickets,"{category: 'Billing', subject: 'Tax error', description: 'Overcharged on checkout'}","201 Created, ticket status initialized to 'Open' and first message saved",PASSED
+TC-SUP-09-02,Security Boundary,GET /api/support/account/tickets/104,Authenticated Non-Owner Account (Cross-Tenant Lookups),"403 Forbidden Access Denied error intercept thrown safely",PASSED
+TC-SUP-09-03,Admin Escalation,PUT /api/support/admin/tickets/104/status,"{status: 'Closed'}","200 OK, database record shifts to 'Closed' and frontend text field locks active",PASSED
+TC-SUP-09-04,Cross-Module Sync,GET /api/support/admin/tickets/104,Order Reference ID matching Rukhsar's ORD-07 system,"200 OK, inline returns request metadata container rendered accurately",PASSED
+TC-SUP-09-05,FAQ Search Core,GET /api/support/faq,Unauthenticated Public Client Request,"200 OK, public knowledge base array list elements returned sorted by rank weights",PASSED
+TC-SUP-09-06,FAQ Admin CRUD,POST /api/support/admin/faq,Authenticated Administrative Privileges Guard Token,"201 Created, fresh help entry rows saved cleanly into underlying faqs table",PASSED
