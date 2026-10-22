@@ -65,8 +65,7 @@ const FaqAdminPage: React.FC = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F8F7F2' }} className="py-4">
-      <div className="container-fluid px-4">
+    <div style={{ minHeight: 'auto', backgroundColor: '#F8F7F2', paddingBottom: '10px' }}>
         <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
           <div><h4 className="fw-bold text-dark mb-1">FAQ Management Panel</h4><p className="text-muted small mb-0">Maintain public support articles upfront to minimize incoming operations load pressures.</p></div>
         </div>
@@ -90,7 +89,7 @@ const FaqAdminPage: React.FC = () => {
           <div className="col-12 col-md-8">
             <div className="card p-4 border shadow-sm bg-white" style={{ borderColor: '#E5E2D8' }}>
               <h6 className="fw-bold mb-3 text-secondary"><i className="bi bi-list-columns me-2"></i>Active Public FAQ Repository Database</h6>
-              <div className="d-flex flex-column gap-3 overflow-auto" style={{ maxHeight: '520px' }}>
+              <div className="d-flex flex-column gap-3 overflow-auto" style={{ maxHeight: '320px' }}>
                 {faqs.map(f => (
                   <div key={f.id} className="p-3 border rounded bg-light d-flex justify-content-between align-items-start">
                     <div className="pe-3">
