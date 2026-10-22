@@ -25,3 +25,18 @@ export const submitProductReview = (reviewData) =>
   api.post('/api/v1/reviews/api/reviews/', reviewData);
 
 export default api;
+export const fetchAnalyticsSummary = async () => {
+  return {
+    totalRevenue: 0,
+    totalOrders: 0,
+    activeUsers: 0,
+    conversionRate: 0,
+  };
+};
+
+export const fetchAnalyticsCharts = async () => {
+  return {
+    revenueTimeline: [],
+    categoryBreakdown: [],
+  };
+};

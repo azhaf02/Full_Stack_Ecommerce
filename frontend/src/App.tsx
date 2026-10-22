@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import ProductDetailPage from './ProductDetailPage';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -14,29 +14,32 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Suspense fallback={null}>
-        <Routes>
-          {/* Admin Dashboard */}
-          <Route path="/admin/*" element={<AdminApp />} />
+    <BrowserRouter>
+      <AuthProvider>
+        <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
+          <Routes>
+            {/* Admin Dashboard */}
+            <Route path="/admin/*" element={<AdminApp />} />
 
-          {/* Product Details */}
-          <Route path="/product/:id" element={<ProductDetailPage />} />
+            {/* Product Details */}
+            <Route path="/product/:id" element={<ProductDetailPage />} />
 
-          {/* Customer Dashboard / Orders */}
-          <Route path="/orders" element={<DashboardLayout />} />
-          <Route path="/dashboard" element={<DashboardLayout />} />
+            {/* Customer Dashboard / Orders */}
+            <Route path="/orders" element={<DashboardLayout />} />
+            <Route path="/dashboard" element={<DashboardLayout />} />
 
-          {/* Auth Pages */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-        <Route element={<ProtectedRoute />}>
-            <Route path="/profile" element={<ProfilePage />} />
-          </Route>
-          {/* Customer App / Fallback / Home */}
-          <Route path="/*" element={<CustomerApp />} />
-        </Routes>
-      </Suspense>
-    </AuthProvider>
+            {/* Auth Pages */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/profile" element={<ProfilePage />} />
+            </Route>
+
+            {/* Customer App / Fallback / Home */}
+            <Route path="/*" element={<CustomerApp />} />
+          </Routes>
+        </Suspense>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
