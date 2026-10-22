@@ -30,15 +30,9 @@ export default function App() {
           {/* Auth Pages */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            }
-          />
-
+        <Route element={<ProtectedRoute />}>
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
           {/* Customer App / Fallback / Home */}
           <Route path="/*" element={<CustomerApp />} />
         </Routes>
