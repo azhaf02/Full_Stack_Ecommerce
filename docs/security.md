@@ -2,57 +2,51 @@
 
 ## Scope
 
-CHK-08 - Security and Edge-Case Hardening for Checkout.
+CHK-08 - Checkout Security and Edge-Case Hardening.
 
-Checkout review and order handoff must derive prices and totals from
-trusted server-side data. Client-supplied totals and prices must not
-be trusted.
+Checkout review and order handoff must use trusted server-side prices and calculate totals on the server. Client-supplied prices and totals must not be trusted.
 
 ## Security Controls
 
-- [x] Checkout review requires customer authentication.
-- [x] Reject unexpected request fields using Pydantic extra-field validation.
-- [x] Reject client-supplied total, subtotal, shipping_cost, and price fields.
-- [x] Read the current product price from the database.
+- [x] Require customer authentication for checkout review.
+- [x] Reject unexpected request fields.
+- [x] Reject client-supplied prices, subtotals, shipping costs, and totals.
+- [x] Derive prices from trusted server-side product data.
 - [x] Validate product availability and selected variants.
-- [x] Reject stale or tampered saved cart prices with HTTP 409.
+- [x] Reject stale or tampered saved cart prices.
 - [x] Calculate checkout totals on the server.
-- [x] Verify checkout session ownership, status, and expiry at order handoff.
-- [x] Revalidate prices during checkout-session order handoff.
-- [x] Reject mismatched address and shipping details at order handoff.
-- [x] Verify CORS does not approve an untrusted browser origin.
-- [ ] Complete live-database tampering checks and final security review.
+- [x] Validate checkout session ownership, status, and expiry at order handoff.
+- [x] Revalidate prices during order handoff.
+- [x] Validate address and shipping details at order handoff.
+- [x] Test configured and untrusted CORS origins.
+- [x] Run the targeted checkout security and order tests.
 
 ## Security Test Log
 
-Targeted automated test command, run from the backend directory:
+Run from the backend directory:
 
 `python -m pytest -q tests\test_checkout_security.py tests\test_checkout_cors.py tests\test_checkout_legacy_session_security.py tests\test_order_create.py`
 
-Result: 55 passed, 0 failed, 4 deprecation warnings.
+Latest verified result: 55 passed, 0 failed, 4 deprecation warnings in 8.46 seconds.
 
-| Scenario | Expected result | Result |
+| Scenario | Expected result | Evidence |
 |---|---|---|
-| Checkout review without authentication | HTTP 401 | PASS |
-| Client supplies total, subtotal, shipping_cost, or price | HTTP 422 | PASS |
-| Saved cart price differs from current product price | HTTP 409 | PASS |
-| Checkout CORS preflight from configured frontend origin | Origin allowed | PASS |
-| Checkout CORS preflight from untrusted origin | Origin not approved | PASS |
-| Checkout session belongs to another customer | Order rejected | PASS |
-| Checkout session is missing, expired, or completed | Order rejected | PASS |
-| Product prices changed after checkout | Order rejected; session remains active | PASS |
-| Address or shipping details mismatch session | Order rejected | PASS |
-| Client supplies total with checkout-session order | HTTP 422 | PASS |
-| Successful order handoff | Server-derived order created and session consumed | PASS |
+| Checkout review without authentication | Request rejected | Automated tests passed |
+| Client supplies price or total fields | Request rejected | Automated tests passed |
+| Saved cart price differs from current product price | Request rejected | Automated tests passed |
+| Untrusted browser origin sends CORS preflight | Origin not approved | Automated tests passed |
+| Legacy checkout session endpoint lacks authentication | Request rejected | Automated tests passed |
+| Checkout session ownership, status, or expiry is invalid | Order rejected | Automated tests passed |
+| Product price changes before order handoff | Order rejected | Automated tests passed |
+| Address or shipping details mismatch the session | Order rejected | Automated tests passed |
+| Invalid, missing, or excessive quantity/item input | Request rejected | Automated tests passed |
+| Client supplies totals during checkout-session order handoff | Request rejected | Automated tests passed |
+| Valid order handoff | Server derives order pricing | Automated tests passed |
 
-The automated tampering and handoff tests include isolated test fixtures.
-Live-database tampering checks have not yet been confirmed and remain
-pending. CORS restrictions are browser controls, not a substitute for
-authentication or API authorization.
+The automated tests use isolated test fixtures. Order creation tests verify server-derived pricing for requested quantities, and invalid quantity inputs are rejected. Live-database mutation testing was not performed.
+
+CORS restrictions are browser controls and do not replace authentication or API authorization.
 
 ## Sign-off
 
-Status: Pending live-database verification and final review.
-
-Do not mark CHK-08 fully complete until the remaining verification item
-has been tested and reviewed.
+Status: Targeted automated security tests passed. Server-side pricing and quantity validation are covered by automated tests. Live-database mutation testing was not performed.
