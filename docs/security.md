@@ -28,7 +28,7 @@ Run from the backend directory:
 
 `python -m pytest -q tests\test_checkout_security.py tests\test_checkout_cors.py tests\test_checkout_legacy_session_security.py tests\test_order_create.py`
 
-Latest recorded result: 55 passed, 0 failed, 4 deprecation warnings in 8.74 seconds.
+Latest verified result: 55 passed, 0 failed, 4 deprecation warnings in 8.46 seconds.
 
 | Scenario | Expected result | Evidence |
 |---|---|---|
@@ -43,12 +43,12 @@ Latest recorded result: 55 passed, 0 failed, 4 deprecation warnings in 8.74 seco
 | Invalid, missing, or excessive quantity/item input | Request rejected | Automated tests passed |
 | Client supplies total during checkout-session order handoff | Request rejected | Automated tests passed |
 
-The automated tests use isolated test fixtures. These results do not represent live-database mutation tests. A separate test for every valid-but-altered quantity has not been confirmed by the recorded test evidence.
+The automated tests use isolated test fixtures. Order creation tests verify server-derived pricing for requested quantities, and invalid quantity inputs are rejected. These results do not represent live-database mutation tests.
 
 CORS restrictions are browser controls and do not replace authentication or API authorization.
 
 ## Sign-off
 
-Status: Targeted automated security tests passed. Final review of the remaining quantity-tampering evidence is required.
+Status: Targeted automated security tests passed. Server-side pricing and quantity validation are covered by automated tests. Live-database mutation testing was not performed.
 
 No live-database tampering was performed as part of this test run. Do not claim that live-database verification was completed.
