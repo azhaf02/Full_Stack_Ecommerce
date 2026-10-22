@@ -3,7 +3,9 @@ from types import SimpleNamespace
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import Boolean, Column, Integer, MetaData, Numeric, String, Table, create_engine, insert, update
+from datetime import datetime, timedelta, timezone
+from sqlalchemy import (JSON, Boolean, Column, DateTime, Integer, MetaData, Numeric, String, Table, create_engine,
+                        insert, select, update)
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -27,6 +29,9 @@ variants = Table("product_variants", catalog, Column("id", Integer, primary_key=
 shipping = Table("shipping_methods", catalog, Column("id", Integer, primary_key=True),
                  Column("cost", Numeric(10, 2)), Column("status", Boolean))
 addresses = Table("addresses", catalog, Column("id", Integer, primary_key=True), Column("user_id", Integer))
+sessions = Table("checkout_sessions", catalog, Column("session_id", String, primary_key=True),
+                 Column("customer_id", String), Column("status", String), Column("checkout_snapshot", JSON),
+                 Column("expires_at", DateTime(timezone=True)))
 
 CUSTOMER = SimpleNamespace(id=1, role=SimpleNamespace(name="customer"))
 ADMIN = SimpleNamespace(id=9, role=SimpleNamespace(name="admin"))
@@ -243,3 +248,104 @@ def test_the_order_appears_in_my_orders(env):
     created = env.client.post("/api/orders", json=body()).json()
     listed = env.client.get("/api/account/orders").json()
     assert [o["id"] for o in listed] == [created["id"]]
+
+
+# ------------------------------------------------------------------ order from a checkout session (CHK-06)
+
+def make_session(env, ref="sess-1", customer="1", status="active", minutes=30, items=None, subtotal="998.00",
+                 discount="0.00", address=1, shipping_id=1):
+    items = items if items is not None else [{"product_id": 1, "variant_id": None, "quantity": 2,
+                                              "unit_price": "499.00"}]
+    snapshot = {"address": {"id": address}, "shipping": {"id": shipping_id}, "items": items,
+                "summary": {"subtotal": subtotal, "discount": discount}}
+    with env.Session() as db:
+        db.execute(insert(sessions).values(
+            session_id=ref, customer_id=customer, status=status, checkout_snapshot=snapshot,
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=minutes)))
+        db.commit()
+    return ref
+
+
+def session_status(env, ref="sess-1"):
+    with env.Session() as db:
+        return db.execute(select(sessions.c.status).where(sessions.c.session_id == ref)).scalar()
+
+
+def from_session(env, ref="sess-1", **extra):
+    return env.client.post("/api/orders", json={"checkout_reference_id": ref, "payment_method": "COD", **extra})
+
+
+def test_order_is_built_from_the_checkout_session_and_the_session_is_used_up(env):
+    make_session(env)
+    r = from_session(env)
+    assert r.status_code == 201
+    order = r.json()
+    assert [(i["product_id"], i["quantity"], float(i["unit_price"])) for i in order["items"]] == [(1, 2, 499.0)]
+    assert float(order["total_amount"]) == 1048.0 and order["status"] == "CONFIRMED"
+    assert session_status(env) == "completed"
+    again = from_session(env)
+    assert again.status_code == 422 and "already been used" in again.json()["detail"]
+    assert order_count(env) == 1
+
+
+def test_session_discount_is_applied_and_capped(env):
+    make_session(env, discount="100.00")
+    order = from_session(env).json()
+    assert float(order["discount_amount"]) == 100.0 and float(order["total_amount"]) == 948.0
+    make_session(env, ref="sess-2", discount="5000.00")
+    big = from_session(env, ref="sess-2").json()
+    assert float(big["discount_amount"]) == 998.0 and float(big["total_amount"]) == 50.0
+
+
+def test_session_must_belong_to_the_caller_be_active_and_unexpired(env):
+    make_session(env, ref="theirs", customer="2")
+    assert from_session(env, ref="theirs").status_code == 422
+    assert session_status(env, "theirs") == "active"
+    assert from_session(env, ref="missing").status_code == 422
+    make_session(env, ref="old", minutes=-5)
+    expired = from_session(env, ref="old")
+    assert expired.status_code == 422 and "expired" in expired.json()["detail"]
+    make_session(env, ref="done", status="completed")
+    assert from_session(env, ref="done").status_code == 422
+    assert order_count(env) == 0
+
+
+def test_order_is_refused_if_prices_changed_since_checkout(env):
+    make_session(env, subtotal="900.00",
+                 items=[{"product_id": 1, "variant_id": None, "quantity": 2, "unit_price": "450.00"}])
+    r = from_session(env)
+    assert r.status_code == 422 and "Prices changed" in r.json()["detail"]
+    assert order_count(env) == 0 and session_status(env) == "active"
+
+
+def test_a_failed_order_does_not_use_up_the_session(env):
+    make_session(env, items=[{"product_id": 2, "variant_id": None, "quantity": 1}], subtotal="47999.00")  # inactive
+    assert from_session(env).status_code == 422
+    assert session_status(env) == "active"
+
+
+def test_address_and_shipping_sent_with_a_session_must_match_it(env):
+    make_session(env)
+    assert from_session(env, address_id=2, shipping_method_id=1).status_code == 422
+    assert from_session(env, address_id=1, shipping_method_id=2).status_code == 422
+    assert from_session(env, address_id=1, shipping_method_id=1).status_code == 201
+
+
+def test_request_must_choose_exactly_one_source(env):
+    assert env.client.post("/api/orders", json={"payment_method": "COD"}).status_code == 422
+    both = body(checkout_reference_id="x")
+    assert env.client.post("/api/orders", json=both).status_code == 422
+    no_address = {"payment_method": "COD", "items": [{"product_id": 1, "quantity": 1}]}
+    assert env.client.post("/api/orders", json=no_address).status_code == 422
+    # a price still cannot be smuggled in
+    assert from_session(env, total_amount=1).status_code == 422
+
+
+def test_incomplete_session_data_is_refused_cleanly(env):
+    with env.Session() as db:
+        db.execute(insert(sessions).values(session_id="bad", customer_id="1", status="active",
+                                           checkout_snapshot={"items": []},
+                                           expires_at=datetime.now(timezone.utc) + timedelta(minutes=5)))
+        db.commit()
+    r = from_session(env, ref="bad")
+    assert r.status_code == 422 and "incomplete" in r.json()["detail"]
