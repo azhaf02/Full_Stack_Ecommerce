@@ -1,12 +1,11 @@
-﻿# Checkout Security
+﻿
+# Checkout Security
 
 ## Scope
 
 CHK-08 - Security and Edge-Case Hardening for Checkout.
 
-Checkout review and order handoff must derive prices and totals from
-trusted server-side data. Client-supplied totals and prices must not
-be trusted.
+Checkout review and order handoff must derive prices and totals from trusted server-side data. Client-supplied totals and prices must not be trusted.
 
 ## Security Controls
 
@@ -23,6 +22,7 @@ be trusted.
 - [x] Verify CORS does not approve an untrusted browser origin.
 - [x] Run the targeted checkout security and order test suite successfully.
 - [x] Document automated security test evidence and limitations.
+- [ ] Complete live-database tampering checks and final security review.
 
 ## Security Test Log
 
@@ -30,7 +30,7 @@ Run from the backend directory:
 
 `python -m pytest -q tests\test_checkout_security.py tests\test_checkout_cors.py tests\test_checkout_legacy_session_security.py tests\test_order_create.py`
 
-Verified result: 55 passed, 0 failed, 4 deprecation warnings in 8.74 seconds.
+Verified result: **55 passed, 0 failed, 4 deprecation warnings in 8.74 seconds.**
 
 | Scenario | Expected result | Result |
 |---|---|---|
@@ -49,18 +49,14 @@ Verified result: 55 passed, 0 failed, 4 deprecation warnings in 8.74 seconds.
 | Missing quantity or excessive number of items | Request rejected | PASS |
 | Successful order handoff | Server-derived order created and session consumed | PASS |
 
-The automated tests use isolated test fixtures. The test results above
-do not represent live-database mutation tests. A separate test proving
-rejection of every possible valid-but-altered quantity has not been
-recorded here. CORS restrictions are browser controls and do not replace
-authentication or API authorization.
+The automated tests use isolated test fixtures. The results above do not represent live-database mutation tests. A separate test proving rejection of every possible valid-but-altered quantity has not been recorded.
+
+CORS restrictions are browser controls and do not replace authentication or API authorization.
 
 ## Sign-off
 
-Status: Targeted automated security test suite passed.
+**Status:** Targeted automated security test suite passed. Live-database tampering verification and final security review remain pending.
 
-The automated evidence supports server-side pricing, rejection of
-client-supplied totals and prices, authentication checks, CORS checks,
-quantity validation, and checkout-session handoff protections.
+The automated evidence supports server-side pricing, rejection of client-supplied totals and prices, authentication checks, CORS checks, quantity validation, and checkout-session handoff protections.
 
-No live-database tampering was performed as part of this test run.
+No live-database tampering was performed as part of this test run. Do not mark CHK-08 fully complete until the remaining verification item has been tested and reviewed.
