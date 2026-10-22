@@ -15,6 +15,7 @@ def create_product(db: Session, product: ProductCreate):
     return db_product
 
 
+
 def get_products(
     db: Session,
     page: int = 1,
@@ -23,6 +24,10 @@ def get_products(
 ):
     query = (
         db.query(Product)
+        .options(
+            joinedload(Product.images),
+            joinedload(Product.category)
+        )
         .filter(Product.status == "ACTIVE")
     )
 
@@ -57,9 +62,19 @@ def get_products(
             "stock_status": stock_data["stock_status"],
             "status": product.status,
             "image_url": image.image_url if image else None,
+            "images": [
+                {
+                    "id": img.id,
+                    "product_id": img.product_id,
+                    "image_url": img.image_url,
+                    "is_primary": img.is_primary,
+                }
+                for img in product.images
+            ],
         })
 
     return result
+
 
 
 def get_product_detail(db: Session, product_id: int):
