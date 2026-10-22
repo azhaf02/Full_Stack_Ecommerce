@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import OrdersListView from './OrdersListView';
 import NotificationCenter from './NotificationCenter';
-import ReviewsList from './ReviewsList';
+import { ReviewsList } from './ReviewsList';
 import NewTicketPage from '../pages/support/NewTicketPage';
 import { SupportChatbot } from './SupportChatbot';
 
@@ -358,7 +358,7 @@ export default function DashboardLayout() {
                   Product Reviews & Ratings
                 </h2>
               </div>
-              <ReviewsList productId={1} refreshTrigger={reviewsVersion} />
+              <ReviewsList productId={1} key={reviewsVersion} />
             </div>
           )}
 
