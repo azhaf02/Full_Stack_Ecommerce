@@ -30,7 +30,7 @@ Run from the backend directory:
 
 `python -m pytest -q tests\test_checkout_security.py tests\test_checkout_cors.py tests\test_checkout_legacy_session_security.py tests\test_order_create.py`
 
-Verified result: **55 passed, 0 failed, 4 deprecation warnings in 8.74 seconds.**
+Verified result: 55 passed, 0 failed, 4 deprecation warnings in 8.74 seconds.
 
 | Scenario | Expected result | Result |
 |---|---|---|
