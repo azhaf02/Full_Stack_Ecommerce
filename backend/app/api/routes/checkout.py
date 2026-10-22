@@ -1,19 +1,26 @@
-from datetime import datetime
+﻿
+import logging
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.database import get_db
 from app.core.security import require_role
+from app.database import get_db
+from app.models.checkout_session import CheckoutSession
 from app.models.user import User
 
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(
     prefix="/api/checkout",
-    tags=["Checkout"]
+    tags=["Checkout"],
 )
 
 customer_only = require_role("customer")
@@ -25,15 +32,20 @@ class CheckoutReviewRequest(BaseModel):
     coupon_code: str | None = None
 
 
+def _as_utc(value: datetime) -> datetime:
+    """Normalize database datetime values to UTC for comparison."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 @router.post("/review")
 def checkout_review(
     data: CheckoutReviewRequest,
     user: User = Depends(customer_only),
     db: Session = Depends(get_db),
 ):
-    # ---------------------------------------------------------
-    # 1. Validate address
-    # ---------------------------------------------------------
+    # 1. Validate customer address.
     address = db.execute(
         text("""
             SELECT
@@ -60,12 +72,13 @@ def checkout_review(
     if address is None:
         raise HTTPException(
             status_code=400,
-            detail="Invalid address or address does not belong to the current customer"
+            detail=(
+                "Invalid address or address does not belong "
+                "to the current customer"
+            ),
         )
 
-    # ---------------------------------------------------------
-    # 2. Validate shipping method
-    # ---------------------------------------------------------
+    # 2. Validate shipping method.
     shipping = db.execute(
         text("""
             SELECT
@@ -86,12 +99,10 @@ def checkout_review(
     if shipping is None:
         raise HTTPException(
             status_code=400,
-            detail="Invalid or inactive shipping method"
+            detail="Invalid or inactive shipping method",
         )
 
-    # ---------------------------------------------------------
-    # 3. Get current customer's cart
-    # ---------------------------------------------------------
+    # 3. Get the customer's cart.
     cart = db.execute(
         text("""
             SELECT id
@@ -108,12 +119,10 @@ def checkout_review(
     if cart is None:
         raise HTTPException(
             status_code=400,
-            detail="Cart not found"
+            detail="Cart not found",
         )
 
-    # ---------------------------------------------------------
-    # 4. Get cart items
-    # ---------------------------------------------------------
+    # 4. Get cart items.
     cart_items = db.execute(
         text("""
             SELECT
@@ -134,12 +143,10 @@ def checkout_review(
     if not cart_items:
         raise HTTPException(
             status_code=400,
-            detail="Cart is empty"
+            detail="Cart is empty",
         )
 
-    # ---------------------------------------------------------
-    # 5. Re-validate stock
-    # ---------------------------------------------------------
+    # 5. Validate quantities and available inventory.
     review_items = []
     subtotal = Decimal("0.00")
 
@@ -149,7 +156,10 @@ def checkout_review(
         if quantity <= 0:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid quantity for product {item['product_id']}"
+                detail=(
+                    f"Invalid quantity for product "
+                    f"{item['product_id']}"
+                ),
             )
 
         if item["variant_id"] is None:
@@ -190,9 +200,11 @@ def checkout_review(
             raise HTTPException(
                 status_code=409,
                 detail=(
-                    f"Insufficient stock for product {item['product_id']}. "
-                    f"Requested: {quantity}, Available: {available_quantity}"
-                )
+                    f"Insufficient stock for product "
+                    f"{item['product_id']}. "
+                    f"Requested: {quantity}, "
+                    f"Available: {available_quantity}"
+                ),
             )
 
         unit_price = Decimal(str(item["unit_price"]))
@@ -209,9 +221,7 @@ def checkout_review(
             "available_stock": available_quantity,
         })
 
-    # ---------------------------------------------------------
-    # 6. Re-validate coupon
-    # ---------------------------------------------------------
+    # 6. Validate coupon, if supplied.
     discount = Decimal("0.00")
     coupon_details = None
 
@@ -241,27 +251,30 @@ def checkout_review(
         if coupon is None:
             raise HTTPException(
                 status_code=400,
-                detail="Invalid coupon code"
+                detail="Invalid coupon code",
             )
-
-        now = datetime.utcnow()
 
         if not coupon["status"]:
             raise HTTPException(
                 status_code=400,
-                detail="Coupon is inactive"
+                detail="Coupon is inactive",
             )
 
-        if now < coupon["start_date"]:
+        now = datetime.now(timezone.utc)
+
+        start_date = coupon["start_date"]
+        expiry_date = coupon["expiry_date"]
+
+        if start_date is not None and now < _as_utc(start_date):
             raise HTTPException(
                 status_code=400,
-                detail="Coupon is not active yet"
+                detail="Coupon is not active yet",
             )
 
-        if now > coupon["expiry_date"]:
+        if expiry_date is not None and now > _as_utc(expiry_date):
             raise HTTPException(
                 status_code=400,
-                detail="Coupon has expired"
+                detail="Coupon has expired",
             )
 
         if (
@@ -270,7 +283,7 @@ def checkout_review(
         ):
             raise HTTPException(
                 status_code=400,
-                detail="Minimum order value not met"
+                detail="Minimum order value not met",
             )
 
         if (
@@ -279,7 +292,7 @@ def checkout_review(
         ):
             raise HTTPException(
                 status_code=400,
-                detail="Coupon usage limit exceeded"
+                detail="Coupon usage limit exceeded",
             )
 
         discount_value = Decimal(str(coupon["discount_value"]))
@@ -290,7 +303,7 @@ def checkout_review(
             if coupon["max_discount"] is not None:
                 discount = min(
                     discount,
-                    Decimal(str(coupon["max_discount"]))
+                    Decimal(str(coupon["max_discount"])),
                 )
 
         elif coupon["discount_type"].lower() == "fixed":
@@ -299,7 +312,7 @@ def checkout_review(
         else:
             raise HTTPException(
                 status_code=400,
-                detail="Invalid coupon discount type"
+                detail="Invalid coupon discount type",
             )
 
         discount = min(discount, subtotal)
@@ -312,20 +325,17 @@ def checkout_review(
             "discount_amount": discount,
         }
 
-    # ---------------------------------------------------------
-    # 7. Calculate final review total
-    # ---------------------------------------------------------
+    # 7. Calculate the checkout total.
     shipping_cost = Decimal(str(shipping["cost"]))
+
     discounted_subtotal = max(
         Decimal("0.00"),
-        subtotal - discount
+        subtotal - discount,
     )
 
     total = discounted_subtotal + shipping_cost
 
-    # ---------------------------------------------------------
-    # 8. Return complete checkout review
-    # ---------------------------------------------------------
+    # 8. Return the validated checkout review.
     return {
         "message": "Checkout review is valid",
         "validation": {
@@ -350,4 +360,56 @@ def checkout_review(
             "total": total,
         },
         "ready_for_payment": True,
+    }
+
+
+# CHK-06: Create a checkout session for downstream handoff.
+@router.post("/session", status_code=201)
+def create_checkout_session(
+    data: CheckoutReviewRequest,
+    user: User = Depends(customer_only),
+    db: Session = Depends(get_db),
+):
+    # Revalidate checkout on the server before creating the session.
+    review = checkout_review(data, user, db)
+
+    if review.get("ready_for_payment") is not True:
+        raise HTTPException(
+            status_code=400,
+            detail="Checkout is not ready for payment.",
+        )
+
+    now = datetime.now(timezone.utc)
+
+    session = CheckoutSession(
+        session_id=str(uuid4()),
+        customer_id=str(user.id),
+        status="active",
+        checkout_snapshot=jsonable_encoder(review),
+        created_at=now,
+        expires_at=now + timedelta(minutes=30),
+    )
+
+    try:
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+
+    except Exception:
+        db.rollback()
+
+        # Print the real database/model error in the backend terminal.
+        logger.exception("Failed to create checkout session")
+
+        raise HTTPException(
+            status_code=500,
+            detail="Could not create checkout session. Check backend logs.",
+        )
+
+    return {
+        "checkout_reference_id": session.session_id,
+        "session_id": session.session_id,
+        "status": session.status,
+        "expires_at": session.expires_at,
+        "checkout": review,
     }
