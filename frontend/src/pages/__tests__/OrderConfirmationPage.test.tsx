@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import OrderConfirmationPage from '../OrderConfirmationPage';
 import { orderService } from '../../services/orderService';
 import type { Order } from '../../types/order';
-import { describeOutcome, formatDateTime, formatMoney, lineTotal, statusLabel } from '../../utils/orderOutcome';
+import { describeOutcome, formatDateTime, formatMoney, lineTotal, paymentLabel, statusLabel } from '../../utils/orderOutcome';
 
 vi.mock('../../services/orderService', async (importOriginal) => {
   const original = await importOriginal<typeof import('../../services/orderService')>();
@@ -33,6 +33,7 @@ function makeOrder(overrides: Partial<Order> = {}): Order {
       { previous_status: null, new_status: 'PLACED', changed_by: 1, remarks: 'Order placed', changed_at: '2026-10-04T01:30:25' },
       { previous_status: 'PLACED', new_status: 'CONFIRMED', changed_by: 1, remarks: 'Cash on delivery accepted', changed_at: '2026-10-04T01:30:25' },
     ],
+    returns: [],
     actions: null,
     ...overrides,
   };
@@ -92,6 +93,12 @@ describe('formatting', () => {
 
   it('makes statuses readable', () => {
     expect(statusLabel('OUT_FOR_DELIVERY')).toBe('Out for delivery');
+  });
+
+  it('words payment statuses the way a customer expects', () => {
+    expect(paymentLabel('SUCCESS')).toBe('Paid');
+    expect(paymentLabel('REFUND_PENDING')).toBe('Refund pending');
+    expect(paymentLabel('SOMETHING_NEW')).toBe('Something new');
   });
 });
 

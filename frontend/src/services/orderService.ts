@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Order, PlaceOrderInput } from '../types/order';
+import type { Order, OrderReturn, OrderSummary, PlaceOrderInput, ReturnRequestInput } from '../types/order';
 
 // Same key and backend URL as the auth module (services/apiClient.ts in the authentication branch). Once
 // that file is on main, replace this client with `import apiClient from './apiClient'`.
@@ -38,8 +38,14 @@ export function getOrderErrorMessage(err: unknown, fallback = 'Something went wr
 export const orderService = {
   place: (input: PlaceOrderInput) => client.post<Order>('/api/orders', input).then((r) => r.data),
 
+  list: (page = 1, pageSize = 10) =>
+    client.get<OrderSummary[]>('/api/account/orders', { params: { page, page_size: pageSize } }).then((r) => r.data),
+
   get: (orderId: number) => client.get<Order>(`/api/account/orders/${orderId}`).then((r) => r.data),
 
   cancel: (orderId: number, reason?: string) =>
     client.post<Order>(`/api/account/orders/${orderId}/cancel`, { reason }).then((r) => r.data),
+
+  requestReturn: (orderId: number, input: ReturnRequestInput) =>
+    client.post<OrderReturn>(`/api/account/orders/${orderId}/return`, input).then((r) => r.data),
 };

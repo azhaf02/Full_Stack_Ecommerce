@@ -1,3 +1,5 @@
+import MockPaymentForm from "../components/payment/MockPaymentForm";
+import { paymentService } from "../services/paymentService";
 import { useCallback, useEffect, useState } from 'react';
 import { getOrderErrorMessage, orderService } from '../services/orderService';
 import type { Order } from '../types/order';
@@ -38,6 +40,7 @@ export default function OrderConfirmationPage({ orderId, onViewOrders, onContinu
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [paymentId, setPaymentId] = useState<number | null>(null);
 
   const load = useCallback(() => {
     let cancelled = false;
@@ -54,6 +57,33 @@ export default function OrderConfirmationPage({ orderId, onViewOrders, onContinu
   }, [orderId]);
 
   useEffect(() => load(), [load]);
+  useEffect(() => {
+  if (!order || order.payment_method !== "ONLINE") {
+    setPaymentId(null);
+    return;
+  }
+
+  let cancelled = false;
+
+  paymentService
+    .getByOrder(order.id)
+    .then((payment) => {
+      if (!cancelled) {
+        setPaymentId(payment.payment_id);
+      }
+    })
+    .catch((err) => {
+      console.error("Could not load payment:", err);
+
+      if (!cancelled) {
+        setPaymentId(null);
+      }
+    });
+
+  return () => {
+    cancelled = true;
+  };
+}, [order]);
 
   const copyOrderId = async () => {
     if (!order) return;
@@ -140,6 +170,12 @@ export default function OrderConfirmationPage({ orderId, onViewOrders, onContinu
           </div>
         </dl>
       </section>
+      {order.payment_method === "ONLINE" && paymentId !== null && (
+  <MockPaymentForm
+    paymentId={paymentId}
+    onPaymentComplete={() => load()}
+  />
+)}
 
       <section style={card} aria-labelledby="order-items-title">
         <h2 id="order-items-title" style={{ fontSize: '17px', fontWeight: 700, color: '#2f3e30', margin: '0 0 14px' }}>
