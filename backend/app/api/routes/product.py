@@ -22,9 +22,17 @@ def create_product(
 
 @router.get("/", response_model=list[ProductResponse])
 def get_products(
-    db: Session = Depends(get_db)
+    page: int = 1,
+    page_size: int = 10,
+    category_id: int | None = None,
+    db: Session = Depends(get_db),
 ):
-    return product_service.get_products(db)
+    return product_service.get_products(
+        db,
+        page=page,
+        page_size=page_size,
+        category_id=category_id,
+    )
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
@@ -81,4 +89,3 @@ def deactivate_product(
         )
 
     return product
-
