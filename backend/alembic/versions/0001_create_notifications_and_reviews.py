@@ -1,7 +1,7 @@
 """create notifications and reviews tables
 
 Revision ID: 0001_notif_reviews
-Revises: 
+Revises:
 Create Date: 2026-09-30 16:45:00.000000
 
 """
