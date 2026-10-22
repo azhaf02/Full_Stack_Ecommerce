@@ -1,22 +1,26 @@
+import pkgutil
+import importlib
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Column, Integer, String
-from app.main import app
+
+# 1. backend/app/models ke saare modules ko auto-load karein taaki koi bhi relationship na chhoote
+import app.models
+for _, module_name, _ in pkgutil.walk_packages(app.models.__path__, app.models.__name__ + "."):
+    try:
+        importlib.import_module(module_name)
+    except Exception:
+        pass
+
 from app.database import Base, engine
-from app.models.notification import Notification
-from app.models.review import Review
 
-# Dummy User model taaki SQLAlchemy foreign key check satisfy ho jaye
-class User(Base):
-    __tablename__ = "users"
-    __table_args__ = {"extend_existing": True}
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-
-# Test database me tables create karein
+# 2. Database tables create karein
 Base.metadata.create_all(bind=engine)
 
-client = TestClient(app)
+# 3. FastAPI app import karein
+from app.main import app as fastapi_app
+
+client = TestClient(fastapi_app)
+
 
 def test_get_product_reviews():
     # Test retrieving reviews for a product
@@ -27,6 +31,7 @@ def test_get_product_reviews():
     assert "average_rating" in data
     assert "total_reviews" in data
     assert isinstance(data["reviews"], list)
+
 
 def test_post_review_success():
     # Test submitting a valid review
@@ -43,6 +48,7 @@ def test_post_review_success():
     res_data = response.json()
     assert res_data["rating"] == 5
     assert res_data["title"] == "Outstanding Sound Quality"
+
 
 def test_post_review_invalid_rating():
     # Test submitting an out-of-range rating (e.g., 6 stars)
