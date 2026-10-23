@@ -24,6 +24,11 @@ def hash_password(password: str) -> str:
     return pwd_context.hash(password[:72])
 
 
+def get_password_hash(password: str) -> str:
+    """Alias for backwards compatibility across modules."""
+    return hash_password(password)
+
+
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain[:72], hashed)
 
