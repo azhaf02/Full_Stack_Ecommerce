@@ -23,8 +23,13 @@ from app.routers import (
 )
 
 from app.api.routes import product, checkout
+from app.services import order_service
+from app.services.cod_payment_hook import on_cod_order_change
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
+
+# A COD order gets a payments row when confirmed and is marked paid when delivered.
+order_service.register_status_hook(on_cod_order_change)
 
 app.add_middleware(
     CORSMiddleware,

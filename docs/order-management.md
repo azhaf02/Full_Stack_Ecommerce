@@ -236,3 +236,13 @@ Integration requirements:
 4. Coordinate session status and payment handoff with the Orders and Payment module owners.
 
 Creating a checkout session does not itself complete an online payment.
+## Cash on Delivery payment follows delivery
+
+`app/services/cod_payment_hook.py` is registered in `app/main.py` as a status hook. It runs inside `update_status()`, in the same transaction.
+
+| COD order becomes | What the hook does |
+|---|---|
+| `CONFIRMED` | Makes sure a `payments` row exists (`COD`, `PENDING`, amount = order total), so the admin mark-paid route always has something to act on. |
+| `DELIVERED` | The cash has been collected, so the `payments` row and `orders.payment_status` both become `SUCCESS`. A COD order that has no `payments` row yet gets one. |
+
+After that, `POST /api/payment/admin/cod/{payment_id}/mark-paid` answers `409 "COD payment is not pending"`, which is correct: it is already paid. An admin can still use mark-paid before delivery if cash is taken early. Online orders are not touched; the payment module confirms them. A delivered COD order that is later returned goes through the refund steps, because the cash was collected.
