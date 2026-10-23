@@ -1,7 +1,7 @@
-<<<<<<< HEAD
+@import "tailwindcss";
 @import "bootstrap/dist/css/bootstrap.min.css";
 @import "bootstrap-icons/font/bootstrap-icons.css";
-=======
+
 @layer theme, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities) important;
@@ -29,7 +29,6 @@
 @media (prefers-reduced-motion: reduce) {
   .viora-fade, .viora-rise, .viora-leaf { animation: none; }
 }
->>>>>>> 9b4eaea7724c959411168a480b62c390996d07b1
 
 :root {
   --viora-primary: #5F6B3A;
