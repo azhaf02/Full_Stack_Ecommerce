@@ -69,7 +69,6 @@ def verify_password(plain: str, hashed: str) -> bool:
 
     return False
 
-
 # ---------- JWT ----------
 def create_access_token(user: User) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
