@@ -122,7 +122,7 @@ def add_to_cart(
             )
 
         unit_price += Decimal(str(variant["price_delta"]))
-        available_stock = variant["stock"]
+        # Stock availability is validated using inventory.quantity below.
 
     # Find current cart.
     cart = get_current_cart(db)
