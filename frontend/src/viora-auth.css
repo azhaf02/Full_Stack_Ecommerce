@@ -30,3 +30,20 @@
 *, *::before, *::after {
   box-sizing: border-box;
 }
+/* ===== Home page motion (Madeeha) ===== */
+@keyframes viora-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-14px) rotate(3deg); } }
+.viora-float { animation: viora-float 7s ease-in-out infinite; }
+
+.viora-reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.viora-reveal.is-visible { opacity: 1; transform: none; }
+
+@keyframes viora-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.viora-marquee { animation: viora-marquee 28s linear infinite; }
+
+@keyframes viora-word-in { from { opacity: 0; transform: translateY(40%); } to { opacity: 1; transform: none; } }
+.viora-wordmark { font-size: clamp(4.5rem, 24vw, 22rem); animation: viora-word-in 1.1s 0.1s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .viora-float, .viora-marquee, .viora-wordmark { animation: none; }
+  .viora-reveal { opacity: 1; transform: none; transition: none; }
+}
