@@ -1,4 +1,5 @@
 """Shared auth helpers. Other modules import get_current_user / require_role from here."""
+import hashlib
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -19,9 +20,21 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
+def _normalize_password_for_bcrypt(password: str) -> str:
+    """
+    Bcrypt has a 72-byte limit. For long passwords (>72 bytes), pre-hash using
+    SHA-256 to avoid truncation collisions. Normal passwords remain unchanged
+    to guarantee 100% backward compatibility with existing bcrypt hashes.
+    """
+    if len(password.encode("utf-8")) > 72:
+        return hashlib.sha256(password.encode("utf-8")).hexdigest()
+    return password
+
+
 # --------- passwords ---------
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password[:72])
+    normalized = _normalize_password_for_bcrypt(password)
+    return pwd_context.hash(normalized)
 
 
 def get_password_hash(password: str) -> str:
@@ -30,7 +43,31 @@ def get_password_hash(password: str) -> str:
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain[:72], hashed)
+    if not plain or not hashed:
+        return False
+    # 1. Direct backward-compatible verification for existing hashes
+    try:
+        if pwd_context.verify(plain, hashed):
+            return True
+    except Exception:
+        pass
+
+    # 2. Pre-hashed verification for long passwords (>72 bytes)
+    try:
+        normalized = _normalize_password_for_bcrypt(plain)
+        if normalized != plain and pwd_context.verify(normalized, hashed):
+            return True
+    except Exception:
+        pass
+
+    # 3. Legacy truncation fallback for existing hashes created with [:72]
+    try:
+        if pwd_context.verify(plain[:72], hashed):
+            return True
+    except Exception:
+        pass
+
+    return False
 
 
 # ---------- JWT ----------
