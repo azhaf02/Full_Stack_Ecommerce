@@ -82,6 +82,9 @@ addresses = Table(
     Column("user_id", Integer),
 )
 
+carts = Table("carts", catalog, Column("id", Integer, primary_key=True), Column("user_id", Integer))
+cart_items = Table("cart_items", catalog, Column("id", Integer, primary_key=True), Column("cart_id", Integer))
+
 sessions = Table(
     "checkout_sessions",
     catalog,
@@ -768,3 +771,38 @@ def test_incomplete_session_data_is_refused_cleanly(env):
 
     assert response.status_code == 422
     assert "incomplete" in response.json()["detail"]
+
+
+def seed_carts(env):
+    with env.Session() as db:
+        db.execute(insert(carts), [{"id": 1, "user_id": 1}, {"id": 2, "user_id": 2}])
+        db.execute(insert(cart_items), [{"id": 1, "cart_id": 1}, {"id": 2, "cart_id": 1}, {"id": 3, "cart_id": 2}])
+        db.commit()
+
+
+def cart_item_ids(env):
+    with env.Session() as db:
+        return sorted(db.execute(select(cart_items.c.id)).scalars())
+
+
+def test_the_cart_is_emptied_when_the_order_is_made_from_a_session(env):
+    seed_carts(env)
+    make_session(env)
+    assert from_session(env).status_code == 201
+    assert cart_item_ids(env) == [3]            # only the customer's own cart was emptied
+    with env.Session() as db:
+        assert db.execute(select(carts.c.id).where(carts.c.user_id == 1)).scalar() == 1   # the cart row stays
+
+
+def test_a_failed_order_leaves_the_cart_alone(env):
+    seed_carts(env)
+    make_session(env, subtotal="900.00",
+                 items=[{"product_id": 1, "variant_id": None, "quantity": 2, "unit_price": "450.00"}])
+    assert from_session(env).status_code == 422
+    assert cart_item_ids(env) == [1, 2, 3]
+
+
+def test_a_direct_order_does_not_touch_the_cart(env):
+    seed_carts(env)
+    assert env.client.post("/api/orders", json=body()).status_code == 201
+    assert cart_item_ids(env) == [1, 2, 3]

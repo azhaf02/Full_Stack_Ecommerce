@@ -17,6 +17,7 @@ from sqlalchemy import (
     Numeric,
     String,
     column,
+    delete,
     select,
     table,
     update,
@@ -62,6 +63,9 @@ _sessions = table(
     column("checkout_snapshot", JSON),
     column("expires_at", DateTime),
 )
+
+_carts = table("carts", column("id", Integer), column("user_id", Integer))
+_cart_items = table("cart_items", column("id", Integer), column("cart_id", Integer))
 
 ACTIVE = "ACTIVE"
 MAX_QUANTITY_PER_LINE = 100
@@ -457,3 +461,16 @@ def consume_checkout_session(
         raise InvalidOrder(
             "This checkout session has already been used or cancelled"
         )
+
+
+def clear_user_cart(db: Session, user_id: int) -> None:
+    """Empty the customer's cart once an order has been made from their checkout session.
+
+    Runs in the order's transaction, so a failed order leaves the cart untouched. The cart itself is kept
+    (only its items go), because the cart module reuses it for the next shopping trip.
+    """
+    db.execute(
+        delete(_cart_items).where(
+            _cart_items.c.cart_id.in_(select(_carts.c.id).where(_carts.c.user_id == user_id))
+        )
+    )

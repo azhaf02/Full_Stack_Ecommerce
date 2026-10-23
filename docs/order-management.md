@@ -214,7 +214,9 @@ With a `checkout_reference_id` the order service:
 4. Applies the snapshot's `summary.discount` (validated by the server when the session was created, capped at the subtotal).
 5. Marks the session `completed` in the same transaction, so one session makes one order. A failed order leaves the session `active`.
 
-Errors are `422` with a `detail` message. Not done yet: recording the coupon on the order, tax, and clearing the cart (waiting for the cart/pricing PR).
+6. Empties the customer's cart (the items only; the cart row stays) in the same transaction. A failed order leaves the cart as it was. Direct (`items`) orders do not touch the cart.
+
+Errors are `422` with a `detail` message. The coupon is re-checked and its `coupon_id` saved on the order by `price_checkout_session`. Not done yet: tax (the rate is 0 until the tax rule is agreed) and the stock deduct/restock hook (waiting for the inventory PR).
 
 ## CHK-06: Checkout Session Integration Contract
 
