@@ -52,15 +52,19 @@ def update_category(
     return category
 
 
-def deactivate_category(db: Session, category_id: int):
+def delete_category(db: Session, category_id: int):
     category = get_category(db, category_id)
 
     if not category:
         return None
 
-    category.is_active = False
+    # Do not delete a category while products still reference it.
+    if category.products:
+        raise ValueError(
+            f"Category '{category.name}' has linked products. "
+            "Move or delete those products first."
+        )
 
+    db.delete(category)
     db.commit()
-    db.refresh(category)
-
     return category

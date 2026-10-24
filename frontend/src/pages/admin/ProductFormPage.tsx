@@ -304,11 +304,23 @@ export default function ProductFormPage() {
             >
               <option value="">Select category</option>
 
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
+              
+{categories.map((category) => {
+  const isCurrentCategory = String(category.id) === String(categoryId);
+  const isInactive = !category.is_active;
+
+  return (
+    <option
+      key={category.id}
+      value={category.id}
+      disabled={isInactive && !isCurrentCategory}
+    >
+      {category.name}
+      {isInactive ? " (Inactive)" : ""}
+    </option>
+  );
+})}
+
             </select>
           </div>
 

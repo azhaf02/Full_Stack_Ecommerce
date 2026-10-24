@@ -1,6 +1,7 @@
 from pathlib import Path
 from uuid import uuid4
 
+from sqlalchemy import text
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 from app.core.security import require_role
@@ -131,10 +132,34 @@ def update_admin_product(
     if not db_product:
         raise HTTPException(
             status_code=404,
-            detail="Product not found"
+            detail="Product not found",
         )
 
     update_data = product.model_dump(exclude_unset=True)
+
+    # Validate category only when category_id is being changed
+    if (
+        "category_id" in update_data
+        and update_data["category_id"] != db_product.category_id
+    ):
+        category = (
+            db.query(Category)
+            .filter(Category.id == update_data["category_id"])
+            .first()
+        )
+
+        if not category:
+            raise HTTPException(
+                status_code=400,
+                detail="Category not found",
+            )
+
+
+        if not category.is_active:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot move product to an inactive category",
+            )
 
     for field, value in update_data.items():
         setattr(db_product, field, value)
@@ -143,6 +168,7 @@ def update_admin_product(
     db.refresh(db_product)
 
     return db_product
+
 
 
 @router.delete("/{product_id}", response_model=ProductResponse)
@@ -159,10 +185,9 @@ def deactivate_admin_product(
     if not db_product:
         raise HTTPException(
             status_code=404,
-            detail="Product not found"
+            detail="Product not found",
         )
 
-    # Soft delete/deactivation instead of physical deletion.
     db_product.status = "INACTIVE"
 
     db.commit()

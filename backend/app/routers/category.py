@@ -5,7 +5,7 @@ from app.database import get_db
 from app.schemas.category import CategoryCreate, CategoryResponse, CategoryUpdate
 from app.services.category_service import (
     create_category,
-    deactivate_category,
+    delete_category,
     get_categories,
     get_category,
     update_category,
@@ -86,12 +86,15 @@ def edit_category(
     return category
 
 
-@router.delete("/{category_id}", response_model=CategoryResponse)
-def deactivate(
-    category_id: int,
-    db: Session = Depends(get_db),
-):
-    category = deactivate_category(db, category_id)
+@router.delete("/{category_id}")
+def delete(category_id: int, db: Session = Depends(get_db)):
+    try:
+        category = delete_category(db, category_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        )
 
     if not category:
         raise HTTPException(
@@ -99,4 +102,8 @@ def deactivate(
             detail="Category not found",
         )
 
-    return category
+    return {
+        "message": "Category permanently deleted",
+        "id": category_id,
+        "name": category.name,
+    }
