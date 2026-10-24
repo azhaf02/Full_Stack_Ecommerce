@@ -11,7 +11,7 @@ from app.models.payment import Payment, PaymentMethod, PaymentStatus
 from app.services import order_service
 from app.services.cod_payment_hook import on_cod_order_change
 from app.services.order_service import (
-    OrderInput, OrderItemInput, apply_payment_result, clear_status_hooks, create_order, register_status_hook,
+    OrderInput, OrderItemInput, apply_payment_result, cancel_order, clear_status_hooks, create_order, register_status_hook,
     update_status,
 )
 
@@ -99,11 +99,33 @@ def test_online_orders_are_left_to_the_payment_module(db):
     assert payments(db, order) == [] and order.payment_status == "SUCCESS"
 
 
-def test_cancelled_cod_order_is_not_marked_paid(db):
+def test_cancelling_a_cod_order_cancels_its_pending_payment(db):
     order = new_order(db, "COD")
     update_status(db, order, "CANCELLED")
     (payment,) = payments(db, order)
-    assert payment.status == PaymentStatus.PENDING and order.payment_status != "SUCCESS"
+    assert payment.status == PaymentStatus.CANCELLED and order.payment_status == "CANCELLED"
+
+
+def test_cancelling_an_unpaid_online_order_cancels_its_pending_payment(db):
+    order = new_order(db, "ONLINE")                      # PLACED, payment pending
+    db.add(Payment(order_id=order.id, method=PaymentMethod.ONLINE, status=PaymentStatus.PENDING,
+                   amount=order.total_amount))
+    db.flush()
+    cancel_order(db, order, user_id=1)
+    (payment,) = payments(db, order)
+    assert payment.status == PaymentStatus.CANCELLED and order.payment_status == "CANCELLED"
+    assert order.status == "CANCELLED"                   # no refund: nothing was paid
+
+
+def test_cancelling_a_paid_online_order_keeps_the_payment_for_the_refund_flow(db):
+    order = new_order(db, "ONLINE")
+    db.add(Payment(order_id=order.id, method=PaymentMethod.ONLINE, status=PaymentStatus.SUCCESS,
+                   amount=order.total_amount))
+    apply_payment_result(db, order, "SUCCESS")
+    cancel_order(db, order, user_id=1)
+    (payment,) = payments(db, order)
+    assert payment.status == PaymentStatus.SUCCESS       # not cancelled: the money was taken
+    assert order.status == "REFUND_PENDING" and order.payment_status == "REFUND_PENDING"
 
 
 def test_the_hook_is_registered_by_the_real_app():
