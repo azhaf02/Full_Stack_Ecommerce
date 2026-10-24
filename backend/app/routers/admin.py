@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timedelta, timezone
 from math import ceil
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -13,6 +13,7 @@ from app.core.security import require_role
 from app.models.order import Order, OrderStatus
 from app.models.role import Role
 from app.models.user import User
+from app.models.review import Review
 
 router = APIRouter(
     prefix="/api/admin",
@@ -36,7 +37,6 @@ class DashboardKpis(BaseModel):
 
 class DashboardSummary(BaseModel):
     kpis: DashboardKpis
-
 
 
 @router.get("/dashboard-summary", response_model=DashboardSummary)
@@ -109,7 +109,6 @@ def list_customers(q: str = "", db: Session = Depends(get_db)):
     return {"items": customers, "total": len(customers)}
 
 
-
 class CustomerStatusUpdate(BaseModel):
     status: Literal["active", "inactive"]
 
@@ -139,7 +138,6 @@ def update_customer_status(
     db.commit()
     db.refresh(customer)
     return customer
-
 
 
 class CustomerOrder(BaseModel):
@@ -191,7 +189,6 @@ def get_customer(customer_id: int, db: Session = Depends(get_db)):
         "total_spent": total_spent,
         "recent_orders": orders[:5],
     }
-
 
 
 class OrderListParams(BaseModel):
@@ -296,3 +293,76 @@ def list_orders(params: Annotated[OrderListParams, Query()], db: Session = Depen
         "page_size": params.page_size,
         "total_pages": max(1, ceil(total / params.page_size)),
     }
+
+
+# =====================================================================
+# Reviews Moderation Endpoints for Admin Panel
+# =====================================================================
+
+class AdminReviewStatusUpdate(BaseModel):
+    status: Literal[
+        "PENDING", "APPROVED", "REJECTED",
+        "pending", "approved", "rejected",
+        "Hidden", "hidden", "HIDDEN",
+        "Approved", "Pending", "Rejected"
+    ]
+
+
+class AdminReviewRow(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)
+
+    id: int
+    product_id: int
+    user_id: int
+    order_id: int
+    rating: int
+    title: Optional[str] = ""
+    comment: str
+    status: str
+    created_at: Optional[datetime] = None
+
+
+# 1. GET /api/admin/reviews (with status filter)
+@router.get("/reviews", response_model=list[AdminReviewRow])
+def list_admin_reviews(
+    status: Optional[str] = Query(None, description="Filter reviews by status (PENDING, APPROVED, REJECTED)"),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Review)
+    if status:
+        status_val = status.strip().upper()
+        # Map HIDDEN to REJECTED if passed in filter[cite: 1, 2]
+        if status_val == "HIDDEN":
+            status_val = "REJECTED"
+        
+        # Direct exact match (PostgreSQL enum does not support ILIKE)[cite: 1, 2]
+        query = query.filter(Review.status == status_val)
+        
+    return query.order_by(Review.created_at.desc(), Review.id.desc()).all()
+
+
+# 2. PUT /api/admin/reviews/{review_id}/status
+@router.put("/reviews/{review_id}/status", response_model=AdminReviewRow)
+def update_admin_review_status(
+    review_id: int,
+    payload: AdminReviewStatusUpdate,
+    db: Session = Depends(get_db)
+):
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Review with id {review_id} not found"
+        )
+
+    # Standardize to uppercase Supabase DB Enum values[cite: 1, 2]
+    status_upper = payload.status.strip().upper()
+    if status_upper == "HIDDEN":
+        status_upper = "REJECTED"
+
+    # Assign directly to match Supabase reviewstatus enum ('PENDING', 'APPROVED', 'REJECTED')[cite: 1, 2]
+    review.status = status_upper
+
+    db.commit()
+    db.refresh(review)
+    return review
