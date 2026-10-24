@@ -1,10 +1,13 @@
 from dotenv import load_dotenv
+from app.api.support import router as support_router
+
 
 load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+
 
 from app.routers import (
     notifications,
@@ -73,6 +76,9 @@ app.include_router(checkout_sessions.router)
 
 # Admin product management
 app.include_router(catalog_router)
+
+# Router Registration
+app.include_router(support_router)
 
 
 @app.get("/")

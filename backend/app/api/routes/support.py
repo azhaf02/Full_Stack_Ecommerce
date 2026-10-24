@@ -6,6 +6,8 @@ from sqlalchemy import text
 
 from app.db.session import get_db
 from app.core.security import get_current_user
+
+from app.core.security import require_role 
 from app.models.support_ticket import SupportTicket
 from app.models.support_message import SupportMessage
 
@@ -21,6 +23,12 @@ class TicketCreateSchema(BaseModel):
 
 class TicketReplySchema(BaseModel):
     message: str
+
+
+class AdminStatusUpdateSchema(BaseModel):
+    status: str
+
+
 
 
 @router.post("/tickets", status_code=status.HTTP_201_CREATED)
@@ -55,6 +63,7 @@ def get_customer_tickets(current_user = Depends(get_current_user), db: Session =
     """
     return db.query(SupportTicket).filter(SupportTicket.customer_id == current_user.id).all()
 
+
 @router.get("/account/tickets/{ticket_id}")
 def get_specific_ticket_details(ticket_id: int, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     """
@@ -71,11 +80,12 @@ def get_specific_ticket_details(ticket_id: int, current_user = Depends(get_curre
     messages = db.query(SupportMessage).filter(SupportMessage.ticket_id == ticket_id).order_by(text("id ASC")).all()
     return {"ticket": ticket, "messages": messages}
 
+
 @router.post("/account/tickets/{ticket_id}/reply")
 def customer_append_thread_reply(ticket_id: int, payload: TicketReplySchema, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     POST /api/support/account/tickets/{id}/reply
-    Appends asynchronous customer conversation string dialogue inputs onto open chat streams.
+    Appends customer string dialogue inputs onto open chat streams.
     """
     ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
     if not ticket:
@@ -91,3 +101,47 @@ def customer_append_thread_reply(ticket_id: int, payload: TicketReplySchema, cur
     db.add(new_message)
     db.commit()
     return {"status": "success", "message_id": new_message.id}
+
+
+
+#  RISHI ADMIN WORKSPACE ENDPOINTS
+
+
+@router.get("/admin/tickets")
+def admin_get_all_tickets(admin_user = Depends(require_role("admin")), db: Session = Depends(get_db)):
+    """
+    GET /api/support/admin/tickets
+    Allows role-verified administrative panel accounts to grab full tracking logs.
+    """
+    return db.query(SupportTicket).all()
+
+
+@router.post("/admin/tickets/{ticket_id}/reply")
+def admin_reply_to_ticket(ticket_id: int, payload: TicketReplySchema, admin_user = Depends(require_role("admin")), db: Session = Depends(get_db)):
+    """
+    POST /api/support/admin/tickets/{ticket_id}/reply
+    Appends official Support Staff conversation message and appends it to customer stream view.
+    """
+    ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not located inside admin workspace grids.")
+        
+    new_message = SupportMessage(ticket_id=ticket.id, sender_type="Support", message=payload.message)
+    db.add(new_message)
+    db.commit()
+    return {"status": "success", "message_id": new_message.id}
+
+
+@router.put("/admin/tickets/{ticket_id}/status")
+def admin_change_ticket_status(ticket_id: int, payload: AdminStatusUpdateSchema, admin_user = Depends(require_role("admin")), db: Session = Depends(get_db)):
+    """
+    PUT /api/support/admin/tickets/{ticket_id}/status
+    Enables support agents to toggle pipeline fields to 'In Progress', 'Resolved', or 'Closed'.
+    """
+    ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target ticket thread missing inside status module.")
+        
+    ticket.status = payload.status
+    db.commit()
+    return {"status": "success", "updated_ticket_status": ticket.status}
