@@ -52,17 +52,17 @@ Product and Variant ownership must remain coordinated with the respective Produc
 
 ## Stock Status
 
-- `quantity <= 0` → `OUT_OF_STOCK`
-- `quantity <= low_stock_threshold` → `LOW_STOCK`
-- otherwise → `IN_STOCK`
+- `quantity <= 0` â†’ `OUT_OF_STOCK`
+- `quantity <= low_stock_threshold` â†’ `LOW_STOCK`
+- otherwise â†’ `IN_STOCK`
 
 ## Verification
 
 Sample inventory records were verified:
 
-- Product 2: quantity 10 → `IN_STOCK`
-- Product 3: quantity 3 → `LOW_STOCK`
-- Product 4: quantity 0 → `OUT_OF_STOCK`
+- Product 2: quantity 10 â†’ `IN_STOCK`
+- Product 3: quantity 3 â†’ `LOW_STOCK`
+- Product 4: quantity 0 â†’ `OUT_OF_STOCK`
 
 Three inventory history records were created and verified.
 
@@ -128,9 +128,9 @@ Frontend production build completed successfully after integrating the Product D
 
 INV-03 integrates with:
 
-- Chandani � Product Catalog / Product Listing
-- Gazala � Product Detail / Product Variants
-- Zubiya � Cart integration
+- Chandani ï¿½ Product Catalog / Product Listing
+- Gazala ï¿½ Product Detail / Product Variants
+- Zubiya ï¿½ Cart integration
 
 Inventory remains the centralized source for customer-facing stock status.
 
@@ -222,20 +222,20 @@ instead of implementing separate stock-checking logic.
 
 The following scenarios were tested:
 
-* Quantity within available stock → validation passed.
-* Quantity greater than available stock → validation rejected.
-* Zero stock → validation rejected.
-* Stock changed between Cart and Checkout → Checkout revalidation rejected the request.
+* Quantity within available stock â†’ validation passed.
+* Quantity greater than available stock â†’ validation rejected.
+* Zero stock â†’ validation rejected.
+* Stock changed between Cart and Checkout â†’ Checkout revalidation rejected the request.
 
 Example verification:
 
 `Initial stock: 10`
 
-`Cart quantity: 5 → PASS`
+`Cart quantity: 5 â†’ PASS`
 
 `Stock changed before checkout: 3`
 
-`Checkout quantity: 5 → PASS (correctly rejected as insufficient stock)`
+`Checkout quantity: 5 â†’ PASS (correctly rejected as insufficient stock)`
 
 ### INV-04 Definition of Done
 
@@ -247,3 +247,75 @@ Example verification:
 * Shared validation service is reusable by other modules.
 * Manual validation scenarios passed.
 * Git commit and Pull Request created.
+
+## INV-07 Admin Inventory Management & Low-Stock Alerts
+
+### Overview
+
+INV-07 provides administrators with inventory visibility, manual stock adjustments, and a low-stock report.
+
+### Admin API Endpoints
+
+All endpoints require an authenticated administrator.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/admin/inventory` | List inventory records with product names, quantities, thresholds, statuses, and locations |
+| PUT | `/api/admin/inventory/{inventory_id}` | Adjust stock for an inventory record |
+| GET | `/api/admin/inventory/low-stock` | List records at or below their low-stock thresholds |
+
+### Manual Stock Adjustment
+
+The adjustment endpoint accepts:
+
+```json
+{
+  "quantity_change": 2,
+  "reason": "Received new stock"
+}
+```
+
+- Positive `quantity_change` adds stock.
+- Negative `quantity_change` removes stock.
+- A non-empty reason is required.
+- The resulting quantity cannot be negative.
+- The inventory status is recalculated after the adjustment.
+- Each successful adjustment creates an `inventory_history` record containing the previous quantity, new quantity, change amount, administrator ID, reason, and timestamp.
+
+A missing inventory record returns `404`. An adjustment that would produce a negative quantity returns `400`. Invalid request data returns `422`.
+
+### Stock Status Rules
+
+- Quantity less than or equal to zero: `OUT_OF_STOCK`
+- Quantity greater than zero and less than or equal to the threshold: `LOW_STOCK`
+- Quantity above the threshold: `IN_STOCK`
+
+The low-stock endpoint includes records whose quantities are less than or equal to their configured thresholds, including out-of-stock records.
+
+### Admin Authorization
+
+The inventory router uses `require_role("admin")`. Unauthenticated requests are rejected, and users without the required administrator role cannot use these endpoints.
+
+### Frontend
+
+`frontend/src/pages/admin/InventoryPage.tsx` provides:
+
+- Inventory listing and status badges.
+- Low-stock report.
+- Manual stock adjustment form with a required reason.
+- Success and error messages.
+- A refresh control.
+
+The page is available at `/admin/inventory` within the admin application.
+
+### INV-07 Verification
+
+Backend API checks performed:
+
+- `GET /api/admin/inventory` returned `200 OK`.
+- `GET /api/admin/inventory/low-stock` returned `200 OK`.
+- Manual adjustment of inventory record 3 from quantity 10 to 12 returned `200 OK`.
+- Reversing the adjustment from 12 to 10 returned `200 OK`.
+- The original quantity of 10 was restored.
+
+The frontend production build completed successfully after adding the inventory page and route.

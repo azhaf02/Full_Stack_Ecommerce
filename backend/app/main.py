@@ -24,7 +24,7 @@ from app.routers import (
     checkout_sessions,
     shipping_methods,
 )
-from app.api.routes import product, checkout
+from app.api.routes import product, checkout, inventory
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
 
@@ -62,6 +62,8 @@ app.include_router(checkout.router)
 app.include_router(cart.router)
 app.include_router(shipping_methods.router)
 
+
+app.include_router(inventory.router)
 
 @app.get("/")
 def root():
