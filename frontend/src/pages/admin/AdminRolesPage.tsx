@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import DataTable from "../../components/admin/DataTable";
 import type { Column } from "../../components/admin/DataTable";
 import StatusBadge from "../../components/admin/StatusBadge";
+import LoadingRows from "../../components/admin/LoadingRows";
 import Modal from "../../components/admin/Modal";
 import {
   getAdminRoleUsers,
@@ -170,7 +171,7 @@ export default function AdminRolesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-cream-50 rounded-xl border shadow-sm p-6">
+      <div className="admin-card p-6">
         <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
           <div>
             <h2 className="text-lg font-semibold text-slate-800">
@@ -225,9 +226,7 @@ export default function AdminRolesPage() {
         )}
 
         {loading ? (
-          <p className="py-8 text-center text-sm text-slate-500">
-            Loading users...
-          </p>
+          <LoadingRows />
         ) : list.length === 0 && !error ? (
           <p className="py-8 text-center text-sm text-slate-500">
             No users found.
@@ -241,7 +240,7 @@ export default function AdminRolesPage() {
         )}
       </div>
 
-      <div className="bg-cream-50 rounded-xl border shadow-sm p-6">
+      <div className="admin-card p-6">
         <h3 className="font-semibold text-slate-800 mb-2">
           Recent role changes
         </h3>

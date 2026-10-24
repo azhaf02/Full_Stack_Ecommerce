@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 import StatusBadge from "../../components/admin/StatusBadge";
+import LoadingRows from "../../components/admin/LoadingRows";
 import Modal from "../../components/admin/Modal";
 import { getReturns, reviewReturn } from "../../services/adminService";
 import type { AdminReturn, ReturnAction } from "../../services/adminService";
@@ -112,7 +113,7 @@ export default function AdminReturnsPage() {
   };
 
   return (
-    <div className="bg-cream-50 rounded-xl border shadow-sm p-6">
+    <div className="admin-card p-6">
       {/* Status tabs */}
       <div className="flex flex-wrap gap-2 mb-6 border-b pb-4">
         {TABS.map((t) => (
@@ -128,7 +129,7 @@ export default function AdminReturnsPage() {
         ))}
       </div>
 
-      {loading && <p className="text-sm text-slate-500 py-8 text-center">Loading return requests...</p>}
+      {loading && <LoadingRows />}
 
       {!loading && error && (
         <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-5 flex flex-wrap items-center justify-between gap-3">

@@ -74,7 +74,7 @@ export default function AdminDashboardPage() {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         {[1, 2, 3, 4, 5].map((n) => (
-          <div key={n} className="bg-cream-50 rounded-xl border shadow-sm p-5 h-24 animate-pulse" />
+          <div key={n} className="admin-card p-5 h-24 animate-pulse" />
         ))}
       </div>
     );

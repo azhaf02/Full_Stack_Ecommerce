@@ -4,6 +4,7 @@ import { Search } from "lucide-react";
 import DataTable from "../../components/admin/DataTable";
 import type { Column } from "../../components/admin/DataTable";
 import StatusBadge from "../../components/admin/StatusBadge";
+import LoadingRows from "../../components/admin/LoadingRows";
 import Modal from "../../components/admin/Modal";
 import { getCustomer, getCustomers, updateCustomerStatus } from "../../services/adminService";
 import type { Customer, CustomerDetail } from "../../services/adminService";
@@ -126,7 +127,7 @@ export default function AdminCustomersPage() {
   ];
 
   return (
-    <div className="bg-cream-50 rounded-xl border shadow-sm p-6">
+    <div className="admin-card p-6">
       {/* Filter bar */}
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="relative flex-1 min-w-52">
@@ -149,7 +150,7 @@ export default function AdminCustomersPage() {
         </select>
       </div>
 
-      {loading && <p className="text-sm text-slate-500 py-8 text-center">Loading customers...</p>}
+      {loading && <LoadingRows />}
 
       {!loading && error && (
         <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-5 flex flex-wrap items-center justify-between gap-3">

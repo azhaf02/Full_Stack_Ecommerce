@@ -22,7 +22,7 @@ const styles: Record<string, string> = {
 
 export default function StatusBadge({ status }: { status: string }) {
   const style = styles[status] ?? "bg-slate-100 text-slate-700";
-  const text = status.replaceAll("_", " ").toLowerCase();
+  const text = status.replace(/_/g, " ").toLowerCase();
 
   return (
     <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${style}`}>

@@ -4,6 +4,7 @@ import { Search } from "lucide-react";
 import DataTable from "../../components/admin/DataTable";
 import type { Column } from "../../components/admin/DataTable";
 import StatusBadge from "../../components/admin/StatusBadge";
+import LoadingRows from "../../components/admin/LoadingRows";
 import Pagination from "../../components/admin/Pagination";
 import { getPayments } from "../../services/adminService";
 import type { AdminPayment } from "../../services/adminService";
@@ -52,7 +53,11 @@ export default function AdminPaymentsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [collected, setCollected] = useState(0);
-  const [pendingCod, setPendingCod] = useState(0);
+  const [collectedCount, setCollectedCount] = useState(0);
+  const [awaiting, setAwaiting] = useState({
+    COD: { count: 0, amount: 0 },
+    ONLINE: { count: 0, amount: 0 },
+  });
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -79,7 +84,8 @@ export default function AdminPaymentsPage() {
           setTotal(data.total);
           setTotalPages(data.totalPages);
           setCollected(data.collectedAmount);
-          setPendingCod(data.pendingCodAmount);
+          setCollectedCount(data.collectedCount);
+          setAwaiting(data.awaitingPayment);
           setStatusCounts(data.statusCounts);
         })
         .catch(() => {
@@ -116,18 +122,33 @@ export default function AdminPaymentsPage() {
   return (
     <div className="space-y-6">
       {/* Summary: totals over all payments */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div className="bg-cream-50 rounded-xl border shadow-sm p-5">
-          <p className="text-sm text-slate-500">Collected (successful payments)</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="admin-card p-5">
+          <p className="text-sm text-slate-500">Collected (paid orders)</p>
           <p className="text-2xl font-bold text-slate-800 mt-1">{formatINR(collected)}</p>
+          <p className="mt-2 text-xs text-slate-500">
+            From {collectedCount} paid {collectedCount === 1 ? "order" : "orders"}
+          </p>
         </div>
-        <div className="bg-cream-50 rounded-xl border shadow-sm p-5">
-          <p className="text-sm text-slate-500">Pending COD amount</p>
-          <p className="text-2xl font-bold text-slate-800 mt-1">{formatINR(pendingCod)}</p>
+        <div className="admin-card p-5">
+          <p className="text-sm text-slate-500">Awaiting payment (from orders)</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">
+            {formatINR(awaiting.COD.amount + awaiting.ONLINE.amount)}
+          </p>
+          <div className="mt-2 space-y-0.5 text-xs text-slate-500">
+            <p className="flex justify-between">
+              <span>COD to collect ({awaiting.COD.count} orders)</span>
+              <span className="font-medium text-slate-700">{formatINR(awaiting.COD.amount)}</span>
+            </p>
+            <p className="flex justify-between">
+              <span>Online unpaid ({awaiting.ONLINE.count} orders)</span>
+              <span className="font-medium text-slate-700">{formatINR(awaiting.ONLINE.amount)}</span>
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="bg-cream-50 rounded-xl border shadow-sm p-6">
+      <div className="admin-card p-6">
         {/* Status tabs */}
         <div className="flex flex-wrap gap-2 mb-4 border-b pb-4">
           {TABS.map((t) => (
@@ -168,7 +189,7 @@ export default function AdminPaymentsPage() {
           </select>
         </div>
 
-        {loading && <p className="text-sm text-slate-500 py-8 text-center">Loading payments...</p>}
+        {loading && <LoadingRows />}
 
         {!loading && error && (
           <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-5 flex flex-wrap items-center justify-between gap-3">

@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, User, MapPin, CreditCard } from "lucide-react";
+import { ArrowLeft, User, MapPin, CreditCard, Loader2 } from "lucide-react";
 import StatusBadge from "../../components/admin/StatusBadge";
-import { getOrder, updateOrderStatus } from "../../services/adminService";
-import type { AdminOrderDetail } from "../../services/adminService";
+import LoadingRows from "../../components/admin/LoadingRows";
+import Modal from "../../components/admin/Modal";
+import {
+  getCodPaymentForOrder,
+  getOrder,
+  markCodPaymentAsPaid,
+  updateOrderStatus,
+} from "../../services/adminService";
+import type { AdminOrderDetail, AdminPayment } from "../../services/adminService";
 import { formatINR } from "../../utils/format";
 
 const formatDateTime = (value: string) =>
@@ -59,6 +66,59 @@ export default function AdminOrderDetailPage() {
     };
   }, [orderId, reloadKey]);
 
+  // COD "Mark as paid": find the order's pending COD payment record (the API needs its id)
+  const [codPayment, setCodPayment] = useState<AdminPayment | null>(null);
+  const [codLookupDone, setCodLookupDone] = useState(false);
+  const [confirmingPaid, setConfirmingPaid] = useState(false);
+  const [markingPaid, setMarkingPaid] = useState(false);
+  const [paidError, setPaidError] = useState("");
+
+  const codUnpaid =
+    order !== null &&
+    order.payment_method === "COD" &&
+    order.payment_status === "PENDING" &&
+    !["CANCELLED", "RETURNED", "REFUND_PENDING", "REFUNDED"].includes(order.status);
+
+  useEffect(() => {
+    if (!order || !codUnpaid) {
+      setCodPayment(null);
+      setCodLookupDone(false);
+      return;
+    }
+    let cancelled = false;
+    setCodLookupDone(false);
+    getCodPaymentForOrder(order.id, order.order_number)
+      .then((payment) => {
+        if (!cancelled) setCodPayment(payment);
+      })
+      .catch(() => {
+        if (!cancelled) setCodPayment(null);
+      })
+      .finally(() => {
+        if (!cancelled) setCodLookupDone(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [order?.id, order?.order_number, codUnpaid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Calls Aaliya's POST /api/payment/admin/cod/{payment_id}/mark-paid, then reloads the order
+  const handleMarkPaid = async () => {
+    if (!codPayment) return;
+    setMarkingPaid(true);
+    setPaidError("");
+    try {
+      await markCodPaymentAsPaid(codPayment.id);
+      setConfirmingPaid(false);
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      const detail = axios.isAxiosError(err) ? err.response?.data?.detail : null;
+      setPaidError(typeof detail === "string" ? detail : "Could not mark the payment as paid. Try again.");
+    } finally {
+      setMarkingPaid(false);
+    }
+  };
+
   // Calls PUT /api/admin/orders/{id}/status. The reply carries the new status,
   // the updated history and the statuses allowed next.
   const handleUpdate = async () => {
@@ -80,7 +140,11 @@ export default function AdminOrderDetailPage() {
   };
 
   if (loading) {
-    return <p className="text-sm text-slate-500 py-8 text-center">Loading order...</p>;
+    return (
+      <div className="admin-card p-6">
+        <LoadingRows rows={6} />
+      </div>
+    );
   }
 
   if (notFound) {
@@ -139,7 +203,7 @@ export default function AdminOrderDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Items */}
-        <div className="lg:col-span-2 bg-cream-50 rounded-xl border shadow-sm p-6">
+        <div className="lg:col-span-2 admin-card p-6">
           <h3 className="font-semibold text-slate-800 mb-4">Items</h3>
           {order.items.length === 0 ? (
             <p className="text-sm text-slate-500">This order has no items.</p>
@@ -218,13 +282,37 @@ export default function AdminOrderDetailPage() {
             <p className="flex items-center gap-2 mt-1">
               Status: <StatusBadge status={order.payment_status} />
             </p>
+
+            {/* COD: admin records that the cash was collected */}
+            {codUnpaid && !codLookupDone && (
+              <p className="mt-3 text-xs text-slate-500 flex items-center gap-1.5">
+                <Loader2 size={12} className="animate-spin" /> Checking payment record...
+              </p>
+            )}
+            {codUnpaid && codLookupDone && codPayment && codPayment.status === "PENDING" && (
+              <button
+                onClick={() => {
+                  setPaidError("");
+                  setConfirmingPaid(true);
+                }}
+                className="mt-3 w-full bg-primary-600 hover:bg-primary-700 text-white rounded-lg py-2 text-sm font-medium transition"
+              >
+                Mark as paid
+              </button>
+            )}
+            {codUnpaid && codLookupDone && !codPayment && (
+              <p className="mt-3 text-xs text-slate-500">
+                This order has no payment record yet, so it can't be marked as paid here. It is marked paid
+                automatically when the order is delivered.
+              </p>
+            )}
           </InfoCard>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Status update */}
-        <div className="bg-cream-50 rounded-xl border shadow-sm p-6">
+        <div className="admin-card p-6">
           <h3 className="font-semibold text-slate-800 mb-4">Update status</h3>
           {options.length === 0 ? (
             <p className="text-sm text-slate-500">
@@ -270,7 +358,7 @@ export default function AdminOrderDetailPage() {
         </div>
 
         {/* Timeline */}
-        <div className="lg:col-span-2 bg-cream-50 rounded-xl border shadow-sm p-6">
+        <div className="lg:col-span-2 admin-card p-6">
           <h3 className="font-semibold text-slate-800 mb-4">Status history</h3>
           {order.status_history.length === 0 ? (
             <p className="text-sm text-slate-500">No status changes recorded.</p>
@@ -292,6 +380,38 @@ export default function AdminOrderDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Confirm popup for "Mark as paid" */}
+      {confirmingPaid && codPayment && (
+        <Modal title="Mark this COD payment as paid?" onClose={() => setConfirmingPaid(false)}>
+          <p className="text-sm text-slate-600">
+            Confirm that {formatINR(codPayment.amount)} in cash has been collected for order{" "}
+            <span className="font-medium">{order.order_number}</span>. This can't be undone.
+          </p>
+
+          {paidError && (
+            <p role="alert" className="mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {paidError}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-3 mt-6">
+            <button
+              onClick={() => setConfirmingPaid(false)}
+              className="px-4 py-2 text-sm border rounded-lg hover:bg-cream-100"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleMarkPaid}
+              disabled={markingPaid}
+              className="px-4 py-2 text-sm text-white rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-60"
+            >
+              {markingPaid ? "Saving..." : "Mark as paid"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -307,7 +427,7 @@ function InfoCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-cream-50 rounded-xl border shadow-sm p-6 text-sm">
+    <div className="admin-card p-6 text-sm">
       <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
         <Icon size={16} className="text-primary-600" /> {title}
       </h3>

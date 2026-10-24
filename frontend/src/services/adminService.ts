@@ -315,7 +315,9 @@ export interface AdminPaymentList {
   pageSize: number;
   totalPages: number;
   collectedAmount: number;
-  pendingCodAmount: number;
+  collectedCount: number; // number of paid orders behind collectedAmount
+  // Unpaid orders read from the orders table (includes older orders with no payment row)
+  awaitingPayment: Record<"COD" | "ONLINE", { count: number; amount: number }>;
   statusCounts: Record<string, number>;
 }
 
@@ -354,6 +356,17 @@ export async function markCodPaymentAsPaid(
   await api.post(
     `/api/payment/admin/cod/${paymentId}/mark-paid`
   );
+}
+
+// Finds the latest COD payment record of one order (the mark-paid API needs its id).
+// Uses the admin payment list, searched by order number. Returns null if the order has none.
+export async function getCodPaymentForOrder(
+  orderId: number,
+  orderNumber: string
+): Promise<AdminPayment | null> {
+  const data = await getPayments({ q: orderNumber, method: "COD", pageSize: 50 });
+  const matches = data.items.filter((p) => p.orderId === orderId);
+  return matches.length > 0 ? matches.reduce((a, b) => (a.id > b.id ? a : b)) : null;
 }
 
 // =========================================================

@@ -39,10 +39,10 @@ export default function Topbar({ title, subtitle }: TopbarProps) {
   };
 
   return (
-    <header className="flex justify-between items-center bg-cream-50 border-b px-8 py-4">
+    <header className="sticky top-0 z-20 flex justify-between items-center bg-cream-50/85 backdrop-blur border-b px-6 lg:px-8 py-4">
       {/* Left: title */}
       <div>
-        <h1 className="text-xl font-bold text-primary-900">{title}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-primary-900">{title}</h1>
         <p className="text-sm text-slate-500">{subtitle}</p>
       </div>
 

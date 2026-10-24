@@ -366,9 +366,11 @@ class AdminPaymentList(BaseModel):
     page: int
     page_size: int
     total_pages: int
-    collected_amount: float
-    pending_cod_amount: float
+    collected_amount: float  # paid orders (orders.payment_status SUCCESS)
+    collected_count: int
     status_counts: dict[str, int]
+    # Unpaid orders from the orders table, per method: {"COD": {"count", "amount"}, "ONLINE": {...}}
+    awaiting_payment: dict[str, dict[str, float]]
 
 
 def _enum_text(value) -> str:
@@ -427,19 +429,13 @@ def list_payments(
         for payment, order_number, name in rows
     ]
 
-    collected = (
-        db.query(func.coalesce(func.sum(Payment.amount), 0))
-        .filter(Payment.status == PaymentStatus.SUCCESS)
-        .scalar()
-    )
-
-    pending_cod = (
-        db.query(func.coalesce(func.sum(Payment.amount), 0))
-        .filter(
-            Payment.method == PaymentMethod.COD,
-            Payment.status == PaymentStatus.PENDING,
-        )
-        .scalar()
+    # Money received, read from the orders table (same source as "awaiting" below),
+    # so paid orders without a payments row are counted too. Refunded orders have
+    # payment_status REFUNDED, so they drop out automatically.
+    collected_count, collected = (
+        db.query(func.count(Order.id), func.coalesce(func.sum(Order.total_amount), 0))
+        .filter(Order.payment_status == "SUCCESS")
+        .one()
     )
 
     counts = (
@@ -448,6 +444,22 @@ def list_payments(
         .all()
     )
 
+    # Unpaid orders, read from the orders table. Older orders have no payments row,
+    # so the payments table alone would miss them. Cancelled, returned and
+    # refunded orders are left out: there is nothing to collect for them.
+    awaiting_rows = (
+        db.query(Order.payment_method, func.count(Order.id), func.coalesce(func.sum(Order.total_amount), 0))
+        .filter(
+            Order.payment_status == "PENDING",
+            Order.status.notin_(["CANCELLED", "RETURNED", "REFUND_PENDING", "REFUNDED"]),
+        )
+        .group_by(Order.payment_method)
+        .all()
+    )
+    awaiting = {"COD": {"count": 0, "amount": 0.0}, "ONLINE": {"count": 0, "amount": 0.0}}
+    for method, count, amount in awaiting_rows:
+        awaiting[_enum_text(method)] = {"count": count, "amount": float(amount)}
+
     return {
         "items": items,
         "total": total,
@@ -455,7 +467,8 @@ def list_payments(
         "page_size": params.page_size,
         "total_pages": max(1, ceil(total / params.page_size)),
         "collected_amount": float(collected),
-        "pending_cod_amount": float(pending_cod),
+        "collected_count": collected_count,
+        "awaiting_payment": awaiting,
         "status_counts": {
             _enum_text(status): count for status, count in counts
         },
