@@ -112,8 +112,8 @@ def test_confirmed_order_deducts_stock_and_creates_history(db):
     assert history.previous_quantity == 10
     assert history.new_quantity == 5
     assert history.change_type == "DEDUCTION"
-    assert history.reason == "order:1"
-
+    assert history.reason == "order"
+    assert history.order_id == order.id
 
 def test_confirmed_order_with_insufficient_stock_fails(db):
     inventory = add_inventory(db, 3)
@@ -164,3 +164,42 @@ def test_cancelled_confirmed_order_restores_stock(db):
     assert histories[1].change_amount == 5
     assert histories[1].new_quantity == 10
     assert histories[1].reason == "cancel"
+
+
+def test_confirmed_order_can_consume_last_available_stock(db):
+    inventory = add_inventory(db, 5)
+    order = make_order(db)
+
+    order_service.update_status(
+        db,
+        order,
+        "CONFIRMED",
+        changed_by=1
+    )
+
+    assert inventory.quantity == 0
+
+    history = db.query(InventoryHistory).one()
+    assert history.change_amount == -5
+    assert history.previous_quantity == 5
+    assert history.new_quantity == 0
+    assert history.reason == "order"
+    assert history.order_id == order.id
+
+def test_confirming_order_twice_does_not_deduct_stock_twice(db):
+    inventory = add_inventory(db, 10)
+    order = make_order(db)
+
+    order_service.update_status(
+        db, order, "CONFIRMED", changed_by=1
+    )
+
+    assert inventory.quantity == 5
+
+    with pytest.raises(order_service.InvalidTransition):
+        order_service.update_status(
+            db, order, "CONFIRMED", changed_by=1
+        )
+
+    assert inventory.quantity == 5
+    assert db.query(InventoryHistory).count() == 1

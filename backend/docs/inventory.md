@@ -31,9 +31,12 @@ Each stock deduction records:
 - `new_quantity`
 - `reason`
 
-The current implementation stores the order reference in the reason field using:
+The current implementation stores the order reference separately in the
+`order_id` field of inventory history.
 
-`order:<order_id>`
+For confirmed order deductions:
+- `reason = order`
+- `order_id = <order_id>`
 
 ### Validation
 

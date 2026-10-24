@@ -128,7 +128,8 @@ def _add_history(
     change_amount: int,
     changed_by: int,
     change_type: str,
-    reason: str
+    reason: str,
+    order_id: int = None,
 ):
     previous_quantity = inventory.quantity
     new_quantity = previous_quantity + change_amount
@@ -141,6 +142,7 @@ def _add_history(
     history = InventoryHistory(
         inventory_id=inventory.id,
         product_id=inventory.product_id,
+        order_id=order_id,
         change_amount=change_amount,
         changed_by=changed_by,
         change_type=change_type,
@@ -196,7 +198,8 @@ def deduct_stock(db: Session, order):
             change_amount=-item.quantity,
             changed_by=order.user_id,
             change_type="DEDUCTION",
-            reason=f"order:{order.id}",
+            reason="order",
+            order_id=order.id,
         )
 
 def restock(db: Session, order, items, reason: str = "cancel"):
