@@ -20,6 +20,26 @@ Tests: 222 backend tests pass, 1 skipped (the checkpoint 4 test, waiting for #28
 18 other backend tests (teammates' login and register tests) fail only on the machine used for testing, because of a
 `passlib` and `bcrypt` version mismatch. They do not touch orders.
 
+### Completed and remaining at a glance
+
+**Completed**
+
+- Database design and migrations for orders, items, status history, returns and return items.
+- Order creation, direct or from a checkout session, with server-side pricing, coupon re-check, single-use session and cart clearing.
+- Status transitions with an allow-list and a full history; admin routes to change status and to read one order (customer, address, allowed next steps).
+- Customer routes and pages: My Orders, tracking, cancel, return request, order confirmation, all behind the login guard.
+- Returns: request, approve or reject, returned, refund; admin routes.
+- Cash on Delivery: payment row at confirmation and marked paid on delivery.
+- Tests (222 backend, 70 frontend), checkpoint 4 test written, regression record, documentation, this report.
+
+**Remaining**
+
+- Stock deduct on confirmation and restock on cancel or return on main: waiting for Rehan to merge PR #28. My code and tests are ready.
+- Run the checkpoint 4 test and the final regression after #28 merges (ORD-08, ORD-09).
+- Order notifications (checkpoint 5): depends on Aliza.
+- Tax: the rate is 0 until the team agrees a rule.
+- Submit the tasks in the task app and get Anas's review and Rishi's confirmation.
+
 ## 2. The flow of the project (one order, start to finish)
 
 1. **Cart** (Zubiya): the customer adds items. Prices and coupons are checked by the cart and pricing code.
@@ -27,14 +47,17 @@ Tests: 222 backend tests pass, 1 skipped (the checkpoint 4 test, waiting for #28
    everything, and `POST /api/checkout/session` stores a server-side snapshot (address, shipping, items, coupon, totals)
    with a 30 minute expiry. The browser gets only a `checkout_reference_id`.
 3. **Place the order** (Rukhsar): `POST /api/orders` with `{checkout_reference_id, payment_method}`.
-   - The session must belong to the customer, be active and unexpired.
-   - Prices, shipping cost and the coupon are re-read from the database. If the total changed since checkout the
+    - The session must belong to the customer, be active and unexpired.
+    - Prices, shipping cost and the coupon are re-read from the database. If the total changed since checkout the
      order is refused.
-   - The session is marked `completed` in the same transaction, so one session makes one order.
-   - The cart is emptied in that transaction too.
+    - The session is marked `completed` in the same transaction, so one session makes one order.
+    - The cart is emptied in that transaction too.
+
 4. **Payment** (Aaliya):
-   - COD: the order is `CONFIRMED` straight away. A `payments` row (PENDING) is created by my COD hook.
-   - Online: the order stays `PLACED` until the backend-verified payment calls `apply_payment_result()`, which confirms it.
+
+    - COD: the order is `CONFIRMED` straight away. A `payments` row (PENDING) is created by my COD hook.
+    - Online: the order stays `PLACED` until the backend-verified payment calls `apply_payment_result()`, which confirms it.
+
 5. **Stock** (Rehan): when an order becomes `CONFIRMED`, a status hook deducts stock exactly once. Cancelling a
    confirmed order, or returning items, restocks.
 6. **Fulfilment** (Rishi's admin dashboard): the admin moves the order PROCESSING, PACKED, SHIPPED, OUT_FOR_DELIVERY,
@@ -46,10 +69,15 @@ Tests: 222 backend tests pass, 1 skipped (the checkpoint 4 test, waiting for #28
    PROCESSING; a paid online order moves on to a refund.
 
 ```
-PLACED -> CONFIRMED -> PROCESSING -> PACKED -> SHIPPED -> OUT_FOR_DELIVERY -> DELIVERED
-   \          \            \                                                      \
-    +----------+------------+--> CANCELLED (paid online -> REFUND_PENDING -> REFUNDED)
-                                                       DELIVERED -> RETURN_REQUESTED -> RETURN_APPROVED -> RETURNED -> REFUND_PENDING -> REFUNDED
+Normal path:
+  PLACED -> CONFIRMED -> PROCESSING -> PACKED -> SHIPPED -> OUT_FOR_DELIVERY -> DELIVERED
+
+Cancel (PLACED, CONFIRMED or PROCESSING):
+  -> CANCELLED   (paid online: -> REFUND_PENDING -> REFUNDED)
+
+Return (within 7 days of delivery):
+  DELIVERED -> RETURN_REQUESTED -> RETURN_APPROVED -> RETURNED -> REFUND_PENDING -> REFUNDED
+  (a rejected return goes back to DELIVERED)
 ```
 
 ## 3. Key design decisions
