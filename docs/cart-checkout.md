@@ -265,3 +265,24 @@ The frontend production build passes, and the no-coupon checkout/order flow has 
 ### Final status
 
 Automated backend regression, frontend build and lint passed in the recorded local run. Manual end-to-end checks and mentor sign-off remain unconfirmed. Do not mark CHK-09 COMPLETED until these acceptance checks are confirmed.
+
+## CHK-09 Final Regression Evidence
+
+Verification date: 2026-10-24
+
+### Automated verification
+- Full backend regression: PASS — 229 passed, 0 failed, 60 warnings.
+- Targeted checkout/order regression: PASS — 176 passed, 0 failed, 6 warnings.
+- Frontend production build: PASS.
+- Frontend ESLint: PASS.
+
+Warnings are recorded rather than treated as test failures. They include dependency/API deprecations, pytest collection warnings, and an insecure-length test JWT key warning.
+
+### Acceptance status
+- Automated backend regression: PASS.
+- Frontend build and lint: PASS.
+- Full browser journey (cart, coupon apply/remove, address, shipping, review, order creation, and cart clearing): NOT YET VERIFIED in this final CHK-09 run.
+- Final bug IDs and PR references: TO BE RECORDED after verification.
+- Mentor sign-off: PENDING.
+
+Do not mark CHK-09 COMPLETED until the remaining acceptance checks, bug/PR references, and required sign-off are confirmed.
