@@ -13,7 +13,7 @@ from app.core.security import require_role
 from app.models.order import Order, OrderStatus
 from app.models.role import Role
 from app.models.user import User
-from app.models.review import Review, ReviewModerationStatus
+from app.models.review import Review
 
 router = APIRouter(
     prefix="/api/admin",
@@ -300,7 +300,12 @@ def list_orders(params: Annotated[OrderListParams, Query()], db: Session = Depen
 # =====================================================================
 
 class AdminReviewStatusUpdate(BaseModel):
-    status: Literal["Approved", "Hidden", "Pending", "APPROVED", "HIDDEN", "PENDING"]
+    status: Literal[
+        "PENDING", "APPROVED", "REJECTED",
+        "pending", "approved", "rejected",
+        "Hidden", "hidden", "HIDDEN",
+        "Approved", "Pending", "Rejected"
+    ]
 
 
 class AdminReviewRow(BaseModel):
@@ -320,12 +325,19 @@ class AdminReviewRow(BaseModel):
 # 1. GET /api/admin/reviews (with status filter)
 @router.get("/reviews", response_model=list[AdminReviewRow])
 def list_admin_reviews(
-    status: Optional[str] = Query(None, description="Filter reviews by status (Pending, Approved, Hidden)"),
+    status: Optional[str] = Query(None, description="Filter reviews by status (PENDING, APPROVED, REJECTED)"),
     db: Session = Depends(get_db)
 ):
     query = db.query(Review)
     if status:
-        query = query.filter(Review.status.ilike(status.strip()))
+        status_val = status.strip().upper()
+        # Map HIDDEN to REJECTED if passed in filter[cite: 1, 2]
+        if status_val == "HIDDEN":
+            status_val = "REJECTED"
+        
+        # Direct exact match (PostgreSQL enum does not support ILIKE)[cite: 1, 2]
+        query = query.filter(Review.status == status_val)
+        
     return query.order_by(Review.created_at.desc(), Review.id.desc()).all()
 
 
@@ -343,12 +355,13 @@ def update_admin_review_status(
             detail=f"Review with id {review_id} not found"
         )
 
-    # Standardize with ReviewModerationStatus enum if present
-    status_upper = payload.status.upper()
-    if hasattr(ReviewModerationStatus, status_upper):
-        review.status = getattr(ReviewModerationStatus, status_upper).value
-    else:
-        review.status = payload.status
+    # Standardize to uppercase Supabase DB Enum values[cite: 1, 2]
+    status_upper = payload.status.strip().upper()
+    if status_upper == "HIDDEN":
+        status_upper = "REJECTED"
+
+    # Assign directly to match Supabase reviewstatus enum ('PENDING', 'APPROVED', 'REJECTED')[cite: 1, 2]
+    review.status = status_upper
 
     db.commit()
     db.refresh(review)
