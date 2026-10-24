@@ -43,7 +43,7 @@ export default function ProductFormPage() {
 
   const loadCategories = async () => {
     try {
-      const data = await getCategories(true);
+      const data = await getCategories(isEditMode);
       setCategories(data);
     } catch (error) {
       console.error("Failed to load categories:", error);

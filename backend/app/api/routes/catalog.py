@@ -64,11 +64,28 @@ def get_admin_products(
     return query.order_by(Product.id.desc()).all()
 
 
+
 @router.post("/", response_model=ProductResponse)
 def create_admin_product(
     product: ProductCreate,
     db: Session = Depends(get_db),
 ):
+    category = db.query(Category).filter(
+        Category.id == product.category_id
+    ).first()
+
+    if not category:
+        raise HTTPException(
+            status_code=400,
+            detail="Category not found."
+        )
+
+    if not category.is_active:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot create a product in an inactive category."
+        )
+
     db_product = Product(**product.model_dump())
 
     db.add(db_product)
@@ -76,6 +93,7 @@ def create_admin_product(
     db.refresh(db_product)
 
     return db_product
+
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
@@ -229,7 +247,7 @@ def get_public_categories(
         .order_by(Category.id)
         .all()
     )
-    
+
 @public_router.get("/products", response_model=list[ProductResponse])
 def get_public_products(
     page: int = Query(default=1, ge=1),
