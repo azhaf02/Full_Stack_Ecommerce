@@ -62,7 +62,7 @@ export default function AdminLoginPage() {
           <span className="w-8 h-8 rounded-lg bg-primary-700 flex items-center justify-center">
             <ShoppingBag className="text-cream-100" size={16} />
           </span>
-          <span className="text-sm font-semibold text-white tracking-tight">Viora</span>
+          <span className="font-display text-sm font-semibold tracking-[0.14em] text-white">VIORA</span>
           <span className="text-primary-500">/</span>
           <span className="text-sm text-primary-300">Admin Console</span>
         </div>
@@ -89,7 +89,7 @@ export default function AdminLoginPage() {
                   Staff only
                 </span>
               </div>
-              <h1 className="mt-5 text-xl font-bold tracking-tight">Administrator sign in</h1>
+              <h1 className="mt-5 font-display text-2xl font-semibold text-primary-900">Administrator sign in</h1>
               <p className="text-sm text-slate-500 mt-1">Use your admin account to access the console.</p>
             </div>
 

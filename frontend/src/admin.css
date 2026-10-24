@@ -3,25 +3,29 @@
 /* Brand colours (olive + cream, matching the ShopEase reference design).
    Change these hex codes to re-theme the whole app. */
 @theme {
+  /* Same fonts as the customer site: DM Sans for text, Fraunces for headings */
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
 
-  /* Olive green: buttons, active links, sidebar, charts */
-  --color-primary-50: #f4f5ee;
-  --color-primary-100: #e7ead9;
-  --color-primary-200: #d0d6b6;
-  --color-primary-300: #b1bb8a;
-  --color-primary-400: #8f9c63;
-  --color-primary-500: #6f7d48;
-  --color-primary-600: #586638;
-  --color-primary-700: #47522e;
-  --color-primary-800: #3c4528;
-  --color-primary-900: #333b23;
+  /* Olive green, matched to the customer site's Viora palette
+     (viora-olive #556b2f, viora-olive-dark #3e4f22, viora-sage #b7c4a2,
+     viora-sage-soft #e6ecdc, viora-ink #23291c) */
+  --color-primary-50: #f2f5ec;
+  --color-primary-100: #e6ecdc;
+  --color-primary-200: #cfd9bd;
+  --color-primary-300: #b7c4a2;
+  --color-primary-400: #87986a;
+  --color-primary-500: #556b2f;
+  --color-primary-600: #4a5d29;
+  --color-primary-700: #3e4f22;
+  --color-primary-800: #323f1c;
+  --color-primary-900: #23291c;
 
-  /* Warm cream: page background, cards, borders */
-  --color-cream-50: #fcfbf8;
-  --color-cream-100: #f5f2ea;
-  --color-cream-200: #e9e4d6;
-  --color-cream-300: #d9d2bf;
+  /* Cream, matched to viora-cream #f4f4ee */
+  --color-cream-50: #fafaf6;
+  --color-cream-100: #f4f4ee;
+  --color-cream-200: #e4e6da;
+  --color-cream-300: #d2d6c4;
 
   /* Small entrance animations used across the admin panel */
   --animate-fade-in: fade-in 0.25s ease-out both;
@@ -80,7 +84,7 @@
 
   body {
     background-color: var(--color-cream-100);
-    color: #2f3322;
+    color: #23291c; /* viora-ink */
   }
 
   /* White form fields stand out on cream cards, like the reference search bar */

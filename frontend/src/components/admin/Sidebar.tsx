@@ -45,7 +45,7 @@ export default function Sidebar() {
           <ShoppingBag className="text-cream-100" size={20} />
         </span>
         <div className="leading-tight">
-          <p className="text-lg font-bold text-white tracking-tight">Viora</p>
+          <p className="font-display text-lg font-semibold tracking-[0.14em] text-white">VIORA</p>
           <p className="text-[11px] uppercase tracking-widest text-primary-300">Admin panel</p>
         </div>
       </div>
