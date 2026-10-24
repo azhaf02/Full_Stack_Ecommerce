@@ -1,39 +1,55 @@
-from decimal import Decimal
+
+from decimal import Decimal, ROUND_HALF_UP
+
+CENT = Decimal("0.01")
+ZERO = Decimal("0.00")
 
 
-def calculate_pricing(items, tax_rate=Decimal("0.00"), discount=Decimal("0.00")):
+def _money(value) -> Decimal:
+    """Convert a numeric value to a two-decimal monetary Decimal."""
+    return Decimal(str(value)).quantize(CENT, rounding=ROUND_HALF_UP)
+
+
+def calculate_pricing(items, tax_rate=Decimal("0.00"), discount=ZERO):
     """
-    Calculate cart pricing.
+    Calculate the canonical cart price breakdown.
 
-    Returns:
-        subtotal
-        discount
-        tax
-        total
+    Order of operations:
+      1. Sum unit_price * quantity into subtotal.
+      2. Clamp the discount to [0, subtotal].
+      3. Calculate tax on the discounted subtotal using tax_rate as a percentage.
+      4. Return a non-negative total.
+
+    Tax defaults to 0% until the project confirms the applicable rate.
+    Browser-supplied prices are never authoritative.
     """
+    subtotal = sum(
+        (
+            _money(item.unit_price) * int(item.quantity)
+            for item in items
+        ),
+        ZERO,
+    )
+    subtotal = _money(subtotal)
 
-    subtotal = Decimal("0.00")
-
-    for item in items:
-        subtotal += Decimal(str(item.unit_price)) * item.quantity
-
-    discount = max(Decimal("0.00"), Decimal(str(discount)))
+    requested_discount = _money(max(ZERO, _money(discount)))
+    applied_discount = min(subtotal, requested_discount)
 
     discounted_subtotal = max(
-        Decimal("0.00"),
-        subtotal - discount
+        ZERO,
+        _money(subtotal - applied_discount),
     )
 
-    tax = discounted_subtotal * Decimal(str(tax_rate)) / Decimal("100")
+    rate = Decimal(str(tax_rate))
+    if rate < 0:
+        raise ValueError("tax_rate cannot be negative")
 
-    total = max(
-        Decimal("0.00"),
-        discounted_subtotal + tax
-    )
+    tax = _money(discounted_subtotal * rate / Decimal("100"))
+    total = max(ZERO, _money(discounted_subtotal + tax))
 
     return {
         "subtotal": subtotal,
-        "discount": discount,
+        "discount": applied_discount,
         "tax": tax,
         "total": total,
     }

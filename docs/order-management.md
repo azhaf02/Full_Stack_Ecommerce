@@ -8,7 +8,7 @@ Create orders reliably and give customers visibility and control over their orde
 
 ## Order statuses
 
-Main flow: `PLACED` → `CONFIRMED` → `PROCESSING` → `PACKED` → `SHIPPED` → `OUT_FOR_DELIVERY` → `DELIVERED`
+Main flow: `PLACED` â†’ `CONFIRMED` â†’ `PROCESSING` â†’ `PACKED` â†’ `SHIPPED` â†’ `OUT_FOR_DELIVERY` â†’ `DELIVERED`
 
 Additional: `CANCELLED`, `RETURN_REQUESTED`, `RETURN_APPROVED`, `RETURNED`, `REFUND_PENDING`, `REFUNDED`
 
@@ -34,13 +34,13 @@ Test evidence, including a live run of the API and the `DELIVERED` to `PLACED` e
 | REFUND_PENDING | REFUNDED |
 
 ```
-PLACED → CONFIRMED → PROCESSING → PACKED → SHIPPED → OUT_FOR_DELIVERY → DELIVERED
-   │         │            │                                                │
-   └─────────┴────────────┴──→ CANCELLED ──(paid online)──┐               ↓
-                                                          │        RETURN_REQUESTED → RETURN_APPROVED → RETURNED
-                                                          ↓                │ (rejected)                    │
-                                                    REFUND_PENDING ←───────┼───────────────────────────────┘
-                                                          ↓                ↓
+PLACED â†’ CONFIRMED â†’ PROCESSING â†’ PACKED â†’ SHIPPED â†’ OUT_FOR_DELIVERY â†’ DELIVERED
+   â”‚         â”‚            â”‚                                                â”‚
+   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â†’ CANCELLED â”€â”€(paid online)â”€â”€â”               â†“
+                                                          â”‚        RETURN_REQUESTED â†’ RETURN_APPROVED â†’ RETURNED
+                                                          â†“                â”‚ (rejected)                    â”‚
+                                                    REFUND_PENDING â†â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                                                          â†“                â†“
                                                       REFUNDED         DELIVERED
 ```
 
@@ -61,12 +61,12 @@ A customer can cancel only while the order is `PLACED`, `CONFIRMED` or `PROCESSI
 
 ## Returns and refunds
 
-Customer requests a return → admin approves or rejects → product returned → refund processed.
+Customer requests a return â†’ admin approves or rejects â†’ product returned â†’ refund processed.
 
 - Only `DELIVERED` orders inside the return window can request a return. The return window is **7 days from delivery**, counted from the time the order entered `DELIVERED` in `order_status_history`.
 - An order can have **one** return request. A rejected return puts the order back to `DELIVERED` and cannot be requested again; the customer contacts support instead.
 - A customer can return some of the items in an order. The refund is the price paid for the returned items, not shipping.
-- `RETURNED` restocks inventory and starts the refund (`REFUND_PENDING` → `REFUNDED`). If nothing was paid (an unpaid COD order), there is nothing to refund and the order stays `RETURNED`.
+- `RETURNED` restocks inventory and starts the refund (`REFUND_PENDING` â†’ `REFUNDED`). If nothing was paid (an unpaid COD order), there is nothing to refund and the order stays `RETURNED`.
 - Stored in `returns` (one per request) and `return_items` (which order items, and how many, so partial returns work). See [database.md](database.md).
 
 ## Access rules
@@ -195,3 +195,56 @@ Code: `backend/app/services/order_service.py` and `return_service.py`. Neither c
 5. **Foreign keys.** `user_id`, `address_id`, `coupon_id`, `product_id` and `variant_id` are plain integers until those tables exist.
 
 Settled: COD orders are confirmed at creation and stay `PENDING` until paid; the payment statuses match Aaliya's migration; the return window is 7 days.
+
+## Placing an order from a checkout session (CHK-06 handoff)
+
+`POST /api/orders` accepts one of two shapes (both need `payment_method`):
+
+| Shape | Body |
+|---|---|
+| From checkout (normal path) | `{"checkout_reference_id": "<id from POST /api/checkout/session>", "payment_method": "COD" or "ONLINE"}` |
+| Direct (buy now) | `{"address_id", "shipping_method_id", "payment_method", "items": [...]}` |
+
+Sending both, or neither, is a `422`. Prices, totals and shipping cost are never accepted from the client.
+
+With a `checkout_reference_id` the order service:
+1. Loads the session and checks it belongs to the logged-in customer (`customer_id` is text, so it compares `str(user.id)`), is `active` and has not expired.
+2. Takes the address, shipping method and items from the stored snapshot. `address_id` / `shipping_method_id` may be sent too, but must match the snapshot.
+3. Re-reads prices and shipping cost from the database. If the subtotal no longer equals the snapshot subtotal, the order is refused ("Prices changed since checkout") so the customer never pays more than the page showed.
+4. Applies the snapshot's `summary.discount` (validated by the server when the session was created, capped at the subtotal).
+5. Marks the session `completed` in the same transaction, so one session makes one order. A failed order leaves the session `active`.
+
+6. Empties the customer's cart (the items only; the cart row stays) in the same transaction. A failed order leaves the cart as it was. Direct (`items`) orders do not touch the cart.
+
+Errors are `422` with a `detail` message. The coupon is re-checked and its `coupon_id` saved on the order by `price_checkout_session`. Not done yet: tax (the rate is 0 until the tax rule is agreed) and the stock deduct/restock hook (waiting for the inventory PR).
+
+## CHK-06: Checkout Session Integration Contract
+
+The Checkout module exposes POST /api/checkout/session for an authenticated customer.
+
+Request fields:
+- `address_id`: selected saved address ID.
+- `shipping_method_id`: selected shipping method ID.
+- `coupon_code`: optional coupon code; may be null.
+
+The server validates the address, shipping method, cart stock, and coupon, then persists a validated checkout snapshot in `checkout_sessions`.
+
+The response contains `checkout_reference_id`, `session_id`, `status`, `expires_at`, and the validated checkout object. The summary contains server-calculated subtotal, discount, shipping cost, and total.
+
+Integration requirements:
+1. Pass `checkout_reference_id` to the Orders module.
+2. The server must verify session ownership and expiry.
+3. Use the stored server-side snapshot; do not trust browser-supplied prices or totals.
+4. Coordinate session status and payment handoff with the Orders and Payment module owners.
+
+Creating a checkout session does not itself complete an online payment.
+## Cash on Delivery payment follows delivery
+
+`app/services/cod_payment_hook.py` is registered in `app/main.py` as a status hook. It runs inside `update_status()`, in the same transaction.
+
+| COD order becomes | What the hook does |
+|---|---|
+| `CONFIRMED` | Makes sure a `payments` row exists (`COD`, `PENDING`, amount = order total), so the admin mark-paid route always has something to act on. |
+| `DELIVERED` | The cash has been collected, so the `payments` row and `orders.payment_status` both become `SUCCESS`. A COD order that has no `payments` row yet gets one. |
+
+After that, `POST /api/payment/admin/cod/{payment_id}/mark-paid` answers `409 "COD payment is not pending"`, which is correct: it is already paid. An admin can still use mark-paid before delivery if cash is taken early. Online orders are not touched; the payment module confirms them. A delivered COD order that is later returned goes through the refund steps, because the cash was collected.
