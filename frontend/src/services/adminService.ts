@@ -257,6 +257,42 @@ export async function updateOrderStatus(
 }
 
 // =========================================================
+// RETURNS (APIs from the orders module)
+// =========================================================
+
+// One return request as returned by GET/PUT /api/admin/returns
+export interface AdminReturn {
+  id: number;
+  order_id: number;
+  reason: string;
+  status: string; // REQUESTED, APPROVED, REJECTED, RETURNED, REFUND_PENDING, REFUNDED
+  admin_remarks: string | null;
+  reviewed_at: string | null;
+  refund_amount: string | null; // money arrives as text, e.g. "599.00"
+  requested_at: string;
+  items: { order_item_id: number; quantity: number }[];
+}
+
+export type ReturnAction = "approve" | "reject" | "mark_returned" | "complete_refund";
+
+// Return requests, newest first, optionally filtered by status
+export async function getReturns(status: string, page: number, pageSize: number): Promise<AdminReturn[]> {
+  const response = await api.get("/api/admin/returns", {
+    params: { status: status || undefined, page, page_size: pageSize },
+  });
+  return response.data;
+}
+
+// Moves a return one step: approve/reject a request, mark the item received, or complete the refund
+export async function reviewReturn(id: number, action: ReturnAction, remarks: string): Promise<AdminReturn> {
+  const response = await api.put(`/api/admin/returns/${id}`, {
+    action,
+    remarks: remarks.trim() || null,
+  });
+  return response.data;
+}
+
+// =========================================================
 // PAYMENTS
 // =========================================================
 
