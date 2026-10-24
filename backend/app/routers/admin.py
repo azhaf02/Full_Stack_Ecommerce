@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timedelta, timezone
 from math import ceil
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -13,6 +13,7 @@ from app.core.security import require_role
 from app.models.order import Order, OrderStatus
 from app.models.role import Role
 from app.models.user import User
+from app.models.review import Review, ReviewModerationStatus
 
 router = APIRouter(
     prefix="/api/admin",
@@ -36,7 +37,6 @@ class DashboardKpis(BaseModel):
 
 class DashboardSummary(BaseModel):
     kpis: DashboardKpis
-
 
 
 @router.get("/dashboard-summary", response_model=DashboardSummary)
@@ -109,7 +109,6 @@ def list_customers(q: str = "", db: Session = Depends(get_db)):
     return {"items": customers, "total": len(customers)}
 
 
-
 class CustomerStatusUpdate(BaseModel):
     status: Literal["active", "inactive"]
 
@@ -139,7 +138,6 @@ def update_customer_status(
     db.commit()
     db.refresh(customer)
     return customer
-
 
 
 class CustomerOrder(BaseModel):
@@ -191,7 +189,6 @@ def get_customer(customer_id: int, db: Session = Depends(get_db)):
         "total_spent": total_spent,
         "recent_orders": orders[:5],
     }
-
 
 
 class OrderListParams(BaseModel):
@@ -296,3 +293,63 @@ def list_orders(params: Annotated[OrderListParams, Query()], db: Session = Depen
         "page_size": params.page_size,
         "total_pages": max(1, ceil(total / params.page_size)),
     }
+
+
+# =====================================================================
+# Reviews Moderation Endpoints for Admin Panel
+# =====================================================================
+
+class AdminReviewStatusUpdate(BaseModel):
+    status: Literal["Approved", "Hidden", "Pending", "APPROVED", "HIDDEN", "PENDING"]
+
+
+class AdminReviewRow(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)
+
+    id: int
+    product_id: int
+    user_id: int
+    order_id: int
+    rating: int
+    title: Optional[str] = ""
+    comment: str
+    status: str
+    created_at: Optional[datetime] = None
+
+
+# 1. GET /api/admin/reviews (with status filter)
+@router.get("/reviews", response_model=list[AdminReviewRow])
+def list_admin_reviews(
+    status: Optional[str] = Query(None, description="Filter reviews by status (Pending, Approved, Hidden)"),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Review)
+    if status:
+        query = query.filter(Review.status.ilike(status.strip()))
+    return query.order_by(Review.created_at.desc(), Review.id.desc()).all()
+
+
+# 2. PUT /api/admin/reviews/{review_id}/status
+@router.put("/reviews/{review_id}/status", response_model=AdminReviewRow)
+def update_admin_review_status(
+    review_id: int,
+    payload: AdminReviewStatusUpdate,
+    db: Session = Depends(get_db)
+):
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Review with id {review_id} not found"
+        )
+
+    # Standardize with ReviewModerationStatus enum if present
+    status_upper = payload.status.upper()
+    if hasattr(ReviewModerationStatus, status_upper):
+        review.status = getattr(ReviewModerationStatus, status_upper).value
+    else:
+        review.status = payload.status
+
+    db.commit()
+    db.refresh(review)
+    return review
