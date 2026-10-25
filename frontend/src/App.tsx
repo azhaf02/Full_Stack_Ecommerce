@@ -1,7 +1,9 @@
+
 import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import ProductDetailPage from './ProductDetailPage';
 import CheckoutPage from './checkout/pages/CheckoutPage';
+import CartPage from './pages/CartPage';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -30,6 +32,16 @@ function App() {
 
           {/* Product Details */}
           <Route path="/product/:id" element={<ProductDetailPage />} />
+
+          {/* Cart (Zubiya) */}
+          <Route
+            path="/cart"
+            element={
+              <CartPage
+                onCheckout={() => window.location.assign('/checkout')}
+              />
+            }
+          />
 
           {/* Checkout (Safiya) */}
           <Route path="/checkout" element={<CheckoutPage />} />
