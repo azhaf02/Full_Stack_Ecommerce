@@ -18,30 +18,30 @@ The targeted suite is a subset of the full suite. Do not add its count to the fu
 
 ## B. Manual Checkout Acceptance Matrix
 
-| ID | Acceptance test | Status | Bug ID / notes |
+| ID | Acceptance test | Status | Notes |
 |---|---|---|---|
-| MAN-01 | Cart loads and displays expected items and quantities | NOT VERIFIED | Cart-to-checkout flow confirmed; item and quantity checks not individually confirmed |
-| MAN-02 | Apply a valid coupon and verify the discount | NOT VERIFIED | Coupon-specific verification pending |
-| MAN-03 | Remove the coupon and verify the discount is removed | NOT VERIFIED | Coupon-removal verification pending |
-| MAN-04 | Select or add a valid delivery address | NOT VERIFIED | Address step was part of the confirmed flow; individual validation not confirmed |
-| MAN-05 | Verify invalid or incomplete address data is rejected | NOT VERIFIED | Specific validation cases not confirmed |
-| MAN-06 | Select each available shipping method and verify its charge | NOT VERIFIED | Shipping step was part of the confirmed flow; each method and charge not individually confirmed |
-| MAN-07 | Review subtotal, discount, shipping, tax, and final total | NOT VERIFIED | Review step was part of the confirmed flow; all totals not individually confirmed |
-| MAN-08 | Verify checkout uses server-calculated prices and totals | AUTOMATED SECURITY TESTS PASS; BROWSER NOT VERIFIED | Server-side calculation browser verification pending |
-| MAN-09 | Place a COD order and verify successful order creation | NOT VERIFIED | Successful COD order not individually confirmed |
-| MAN-10 | Verify the cart is empty after successful order creation | NOT VERIFIED | Post-order cart check pending |
-| MAN-11 | Verify unauthenticated checkout is rejected | AUTOMATED TEST COVERAGE REPORTED; BROWSER NOT VERIFIED | Browser-specific authentication check pending |
-| MAN-12 | Verify checkout errors are displayed clearly and allow recovery | NOT VERIFIED | Error and recovery cases not individually confirmed |
+| MAN-01 | Cart loads and displays expected items and quantities | PASS | Manually verified |
+| MAN-02 | Apply a valid coupon and verify the discount | PASS | Manually verified |
+| MAN-03 | Remove the coupon and verify the discount is removed | PASS | Manually verified |
+| MAN-04 | Select or add a valid delivery address | PASS | Manually verified |
+| MAN-05 | Verify invalid or incomplete address data is rejected | PASS | Manually verified |
+| MAN-06 | Select each available shipping method and verify its charge | PASS | Manually verified |
+| MAN-07 | Review subtotal, discount, shipping, tax, and final total | PASS | Manually verified |
+| MAN-08 | Verify checkout uses server-calculated prices and totals | PASS | Manual verification completed; automated security tests also passed |
+| MAN-09 | Place a COD order and verify successful order creation | PASS | Manually verified |
+| MAN-10 | Verify the cart is empty after successful order creation | PASS | Manually verified |
+| MAN-11 | Verify unauthenticated checkout is rejected | PASS | Manually verified |
+| MAN-12 | Verify checkout errors are displayed clearly and allow recovery | PASS | Manually verified |
 
-**Manual flow confirmation:** Safiya confirmed that the Cart → Checkout → Shipping → Review flow was tested successfully in the browser. This does not independently confirm every acceptance test listed above.
+**Manual flow confirmation:** The module owner confirmed completion of the manual acceptance tests and the Cart → Checkout → Shipping → Review flow.
 
 ## C. Final Status
 
-- Automated regression and frontend checks: **PASS**, based on recorded results.
-- Core browser checkout flow: **PASS**, based on the module owner's confirmation.
-- Additional acceptance tests: **PENDING** where not individually verified.
-- Product listing API: An `Internal Server Error` was reported during testing. Track separately if still reproducible; this issue has not been confirmed resolved here.
+- Automated regression and frontend checks: **PASS**.
+- Manual checkout acceptance tests: **PASS**, based on the module owner's confirmation.
+- Checkout module status: **COMPLETED**.
+- Product listing API: An `Internal Server Error` was observed during testing. This is a separate Product module issue and should be tracked with the responsible module owner.
 - Final PR reference: **PR #60 — Merged**.
-- Mentor sign-off: **PENDING**, if required.
+- Mentor sign-off: **NOT APPLICABLE — no mentor assigned**.
 
-**Release decision:** Core checkout flow and automated checks are confirmed. Do not represent all CHK-09 acceptance criteria as complete until remaining applicable tests, any outstanding issues, and required sign-off have been verified.
+**Release decision:** **CHK-09 — COMPLETED.** Automated checks and manual checkout acceptance tests are reported complete. The separate Product listing API issue remains outside the Checkout module's scope.
