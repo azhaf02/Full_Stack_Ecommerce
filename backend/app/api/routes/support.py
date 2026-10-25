@@ -4,7 +4,7 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-from app.db.session import get_db
+from app.database import get_db
 from app.core.security import get_current_user
 
 from app.core.security import require_role 
@@ -27,10 +27,6 @@ class TicketReplySchema(BaseModel):
 
 class AdminStatusUpdateSchema(BaseModel):
     status: str
-
-
-
-
 @router.post("/tickets", status_code=status.HTTP_201_CREATED)
 def create_support_ticket(payload: TicketCreateSchema, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     if not payload.subject or not payload.description:
@@ -132,16 +128,14 @@ def admin_reply_to_ticket(ticket_id: int, payload: TicketReplySchema, admin_user
     return {"status": "success", "message_id": new_message.id}
 
 
-@router.put("/admin/tickets/{ticket_id}/status")
-def admin_change_ticket_status(ticket_id: int, payload: AdminStatusUpdateSchema, admin_user = Depends(require_role("admin")), db: Session = Depends(get_db)):
-    """
-    PUT /api/support/admin/tickets/{ticket_id}/status
-    Enables support agents to toggle pipeline fields to 'In Progress', 'Resolved', or 'Closed'.
-    """
-    ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
-    if not ticket:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target ticket thread missing inside status module.")
-        
-    ticket.status = payload.status
-    db.commit()
-    return {"status": "success", "updated_ticket_status": ticket.status}
+@router.get("/faq")
+def get_public_faqs(db: Session = Depends(get_db)):
+    return []
+
+@router.get("/admin/faq")
+def admin_get_faqs(admin_user = Depends(require_role("admin")), db: Session = Depends(get_db)):
+    return []
+
+@router.post("/admin/faq")
+def admin_create_faq(admin_user = Depends(require_role("admin")), db: Session = Depends(get_db)):
+    return {"status": "success"}
