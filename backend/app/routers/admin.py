@@ -358,8 +358,11 @@ def update_admin_review_status(
     if status_upper == "HIDDEN":
         status_upper = "REJECTED"
 
-    review.status = status_upper
-
+    # Cast string explicitly to PostgreSQL 'reviewstatus' ENUM type
+    db.execute(
+        text("UPDATE reviews SET status = CAST(:val AS reviewstatus), updated_at = NOW() WHERE id = :id"),
+        {"val": status_upper, "id": review_id}
+    )
     db.commit()
     db.refresh(review)
     return review
