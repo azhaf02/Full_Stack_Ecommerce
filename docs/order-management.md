@@ -8,7 +8,7 @@ Create orders reliably and give customers visibility and control over their orde
 
 ## Order statuses
 
-Main flow: `PLACED` â†’ `CONFIRMED` â†’ `PROCESSING` â†’ `PACKED` â†’ `SHIPPED` â†’ `OUT_FOR_DELIVERY` â†’ `DELIVERED`
+Main flow: `PLACED` → `CONFIRMED` → `PROCESSING` → `PACKED` → `SHIPPED` → `OUT_FOR_DELIVERY` → `DELIVERED`
 
 Additional: `CANCELLED`, `RETURN_REQUESTED`, `RETURN_APPROVED`, `RETURNED`, `REFUND_PENDING`, `REFUNDED`
 
@@ -34,13 +34,13 @@ Test evidence, including a live run of the API and the `DELIVERED` to `PLACED` e
 | REFUND_PENDING | REFUNDED |
 
 ```
-PLACED â†’ CONFIRMED â†’ PROCESSING â†’ PACKED â†’ SHIPPED â†’ OUT_FOR_DELIVERY â†’ DELIVERED
-   â”‚         â”‚            â”‚                                                â”‚
-   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â†’ CANCELLED â”€â”€(paid online)â”€â”€â”               â†“
-                                                          â”‚        RETURN_REQUESTED â†’ RETURN_APPROVED â†’ RETURNED
-                                                          â†“                â”‚ (rejected)                    â”‚
-                                                    REFUND_PENDING â†â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-                                                          â†“                â†“
+PLACED → CONFIRMED → PROCESSING → PACKED → SHIPPED → OUT_FOR_DELIVERY → DELIVERED
+   │         │            │                                                │
+   └─────────┴────────────┴──→ CANCELLED ──(paid online)──┐               ↓
+                                                          │        RETURN_REQUESTED → RETURN_APPROVED → RETURNED
+                                                          ↓                │ (rejected)                    │
+                                                    REFUND_PENDING ←───────┼───────────────────────────────┘
+                                                          ↓                ↓
                                                       REFUNDED         DELIVERED
 ```
 
@@ -61,12 +61,12 @@ A customer can cancel only while the order is `PLACED`, `CONFIRMED` or `PROCESSI
 
 ## Returns and refunds
 
-Customer requests a return â†’ admin approves or rejects â†’ product returned â†’ refund processed.
+Customer requests a return → admin approves or rejects → product returned → refund processed.
 
 - Only `DELIVERED` orders inside the return window can request a return. The return window is **7 days from delivery**, counted from the time the order entered `DELIVERED` in `order_status_history`.
 - An order can have **one** return request. A rejected return puts the order back to `DELIVERED` and cannot be requested again; the customer contacts support instead.
 - A customer can return some of the items in an order. The refund is the price paid for the returned items, not shipping.
-- `RETURNED` restocks inventory and starts the refund (`REFUND_PENDING` â†’ `REFUNDED`). If nothing was paid (an unpaid COD order), there is nothing to refund and the order stays `RETURNED`.
+- `RETURNED` restocks inventory and starts the refund (`REFUND_PENDING` → `REFUNDED`). If nothing was paid (an unpaid COD order), there is nothing to refund and the order stays `RETURNED`.
 - Stored in `returns` (one per request) and `return_items` (which order items, and how many, so partial returns work). See [database.md](database.md).
 
 ## Access rules

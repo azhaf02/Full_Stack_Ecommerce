@@ -14,6 +14,7 @@ from decimal import Decimal
 from typing import Callable, Dict, FrozenSet, List, Optional
 from sqlalchemy.orm import Session
 from app.models.order import Order, OrderItem, OrderStatusHistory, OrderStatus, PaymentStatus, PaymentMethod
+from app.services.inventory_service import validate_stock, InsufficientStockError
 
 S = OrderStatus
 
@@ -159,24 +160,40 @@ def _check_rules(order: Order, new_status: str) -> None:
 def update_status(db: Session, order: Order, new_status: str, changed_by: int = None, remarks: str = None) -> Order:
     """Move `order` to `new_status`, or raise an OrderServiceError. Does not commit."""
     new_status = new_status.value if isinstance(new_status, OrderStatus) else new_status
+
     if new_status not in {s.value for s in OrderStatus}:
         raise UnknownStatus(new_status)
 
     previous = order.status
+
     if new_status not in allowed_next_statuses(previous):
         raise InvalidTransition(previous, new_status)
+
     _check_rules(order, new_status)
 
     order.status = new_status
+
     if new_status in _PAYMENT_FOLLOWS_ORDER:
         order.payment_status = _PAYMENT_FOLLOWS_ORDER[new_status]
-    order.status_history.append(OrderStatusHistory(
-        previous_status=previous, new_status=new_status, changed_by=changed_by, remarks=remarks,
-    ))
+
+    order.status_history.append(
+        OrderStatusHistory(
+            previous_status=previous,
+            new_status=new_status,
+            changed_by=changed_by,
+            remarks=remarks,
+        )
+    )
+
     db.flush()
 
-    for hook in list(_hooks):
-        hook(db, order, previous, new_status)
+    try:
+        for hook in list(_hooks):
+            hook(db, order, previous, new_status)
+    except Exception:
+        order.status = previous
+        raise
+
     return order
 
 
@@ -256,6 +273,19 @@ def create_order(db: Session, data: OrderInput) -> Order:
     PLACED until the verified payment arrives through apply_payment_result(). Does not commit.
     """
     _validate_order_input(data)
+
+    # Revalidate stock at checkout/order creation.
+    # This protects against stock changing after the item was added to cart.
+    for item in data.items:
+        try:
+            validate_stock(
+                db,
+                item.product_id,
+                item.quantity,
+                item.variant_id
+            )
+        except InsufficientStockError as exc:
+            raise InvalidOrder(str(exc)) from exc
     order_number = generate_order_number()
     while db.query(Order.id).filter(Order.order_number == order_number).first():
         order_number = generate_order_number()
@@ -321,3 +351,6 @@ def cancel_order(db: Session, order: Order, user_id: int, reason: str = None) ->
         update_status(db, order, S.REFUND_PENDING.value, changed_by=user_id,
                       remarks="Refund started after cancellation")
     return order
+
+
+
