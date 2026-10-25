@@ -8,6 +8,10 @@ from sqlalchemy.pool import StaticPool
 from app.database import Base
 from app.models.order import Order, OrderItem, OrderStatusHistory, Return, ReturnItem
 from app.models.payment import Payment, PaymentMethod, PaymentStatus
+
+from app.models.inventory import Inventory
+from app.models.inventory_history import InventoryHistory
+
 from app.services import order_service
 from app.services.cod_payment_hook import on_cod_order_change
 from app.services.order_service import (
@@ -15,8 +19,16 @@ from app.services.order_service import (
     update_status,
 )
 
-TABLES = [Order.__table__, OrderItem.__table__, OrderStatusHistory.__table__, Return.__table__,
-          ReturnItem.__table__, Payment.__table__]
+TABLES = [
+    Order.__table__,
+    OrderItem.__table__,
+    OrderStatusHistory.__table__,
+    Return.__table__,
+    ReturnItem.__table__,
+    Payment.__table__,
+    Inventory.__table__,
+    InventoryHistory.__table__,
+]
 PATH = ["PROCESSING", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"]
 
 
@@ -25,6 +37,18 @@ def db():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(engine, tables=TABLES)
     session = sessionmaker(bind=engine)()
+
+    session.add(
+        Inventory(
+            product_id=1,
+            variant_id=None,
+            quantity=100,
+            low_stock_threshold=10,
+            status="IN_STOCK",
+        )
+    )
+    session.commit()
+
     clear_status_hooks()
     register_status_hook(on_cod_order_change)
     yield session

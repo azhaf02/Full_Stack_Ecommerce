@@ -1,7 +1,9 @@
 from decimal import Decimal
 
+from app.services.inventory_service import validate_stock, InsufficientStockError
+
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import text
 from app.models.order import Order
 from sqlalchemy.orm import Session
@@ -118,9 +120,8 @@ def add_to_cart(
             detail="Product is not available"
         )
 
-    # Default product price and stock
+   # Default product price
     unit_price = Decimal(str(product["price"]))
-    available_stock = product["stock_quantity"]
 
     # If a variant is selected, use variant stock and price delta.
     if request.variant_id is not None:
@@ -146,7 +147,7 @@ def add_to_cart(
             )
 
         unit_price += Decimal(str(variant["price_delta"]))
-        available_stock = variant["stock"]
+        # Stock availability is validated using inventory.quantity below.
 
     # Find current cart.
     cart = get_current_cart(db, current_user)
@@ -167,12 +168,16 @@ def add_to_cart(
     if item:
         new_quantity = item.quantity + request.quantity
 
-    # Stock validation.
-    if available_stock is not None and new_quantity > available_stock:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Only {available_stock} item(s) available in stock"
-        )
+   # Validate requested quantity against the shared inventory records.
+    try:
+      validate_stock(
+        db,
+        request.product_id,
+        new_quantity,
+        request.variant_id,
+    )
+    except InsufficientStockError as exc:
+       raise HTTPException(status_code=400, detail=str(exc))
 
     if item:
         item.quantity = new_quantity
@@ -268,38 +273,16 @@ def update_cart_item(
             detail="Cart item not found"
         )
 
-    # Check product stock.
-    if item.variant_id is not None:
-        variant = db.execute(
-            text("""
-                SELECT stock
-                FROM product_variants
-                WHERE id = :variant_id
-            """),
-            {"variant_id": item.variant_id}
-        ).mappings().first()
-
-        if variant and request.quantity > variant["stock"]:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Only {variant['stock']} item(s) available in stock"
-            )
-
-    else:
-        product = db.execute(
-            text("""
-                SELECT stock_quantity
-                FROM products
-                WHERE id = :product_id
-            """),
-            {"product_id": item.product_id}
-        ).mappings().first()
-
-        if product and request.quantity > product["stock_quantity"]:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Only {product['stock_quantity']} item(s) available in stock"
-            )
+       # Validate requested quantity against shared inventory records.
+    try:
+        validate_stock(
+            db,
+            item.product_id,
+            request.quantity,
+            item.variant_id,
+        )
+    except InsufficientStockError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     item.quantity = request.quantity
 

@@ -174,3 +174,41 @@ export async function getOrders(filters: OrderFilters): Promise<AdminOrderList> 
   });
   return response.data;
 }
+
+
+export interface InventoryItem {
+  id: number;
+  product_id: number;
+  product_name: string;
+  variant_id: number | null;
+  quantity: number;
+  low_stock_threshold: number;
+  status: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
+  location: string | null;
+}
+
+export interface InventoryAdjustmentData {
+  quantity_change: number;
+  reason: string;
+}
+
+// Get all inventory records
+export async function getInventory(): Promise<InventoryItem[]> {
+  const response = await api.get("/api/admin/inventory");
+  return response.data;
+}
+
+// Get inventory records at or below their low-stock threshold
+export async function getLowStockInventory(): Promise<InventoryItem[]> {
+  const response = await api.get("/api/admin/inventory/low-stock");
+  return response.data;
+}
+
+// Adjust stock and record the reason in inventory history
+export async function adjustInventory(
+  id: number,
+  data: InventoryAdjustmentData
+): Promise<InventoryItem> {
+  const response = await api.put(`/api/admin/inventory/${id}`, data);
+  return response.data;
+}

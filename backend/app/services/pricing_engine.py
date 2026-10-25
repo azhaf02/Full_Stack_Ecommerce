@@ -1,3 +1,4 @@
+
 from decimal import Decimal, ROUND_HALF_UP
 
 CENT = Decimal("0.01")
@@ -19,9 +20,8 @@ def calculate_pricing(items, tax_rate=Decimal("0.00"), discount=ZERO):
       3. Calculate tax on the discounted subtotal using tax_rate as a percentage.
       4. Return a non-negative total.
 
-    Tax defaults to 0% until the project confirms the applicable rate. The same
-    function should be reused by checkout; browser-supplied prices are never
-    authoritative.
+    Tax defaults to 0% until the project confirms the applicable rate.
+    Browser-supplied prices are never authoritative.
     """
     subtotal = sum(
         (
@@ -35,7 +35,11 @@ def calculate_pricing(items, tax_rate=Decimal("0.00"), discount=ZERO):
     requested_discount = _money(max(ZERO, _money(discount)))
     applied_discount = min(subtotal, requested_discount)
 
-    discounted_subtotal = max(ZERO, _money(subtotal - applied_discount))
+    discounted_subtotal = max(
+        ZERO,
+        _money(subtotal - applied_discount),
+    )
+
     rate = Decimal(str(tax_rate))
     if rate < 0:
         raise ValueError("tax_rate cannot be negative")

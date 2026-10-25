@@ -7,26 +7,58 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
 from app.models.order import Order, OrderItem, OrderStatusHistory, Return, ReturnItem
+from app.models.inventory import Inventory
+from app.models.inventory_history import InventoryHistory
+
 from app.services.order_service import (
     OrderInput, OrderItemInput, InvalidOrder, OrderNotFound, NotCancellable, InvalidTransition,
     create_order, apply_payment_result, cancel_order, get_order_for_user, list_orders_for_user, update_status,
     stock_was_deducted, register_status_hook, clear_status_hooks,
 )
+from app.services.inventory_service import on_order_status_change
 from app.services.return_service import (
     ReturnNotAllowed, ReturnWindowClosed, InvalidReturnItems, RETURN_WINDOW_DAYS,
     request_return, review_return, mark_returned, complete_refund, delivered_at, refund_amount_for,
 )
-
-TABLES = [Order.__table__, OrderItem.__table__, OrderStatusHistory.__table__, Return.__table__, ReturnItem.__table__]
-
+TABLES = [
+    Order.__table__,
+    OrderItem.__table__,
+    OrderStatusHistory.__table__,
+    Return.__table__,
+    ReturnItem.__table__,
+    Inventory.__table__,
+    InventoryHistory.__table__,
+]
 
 @pytest.fixture()
 def db():
     engine = create_engine("sqlite://")
     Base.metadata.create_all(engine, tables=TABLES)
     session = sessionmaker(bind=engine)()
+
     clear_status_hooks()
+    register_status_hook(on_order_status_change)
+
+    session.add_all([
+        Inventory(
+            product_id=10,
+            variant_id=None,
+            quantity=100,
+            low_stock_threshold=10,
+            status="IN_STOCK",
+        ),
+        Inventory(
+            product_id=11,
+            variant_id=5,
+            quantity=100,
+            low_stock_threshold=10,
+            status="IN_STOCK",
+        ),
+    ])
+    session.commit()
+
     yield session
+
     clear_status_hooks()
     session.close()
 
