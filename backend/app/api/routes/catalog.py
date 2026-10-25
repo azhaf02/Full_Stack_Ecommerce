@@ -1,3 +1,6 @@
+import cloudinary.uploader
+from app.core.cloudinary_config import cloudinary
+
 from pathlib import Path
 from uuid import uuid4
 
@@ -196,6 +199,7 @@ def deactivate_admin_product(
     return db_product
 
 
+
 @router.post(
     "/{product_id}/images",
     response_model=ProductImageResponse,
@@ -215,13 +219,13 @@ async def upload_product_image(
     if not product:
         raise HTTPException(
             status_code=404,
-            detail="Product not found"
+            detail="Product not found",
         )
 
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(
             status_code=400,
-            detail="Only JPG, PNG and WEBP images are allowed"
+            detail="Only JPG, PNG and WEBP images are allowed",
         )
 
     file_content = await file.read()
@@ -229,17 +233,21 @@ async def upload_product_image(
     if len(file_content) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=400,
-            detail="Image size must not exceed 5 MB"
+            detail="Image size must not exceed 5 MB",
         )
 
-    extension = ALLOWED_IMAGE_TYPES[file.content_type]
-    filename = f"{uuid4().hex}{extension}"
-    file_path = UPLOAD_DIR / filename
+    try:
+        upload_result = cloudinary.uploader.upload(
+            file_content,
+            resource_type="image",
+            folder="ecommerce/products",
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Image upload failed",
+        ) from exc
 
-    file_path.write_bytes(file_content)
-
-    # If this image is primary, remove primary status
-    # from all other images of this product.
     if is_primary:
         db.query(ProductImage).filter(
             ProductImage.product_id == product_id
@@ -250,15 +258,28 @@ async def upload_product_image(
 
     image = ProductImage(
         product_id=product_id,
-        image_url=f"/uploads/{filename}",
+        image_url=upload_result["secure_url"],
         is_primary=is_primary,
     )
 
-    db.add(image)
-    db.commit()
-    db.refresh(image)
+    try:
+        db.add(image)
+        db.commit()
+        db.refresh(image)
+    except Exception:
+        db.rollback()
+        # Avoid leaving an orphaned Cloudinary asset if DB save fails.
+        try:
+            cloudinary.uploader.destroy(
+                upload_result["public_id"],
+                resource_type="image",
+            )
+        except Exception:
+            pass
+        raise
 
     return image
+
 
 
 
