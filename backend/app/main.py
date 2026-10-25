@@ -1,5 +1,4 @@
 from dotenv import load_dotenv
-from app.api.support import router as support_router
 
 
 load_dotenv()
@@ -25,6 +24,7 @@ from app.routers import (
 
 from app.api.routes.catalog import router as catalog_router, public_router
 from app.api.routes.product import router as product_router
+from app.api.routes.support import router as support_router
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
 
