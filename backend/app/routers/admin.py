@@ -5,7 +5,7 @@ from typing import Annotated, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
-from sqlalchemy import or_, text
+from sqlalchemy import or_, text, cast, String
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -331,13 +331,12 @@ def list_admin_reviews(
     query = db.query(Review)
     if status:
         status_val = status.strip().upper()
-        # Map HIDDEN to REJECTED if passed in filter[cite: 1, 2]
         if status_val == "HIDDEN":
             status_val = "REJECTED"
-        
-        # Direct exact match (PostgreSQL enum does not support ILIKE)[cite: 1, 2]
-        query = query.filter(Review.status == status_val)
-        
+
+        # Cast DB enum column to String to prevent 'operator does not exist: reviewstatus = character varying'
+        query = query.filter(cast(Review.status, String) == status_val)
+
     return query.order_by(Review.created_at.desc(), Review.id.desc()).all()
 
 
@@ -355,12 +354,10 @@ def update_admin_review_status(
             detail=f"Review with id {review_id} not found"
         )
 
-    # Standardize to uppercase Supabase DB Enum values[cite: 1, 2]
     status_upper = payload.status.strip().upper()
     if status_upper == "HIDDEN":
         status_upper = "REJECTED"
 
-    # Assign directly to match Supabase reviewstatus enum ('PENDING', 'APPROVED', 'REJECTED')[cite: 1, 2]
     review.status = status_upper
 
     db.commit()
