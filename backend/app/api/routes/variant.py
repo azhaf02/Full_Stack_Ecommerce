@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.database.connection import get_db
+from app.database import get_db
 from app.models.product import Product
 from app.models.product_variant import ProductVariant
 

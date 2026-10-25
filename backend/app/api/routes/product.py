@@ -23,18 +23,38 @@ def create_product(
 
 @router.get("/", response_model=list[ProductResponse])
 def get_products(
-    page: int = 1,
-    page_size: int = 10,
-    category_id: int | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    category_id: int | None = Query(None, ge=1),
+    min_price: float | None = Query(None, ge=0),
+    max_price: float | None = Query(None, ge=0),
+    in_stock: bool | None = None,
+    sort: str = Query(
+        "newest",
+        pattern="^(newest|price_asc|price_desc)$",
+    ),
     db: Session = Depends(get_db),
 ):
+    if (
+        min_price is not None
+        and max_price is not None
+        and min_price > max_price
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="min_price cannot exceed max_price",
+        )
+
     return product_service.get_products(
         db,
         page=page,
         page_size=page_size,
         category_id=category_id,
+        min_price=min_price,
+        max_price=max_price,
+        in_stock=in_stock,
+        sort=sort,
     )
-
 @router.get("/search")
 def search_products(
     q: str = Query(..., min_length=1, max_length=100),
