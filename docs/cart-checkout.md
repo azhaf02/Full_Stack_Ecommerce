@@ -19,7 +19,7 @@ The canonical service is `backend/app/services/pricing_engine.py`.
 3. Tax is calculated on the discounted subtotal using a percentage rate.
 4. Total = discounted subtotal + tax, never below zero.
 
-Money is represented with `Decimal` and rounded to two decimal places using half-up rounding. The current default tax rate is **0%** because no approved tax rate was found in the inspected code/requirements. Checkout must reuse this service rather than implement a second formula.
+Money is represented with `Decimal` and rounded to two decimal places using half-up rounding. The single parser is `backend/app/core/pricing_config.py:get_tax_rate_percent()`, which reads `TAX_RATE_PERCENT` and defaults to `0.00`; do not read or parse the environment separately in cart, checkout, or order code. The pricing engine and cart summary use this shared function. Tax is charged on the discounted subtotal. When Anas confirms the approved rate, change only `TAX_RATE_PERCENT` in `backend/.env`. Safiya's checkout review/session must use this same function/shared pricing calculation so its displayed total matches the order total. Runtime end-to-end consistency is not confirmed until tests pass.
 
 ## 3. Cart API on `feature/cart`
 
