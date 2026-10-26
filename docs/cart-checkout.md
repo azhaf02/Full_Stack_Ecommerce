@@ -83,3 +83,14 @@ Repository inspection was performed through GitHub file/branch/PR APIs and the u
 - Added forward migration `backend/alembic/versions/0005_cart_guest_token.py` after `0004_cart_coupons` to add the model's nullable unique `guest_token` column/index without dropping existing rows. This migration has **not** been run against any database; validate the Alembic graph and target database before applying it.
 - Safiya's PR #48 is open and not merged. It targets `feat/chk-06-checkout-handoff` from `feat/chk-07-checkpoint3`. The PR description says the frontend production build and no-coupon checkout review/order creation were manually verified by its author; coupon checkout and full Cart-to-Checkout integration remain pending. These are reported PR claims, not independently reproduced tests in this session.
 - The Cart PR branch diverges from `main` (14 commits ahead, 84 behind at the latest comparison). Avoid merging/rebasing without a deliberate integration plan.
+
+
+## CART-05: Central tax-rate setting
+
+- The single setting is `TAX_RATE_PERCENT`, read by `backend/app/services/pricing_engine.py`.
+- It is a percentage value, not a decimal fraction (for example, `5.00` means 5%).
+- Until Anas confirms the project-approved rate, the default remains `0.00` (0%); do not assume a rate.
+- `calculate_pricing` applies tax to the discounted subtotal: `tax = (subtotal - discount) × TAX_RATE_PERCENT / 100`, rounded to two decimal places using half-up rounding.
+- The cart summary calls the shared pricing function and therefore uses this setting when no explicit rate is passed.
+- Checkout review/session and order pricing must use this same setting/shared calculation before end-to-end totals can be considered consistent. The order-side integration is still pending; do not claim this alone completes Cart-to-Checkout tax consistency.
+- No database migration is needed for this setting. Set `TAX_RATE_PERCENT` in the backend environment only after the approved rate is confirmed.
