@@ -310,3 +310,57 @@ The response includes:
 - Successful online-order invoice generation test passed.
 - Access to another customer's order was rejected.
 - Invoice, payment, and payment integration tests: **29 passed**.
+
+## PAY-07: Payment History & Order Status Sync
+
+### API Endpoints
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| GET | `/api/account/payments` | Customer | Returns payment history for the authenticated customer only. |
+| GET | `/api/admin/payments` | Admin | Returns payment history across all customers. |
+| GET | `/api/admin/payments?status=SUCCESS` | Admin | Filters payment history by status. |
+| GET | `/api/admin/payments?status=FAILED` | Admin | Returns failed payments only. |
+| GET | `/api/admin/payments?status=PENDING` | Admin | Returns pending payments only. |
+| GET | `/api/admin/payments?status=REFUNDED` | Admin | Returns refunded payments only. |
+
+### Payment History Response
+
+Each payment record contains:
+- Payment ID and order ID.
+- Payment method and payment status.
+- Transaction ID.
+- Payment amount.
+- Creation and update timestamps.
+
+Customer history is restricted to orders owned by the authenticated customer. Admin history requires the admin role. An unsupported admin status filter returns HTTP 400.
+
+### Order Payment Status Synchronization
+
+When a payment result is verified as `SUCCESS` or `FAILED`, the associated order payment status must reflect the same result.
+
+- Successful payment: payment and order payment statuses become `SUCCESS`.
+- Failed payment: payment and order payment statuses become `FAILED`.
+- Only pending payments can be processed by the payment-result helper.
+- Missing orders and invalid payment transitions are rejected.
+
+### Failed Payment Retry
+
+A failed payment should be retried through the application's existing payment flow. The processed failed payment must not be changed back to pending by the status-sync helper. Verify that retrying creates or uses an appropriate payment attempt without incorrectly changing the original payment record.
+
+### Integration Notes for Order Module
+
+Coordinate with Rukhsar to confirm the order module's `payment_status` contract. The payment module updates the associated order's `payment_status` to `SUCCESS` or `FAILED` after payment-result verification. Confirm how the order module handles failed payments, retries, and any separate order lifecycle status before integration.
+
+### PAY-07 Tests
+
+The following checks are covered by the current payment-history and payment-integration test suites:
+- Customer history returns only that customer's payments.
+- Customers cannot access the admin payment-history endpoint.
+- Admins can view all payment records.
+- Admin status filtering returns matching payments.
+- Invalid status filters are rejected.
+- Payment success and failure synchronize the associated order payment status.
+- Invalid payment transitions and missing orders are rejected.
+
+Latest regression result: **29 passed** across `tests/test_payment_integration.py` and `tests/test_payment_history.py`. This result does not by itself verify the frontend UI or the full order-module integration.
