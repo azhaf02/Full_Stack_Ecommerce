@@ -246,3 +246,14 @@ Creating a checkout session does not itself complete an online payment.
 | `DELIVERED` | The cash has been collected, so the `payments` row and `orders.payment_status` both become `SUCCESS`. A COD order that has no `payments` row yet gets one. |
 
 After that, `POST /api/payment/admin/cod/{payment_id}/mark-paid` answers `409 "COD payment is not pending"`, which is correct: it is already paid. An admin can still use mark-paid before delivery if cash is taken early. Online orders are not touched; the payment module confirms them. A delivered COD order that is later returned goes through the refund steps, because the cash was collected.
+
+### Repairing COD orders that have no payments row
+
+If a COD order was created by a server that did not have the hook (not updated, or not restarted), it has no `payments` row. From the `backend` folder:
+
+```
+python scripts/backfill_cod_payments.py            # dry run, prints what would change, writes nothing
+python scripts/backfill_cod_payments.py --apply    # saves the rows
+```
+
+Each missing row gets the state the order implies: `PENDING` for open orders, `SUCCESS` for delivered ones (the order's `payment_status` is updated to match), and `CANCELLED` for cancelled ones. Orders that already have a row are skipped, so running it twice is safe. It uses `DATABASE_URL` from `backend/.env`, so check which database that points to before using `--apply`.
