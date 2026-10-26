@@ -1,7 +1,11 @@
+import os
 from decimal import Decimal, ROUND_HALF_UP
 
 CENT = Decimal("0.01")
 ZERO = Decimal("0.00")
+
+# Single configurable tax rate; remains 0% until Anas confirms the approved rate.
+TAX_RATE_PERCENT = Decimal(os.getenv("TAX_RATE_PERCENT", "0.00"))
 
 
 def _money(value) -> Decimal:
@@ -9,7 +13,7 @@ def _money(value) -> Decimal:
     return Decimal(str(value)).quantize(CENT, rounding=ROUND_HALF_UP)
 
 
-def calculate_pricing(items, tax_rate=Decimal("0.00"), discount=ZERO):
+def calculate_pricing(items, tax_rate=None, discount=ZERO):
     """
     Calculate the canonical cart price breakdown.
 
@@ -36,7 +40,7 @@ def calculate_pricing(items, tax_rate=Decimal("0.00"), discount=ZERO):
     applied_discount = min(subtotal, requested_discount)
 
     discounted_subtotal = max(ZERO, _money(subtotal - applied_discount))
-    rate = Decimal(str(tax_rate))
+    rate = TAX_RATE_PERCENT if tax_rate is None else Decimal(str(tax_rate))
     if rate < 0:
         raise ValueError("tax_rate cannot be negative")
 
