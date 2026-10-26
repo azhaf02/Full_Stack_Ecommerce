@@ -99,11 +99,11 @@ def test_cancelling_a_paid_online_order_restores_stock_and_starts_the_refund(db)
     assert order.status == "REFUND_PENDING" and order.payment_status == "REFUND_PENDING"
 
 
-def test_cancelling_a_cod_order_restores_stock_and_is_not_marked_paid(db):
+def test_cancelling_a_cod_order_restores_stock_and_cancels_its_payment(db):
     order = place(db, "COD")
     cancel_order(db, order, user_id=1)
     assert stock(db) == 10 and order.status == "CANCELLED"
-    assert payment_of(db, order).status == PaymentStatus.PENDING and order.payment_status != "SUCCESS"
+    assert payment_of(db, order).status == PaymentStatus.CANCELLED and order.payment_status == "CANCELLED"
 
 
 def test_cancelling_an_unconfirmed_order_does_not_add_stock(db):
