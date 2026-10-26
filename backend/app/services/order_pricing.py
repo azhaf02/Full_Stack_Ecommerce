@@ -23,6 +23,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Session
 
+from app.core.pricing_config import get_tax_rate_percent
+
 from app.models.coupon import Coupon
 from app.models.order import Order
 from app.services.order_service import InvalidOrder, OrderInput, OrderItemInput
@@ -67,6 +69,11 @@ ACTIVE = "ACTIVE"
 MAX_QUANTITY_PER_LINE = 100
 CENT = Decimal("0.01")
 ZERO = Decimal("0.00")
+
+
+def _tax_on(amount: Decimal) -> Decimal:
+    """Flat tax (TAX_RATE_PERCENT) on an amount that is already net of any discount."""
+    return _money(max(amount, ZERO) * get_tax_rate_percent() / Decimal("100"))
 
 
 @dataclass
@@ -226,9 +233,9 @@ def price_order(db: Session, user_id: int, request: OrderRequest) -> OrderInput:
         items=items,
         subtotal=subtotal,
         discount_amount=ZERO,
-        tax_amount=ZERO,
+        tax_amount=_tax_on(subtotal),
         shipping_cost=shipping_cost,
-        total_amount=_money(subtotal + shipping_cost),
+        total_amount=_money(subtotal + _tax_on(subtotal) + shipping_cost),
     )
 
 
@@ -427,6 +434,7 @@ def price_checkout_session(
             priced.subtotal,
         )
 
+    priced.tax_amount = _tax_on(priced.subtotal - priced.discount_amount)
     priced.total_amount = _money(
         priced.subtotal
         - priced.discount_amount
