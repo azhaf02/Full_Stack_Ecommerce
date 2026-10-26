@@ -55,3 +55,27 @@ def on_cod_order_change(db: Session, order: Order, previous_status: str, new_sta
         payment.status = PaymentStatus.SUCCESS
         order.payment_status = OrderPaymentStatus.SUCCESS.value
     db.flush()
+
+
+def backfill_cod_payments(db: Session) -> list:
+    """One-off repair for COD orders created before the hook was running (or by a server that had not been
+    updated): give each COD order that has no payments row one, in the state the order implies. Does not
+    commit. Returns [(order_id, payment_status)] for the rows it created."""
+    created = []
+    orders = (db.query(Order)
+              .filter(Order.payment_method == OrderPaymentMethod.COD.value)
+              .filter(~db.query(Payment.id).filter(Payment.order_id == Order.id).exists())
+              .order_by(Order.id).all())
+    for order in orders:
+        status = PaymentStatus(order.payment_status)
+        if order.payment_status == OrderPaymentStatus.PENDING.value:
+            if order.status == OrderStatus.DELIVERED.value:
+                status = PaymentStatus.SUCCESS
+                order.payment_status = OrderPaymentStatus.SUCCESS.value
+            elif order.status == OrderStatus.CANCELLED.value:
+                status = PaymentStatus.CANCELLED
+                order.payment_status = OrderPaymentStatus.CANCELLED.value
+        db.add(Payment(order_id=order.id, method=PaymentMethod.COD, status=status, amount=order.total_amount))
+        created.append((order.id, status.value))
+    db.flush()
+    return created
