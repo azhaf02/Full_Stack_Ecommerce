@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import OrdersListView from './OrdersListView';
 import NotificationCenter from './NotificationCenter';
-import ReviewsList from './ReviewsList';
-import NewTicketPage from '../pages/support/NewTicketPage'; // 💡 Imports your olive green support form path
-import { SupportChatbot } from './SupportChatbot'; // 💡 Imports your brand-compliant VIORA chatbot widget
+import { ReviewsList } from './ReviewsList';
+import NewTicketPage from '../pages/support/NewTicketPage';
+import { SupportChatbot } from './SupportChatbot';
 
 function VioraBrandBag() {
   return (
-    <svg width="26" height="30" viewBox="0 0 24 28" fill="none" xmlns="http://w3.org">
+    <svg width="26" height="30" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M8 7V5C8 2.79 9.79 1 12 1C14.21 1 16 2.79 16 5V7" stroke="#FAF8F5" strokeWidth="1.8" strokeLinecap="round" />
       <path d="M4 7H20L21.4 25C21.45 25.8 20.8 26.5 20 26.5H4C3.2 26.5 2.55 25.8 2.6 25L4 7Z" stroke="#FAF8F5" strokeWidth="1.8" strokeLinejoin="round" />
       <circle cx="12" cy="17" r="3" stroke="#FAF8F5" strokeWidth="1.4" />
@@ -32,8 +32,9 @@ export default function DashboardLayout() {
     { id: 'wishlist', label: 'Wishlist' },
     { id: 'notifications', label: 'Notifications', count: unreadCount },
     { id: 'reviews', label: 'Product Reviews' },
-    { id: 'support-form', label: 'Support Form' }, // 🎯 WIRED YOUR TAB EXPLICITLY INTO SIDEBAR LOOP ARRAY
+    { id: 'support-form', label: 'Support Form' },
   ];
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -53,10 +54,10 @@ export default function DashboardLayout() {
         fontWeight: 500,
         borderBottom: '1px solid rgba(255,255,255,0.08)'
       }}>
-        Complimentary Express Shipping on Orders Above ₹5,000   Member Privileges
+        Complimentary Express Shipping on Orders Above ₹5,000 | Member Privileges
       </div>
 
-      {/* Signature Olive Green Navbar with Bag Logo */}
+      {/* Signature Navbar */}
       <header style={{
         backgroundColor: '#232F24',
         borderBottom: '1px solid #1A241B',
@@ -69,7 +70,6 @@ export default function DashboardLayout() {
         top: 0,
         zIndex: 50
       }}>
-        {/* Brand Lockup */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <VioraBrandBag />
           <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -95,7 +95,6 @@ export default function DashboardLayout() {
           </div>
         </div>
 
-        {/* Member Area */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '22px' }}>
           <button
             onClick={() => setActiveTab('notifications')}
@@ -170,7 +169,6 @@ export default function DashboardLayout() {
         gridTemplateColumns: '230px 1fr',
         gap: '48px'
       }}>
-        {/* Navigation Sidebar */}
         <aside>
           <div style={{
             fontSize: '10px',
@@ -226,11 +224,10 @@ export default function DashboardLayout() {
             })}
           </nav>
         </aside>
-        {/* Content Section Panels Content Blocks Area */}
+
         <section>
           {activeTab === 'overview' && (
             <div>
-              {/* Stat Counters */}
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, 1fr)',
@@ -273,7 +270,6 @@ export default function DashboardLayout() {
                 ))}
               </div>
 
-              {/* Recent Orders Card */}
               <div style={{ border: '1px solid #E5DFD5', backgroundColor: '#FFFFFF', padding: '32px' }}>
                 <div style={{
                   display: 'flex',
@@ -362,18 +358,16 @@ export default function DashboardLayout() {
                   Product Reviews & Ratings
                 </h2>
               </div>
-              <ReviewsList productId={1} refreshTrigger={reviewsVersion} />
+              <ReviewsList productId={1} key={reviewsVersion} />
             </div>
           )}
 
-          {/* 🎯 RENDERS YOUR PRODUCT-ID VALIDATED OLIVE SUPPORT FORM INLINE WHEN SELECTED 🎯 */}
           {activeTab === 'support-form' && (
             <NewTicketPage onBackToHub={() => setActiveTab('overview')} />
           )}
         </section>
       </main>
 
-      {/* 🤖 GLOBAL CONVERSATIONAL SMART AI CHATBOT WITH MESSAGE ICON FLOATS 🤖 */}
       <SupportChatbot />
     </div>
   );
