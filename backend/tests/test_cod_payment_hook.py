@@ -157,3 +157,23 @@ def test_the_hook_is_registered_by_the_real_app():
     import inspect
     import app.main
     assert "register_status_hook(on_cod_order_change)" in inspect.getsource(app.main)
+
+
+def test_backfill_gives_missing_cod_payment_rows_their_implied_state(db):
+    from app.services.cod_payment_hook import backfill_cod_payments
+
+    clear_status_hooks()                                  # simulate orders made by a server without the hook
+    placed = new_order(db, "COD")                         # CONFIRMED, no row
+    delivered = new_order(db, "COD")
+    for step in PATH:
+        update_status(db, delivered, step)                # DELIVERED, payment still PENDING
+    cancelled = new_order(db, "COD")
+    update_status(db, cancelled, "CANCELLED")
+    online = new_order(db, "ONLINE")                      # not COD: untouched
+    assert db.query(Payment).count() == 0
+
+    created = dict(backfill_cod_payments(db))
+    assert created == {placed.id: "PENDING", delivered.id: "SUCCESS", cancelled.id: "CANCELLED"}
+    assert delivered.payment_status == "SUCCESS" and cancelled.payment_status == "CANCELLED"
+    assert payments(db, online) == []
+    assert backfill_cod_payments(db) == []                # running it again changes nothing
