@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.pricing_config import get_tax_rate_percent
 from app.core.security import require_role
 from app.database import get_db
 from app.models.checkout_session import CheckoutSession
@@ -457,7 +458,8 @@ def checkout_review(
 
     # 7. Compute totals using trusted server-side values.
     discounted_subtotal = max(ZERO, _money(subtotal - discount))
-    total = _money(discounted_subtotal + shipping_cost)
+    tax = _money(discounted_subtotal * get_tax_rate_percent() / Decimal("100"))
+    total = _money(discounted_subtotal + tax + shipping_cost)
 
     # 8. Return the validated checkout review.
     return {
@@ -481,6 +483,7 @@ def checkout_review(
         "summary": {
             "subtotal": subtotal,
             "discount": discount,
+            "tax": tax,
             "shipping": shipping_cost,
             "total": total,
         },
