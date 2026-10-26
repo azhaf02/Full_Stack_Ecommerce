@@ -96,7 +96,9 @@ def place_order(data: OrderCreate, user: User = Depends(customer_only), db: Sess
                 db, user.id, data.checkout_reference_id, data.payment_method,
                 address_id=data.address_id, shipping_method_id=data.shipping_method_id)
             order_pricing.consume_checkout_session(db, user.id, data.checkout_reference_id)
-            return order_service.create_order(db, priced)
+            order = order_service.create_order(db, priced)
+            order_pricing.clear_user_cart(db, user.id)
+            return order
         request = order_pricing.OrderRequest(
             address_id=data.address_id, shipping_method_id=data.shipping_method_id,
             payment_method=data.payment_method,

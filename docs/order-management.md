@@ -214,5 +214,70 @@ With a `checkout_reference_id` the order service:
 4. Applies the snapshot's `summary.discount` (validated by the server when the session was created, capped at the subtotal).
 5. Marks the session `completed` in the same transaction, so one session makes one order. A failed order leaves the session `active`.
 
-Errors are `422` with a `detail` message. Not done yet: recording the coupon on the order, tax, and clearing the cart (waiting for the cart/pricing PR).
+6. Empties the customer's cart (the items only; the cart row stays) in the same transaction. A failed order leaves the cart as it was. Direct (`items`) orders do not touch the cart.
 
+Errors are `422` with a `detail` message. The coupon is re-checked and its `coupon_id` saved on the order by `price_checkout_session`. Not done yet: tax (the rate is 0 until the tax rule is agreed) and the stock deduct/restock hook (waiting for the inventory PR).
+
+## CHK-06: Checkout Session Integration Contract
+
+The Checkout module exposes POST /api/checkout/session for an authenticated customer.
+
+Request fields:
+- `address_id`: selected saved address ID.
+- `shipping_method_id`: selected shipping method ID.
+- `coupon_code`: optional coupon code; may be null.
+
+The server validates the address, shipping method, cart stock, and coupon, then persists a validated checkout snapshot in `checkout_sessions`.
+
+The response contains `checkout_reference_id`, `session_id`, `status`, `expires_at`, and the validated checkout object. The summary contains server-calculated subtotal, discount, shipping cost, and total.
+
+Integration requirements:
+1. Pass `checkout_reference_id` to the Orders module.
+2. The server must verify session ownership and expiry.
+3. Use the stored server-side snapshot; do not trust browser-supplied prices or totals.
+4. Coordinate session status and payment handoff with the Orders and Payment module owners.
+
+Creating a checkout session does not itself complete an online payment.
+## Payment follows the order (COD delivery, cancellation)
+
+`app/services/cod_payment_hook.py` is registered in `app/main.py` as a status hook. It runs inside `update_status()`, in the same transaction.
+
+| COD order becomes | What the hook does |
+|---|---|
+| `CONFIRMED` | Makes sure a `payments` row exists (`COD`, `PENDING`, amount = order total), so the admin mark-paid route always has something to act on. |
+| `DELIVERED` | The cash has been collected, so the `payments` row and `orders.payment_status` both become `SUCCESS`. A COD order that has no `payments` row yet gets one. |
+| `CANCELLED` (COD or online) | A payment that is still `PENDING` (nothing was paid) becomes `CANCELLED`, on the `payments` row and on `orders.payment_status`, so it is not counted as money still to come. A payment that already `SUCCEEDED` is left alone and follows the refund steps (`REFUND_PENDING`, then `REFUNDED`). |
+
+After that, `POST /api/payment/admin/cod/{payment_id}/mark-paid` answers `409 "COD payment is not pending"`, which is correct: it is already paid. An admin can still use mark-paid before delivery if cash is taken early. Online orders are not touched; the payment module confirms them. A delivered COD order that is later returned goes through the refund steps, because the cash was collected.
+
+### Repairing COD orders that have no payments row
+
+If a COD order was created by a server that did not have the hook (not updated, or not restarted), it has no `payments` row. From the `backend` folder:
+
+```
+python scripts/backfill_cod_payments.py            # dry run, prints what would change, writes nothing
+python scripts/backfill_cod_payments.py --apply    # saves the rows
+```
+
+Each missing row gets the state the order implies: `PENDING` for open orders, `SUCCESS` for delivered ones (the order's `payment_status` is updated to match), and `CANCELLED` for cancelled ones. Orders that already have a row are skipped, so running it twice is safe. It uses `DATABASE_URL` from `backend/.env`, so check which database that points to before using `--apply`.
+
+## Order notifications
+
+`app/services/order_notification_hook.py` is registered in `app/main.py` as a status hook. When an order changes status it adds one row to `notifications` for `order.user_id`, type `order_status`, in the same transaction. The wording was agreed with Aliza:
+
+| New status | Message |
+|---|---|
+| `CONFIRMED` | Your order #{order_number} has been confirmed. |
+| `SHIPPED` | Your order #{order_number} has been shipped and is on the way! |
+| `OUT_FOR_DELIVERY` | Your order #{order_number} is out for delivery today. |
+| `DELIVERED` | Your order #{order_number} has been delivered. Enjoy your purchase! |
+| `CANCELLED` | Your order #{order_number} has been cancelled. |
+| `REFUNDED` | Refund for order #{order_number} has been processed. |
+
+Other statuses send nothing. The hook writes the row itself instead of calling `NotificationService.create_notification()`, because that helper commits and a hook must not commit in the middle of an order. The insert runs in a savepoint, so a notification problem is logged and never blocks the order. To change a message, edit `TEMPLATES` in that file.
+
+## Tax
+
+Orders use the shop-wide flat tax rate `TAX_RATE_PERCENT` (a percentage, default `0.00` until the project-approved rate is confirmed). It is read in one place, `app/core/pricing_config.py`, from `backend/.env`, and the cart summary, checkout review/session and order pricing must all use it. Tax is charged on the subtotal after the discount: `tax = (subtotal - discount) x rate / 100`, and `total = subtotal - discount + tax + shipping`. The order stores it in `orders.tax_amount`. A value that is not a number, below 0 or above 100 stops pricing with a clear error instead of silently charging the wrong amount.
+
+**Working rate: 18% (GST), pending Anas's confirmation.** The shop prices in rupees, and 18% is the standard GST rate for most general goods. Set `TAX_RATE_PERCENT=18.00` in `backend/.env` (and on any server) only after the cart summary and the checkout review/session read the same `get_tax_rate_percent()`. Until then the code default stays `0.00`, because switching it on early would make the order total higher than the total the checkout page showed. To change the rate later, change only that one value.

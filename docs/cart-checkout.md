@@ -166,3 +166,123 @@ Server-side Order Pricing
 
 Final Order Total
 
+
+## CHK-06: Checkout-to-Order Handoff
+
+### Create checkout session
+
+`POST /api/checkout/session`
+
+Authentication: customer bearer token required.
+
+Request body:
+
+```json
+{
+  "address_id": 1,
+  "shipping_method_id": 1,
+  "coupon_code": null
+}
+```
+
+The session endpoint revalidates the checkout on the server. Product availability, prices, coupon discount, shipping cost, and final total must come from the validated checkout review, not client-supplied totals.
+
+Successful response includes:
+
+- `checkout_reference_id`: reference for the pending checkout.
+- `session_id`: checkout session identifier.
+- `status`: session status.
+- `expires_at`: session expiry.
+- `checkout`: validated review snapshot, including items, coupon, and summary totals.
+
+The checkout session stores the server-generated review snapshot for the Payment handoff. Session lifetime is 30 minutes.
+
+### Payment handoff contract
+
+The frontend should retain `checkout_reference_id` and pass it to the Payment module. The Payment module should use the reference to retrieve or validate the pending checkout; it must not trust totals supplied by the browser.
+
+
+## CHK-07: Checkpoint 3 Integration � Cart + Checkout + Address + Shipping
+
+### Expected customer flow
+
+Cart with coupon ? Address ? Shipping ? Review ? Order handoff
+
+### Verification status
+
+- Frontend production build: PASS (`npm.cmd --prefix frontend run build`).
+- Checkout review and order creation without a coupon: MANUALLY VERIFIED.
+- Coupon application and discounted checkout: PENDING VERIFICATION.
+- Full Cart-to-Checkout integration: PENDING FINAL VERIFICATION.
+- Cart API integration: Depends on the Cart module owner; Cart implementation is outside this assigned scope.
+- Mentor sign-off: PENDING.
+
+### Integration requirements
+
+- Checkout must use actual cart items, not hard-coded demo items.
+- Address and shipping selections must be retained through review.
+- Prices, discounts, shipping costs, and totals must be validated server-side.
+- Order handoff must use the server-generated `checkout_reference_id`.
+- Cart implementation remains the responsibility of the Cart module owner.
+
+### Submission status
+
+The frontend production build passes, and the no-coupon checkout/order flow has been manually verified. Coupon testing, full Cart-to-Checkout integration verification, and mentor sign-off remain pending. Do not mark Checkpoint 3 complete until the outstanding checks are confirmed.
+
+## CHK-09: Final Testing, Bug Fixing & Documentation
+
+### Checkout API contracts
+
+- `POST /api/checkout/review`: requires `address_id` and `shipping_method_id`; `coupon_code` is optional. The backend validates address ownership, shipping, cart items, stock, coupon and server-side pricing.
+- `POST /api/checkout/session`: creates a checkout handoff session and returns a checkout reference, session ID, status, expiry and checkout snapshot. Session lifetime is 30 minutes.
+- `GET /api/checkout/sessions/{session_id}`: retrieves the customer's active session; expired or inactive sessions return a gone response.
+- `POST /api/orders`: uses server-side prices and revalidates checkout-session handoff when applicable. Client-supplied prices and totals are not trusted.
+
+### Pricing behaviour
+
+- Cart summary supports subtotal, discount, tax and total.
+- Coupons are validated by the backend.
+- Tax defaults to 0% unless a project-approved rate is configured.
+- Checkout-session pricing recalculates coupon discount, tax and shipping using server-side data.
+- The non-session order path currently sets discount and tax to zero and calculates subtotal plus shipping.
+- Full cart-to-checkout coupon integration must be verified before claiming end-to-end completion.
+
+### Automated regression results
+
+- Full backend suite: **229 passed, 60 warnings**.
+- Targeted checkout/order regression: **176 passed, 6 warnings**. This is a subset of the full suite and must not be added to its total.
+- Frontend production build: **passed**.
+- Frontend lint: **passed**, with no reported errors.
+- Warnings included deprecations, a pytest collection warning and an insecure-length HMAC test-key warning.
+- The frontend package has no test script, and a dedicated checkout-page test file was not found in the inspected paths.
+
+### Remaining acceptance checks
+
+- Verify the browser flow: cart, coupon apply/remove, address, shipping, review totals, checkout-session handoff and order creation.
+- Record applicable closed bug IDs and final PR references.
+- Obtain mentor sign-off before marking the module COMPLETED.
+
+### Final status
+
+Automated backend regression, frontend build and lint passed in the recorded local run. Manual end-to-end checks and mentor sign-off remain unconfirmed. Do not mark CHK-09 COMPLETED until these acceptance checks are confirmed.
+
+## CHK-09 Final Regression Evidence
+
+Verification date: 2026-10-24
+
+### Automated verification
+- Full backend regression: PASS — 229 passed, 0 failed, 60 warnings.
+- Targeted checkout/order regression: PASS — 176 passed, 0 failed, 6 warnings.
+- Frontend production build: PASS.
+- Frontend ESLint: PASS.
+
+Warnings are recorded rather than treated as test failures. They include dependency/API deprecations, pytest collection warnings, and an insecure-length test JWT key warning.
+
+### Acceptance status
+- Automated backend regression: PASS.
+- Frontend build and lint: PASS.
+- Full browser journey (cart, coupon apply/remove, address, shipping, review, order creation, and cart clearing): NOT YET VERIFIED in this final CHK-09 run.
+- Final bug IDs and PR references: TO BE RECORDED after verification.
+- Mentor sign-off: PENDING.
+
+Do not mark CHK-09 COMPLETED until the remaining acceptance checks, bug/PR references, and required sign-off are confirmed.

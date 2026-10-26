@@ -1,4 +1,8 @@
-"""create inventory and inventory history"""
+"""create inventory and inventory history
+
+Revision ID: bd80f21972e0
+Revises: 0d01fe9783e7
+"""
 
 from typing import Sequence, Union
 
@@ -6,6 +10,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
+# revision identifiers, used by Alembic.
 revision: str = "bd80f21972e0"
 down_revision: Union[str, Sequence[str], None] = "0d01fe9783e7"
 branch_labels: Union[str, Sequence[str], None] = None
@@ -13,6 +18,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+
     op.create_table(
         "inventory",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -59,13 +65,20 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    op.create_index("ix_inventory_id", "inventory", ["id"], unique=False)
+    op.create_index(
+        "ix_inventory_id",
+        "inventory",
+        ["id"],
+        unique=False,
+    )
+
     op.create_index(
         "ix_inventory_product_id",
         "inventory",
         ["product_id"],
         unique=False,
     )
+
     op.create_index(
         "ix_inventory_variant_id",
         "inventory",
@@ -77,20 +90,11 @@ def upgrade() -> None:
         "inventory_history",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("inventory_id", sa.Integer(), nullable=False),
-        sa.Column("product_id", sa.Integer(), nullable=False),
-        sa.Column("change_amount", sa.Integer(), nullable=False),
-        sa.Column("reason", sa.Text(), nullable=True),
-        sa.Column("changed_by", sa.Integer(), nullable=False),
-        sa.Column(
-            "timestamp",
-            sa.DateTime(),
-            server_default=sa.func.now(),
-            nullable=False,
-        ),
         sa.Column("change_type", sa.String(length=30), nullable=False),
         sa.Column("quantity_changed", sa.Integer(), nullable=False),
         sa.Column("previous_quantity", sa.Integer(), nullable=False),
         sa.Column("new_quantity", sa.Integer(), nullable=False),
+        sa.Column("reason", sa.Text(), nullable=True),
         sa.Column("location", sa.String(length=100), nullable=True),
         sa.Column(
             "created_at",
@@ -112,45 +116,42 @@ def upgrade() -> None:
         ["id"],
         unique=False,
     )
+
     op.create_index(
         "ix_inventory_history_inventory_id",
         "inventory_history",
         ["inventory_id"],
         unique=False,
     )
-    op.create_index(
-        "ix_inventory_history_product_id",
-        "inventory_history",
-        ["product_id"],
-        unique=False,
-    )
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_inventory_history_product_id",
-        table_name="inventory_history",
-    )
+
     op.drop_index(
         "ix_inventory_history_inventory_id",
         table_name="inventory_history",
     )
+
     op.drop_index(
         "ix_inventory_history_id",
         table_name="inventory_history",
     )
+
     op.drop_table("inventory_history")
 
     op.drop_index(
         "ix_inventory_variant_id",
         table_name="inventory",
     )
+
     op.drop_index(
         "ix_inventory_product_id",
         table_name="inventory",
     )
+
     op.drop_index(
         "ix_inventory_id",
         table_name="inventory",
     )
+
     op.drop_table("inventory")
