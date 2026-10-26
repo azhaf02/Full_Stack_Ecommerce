@@ -77,7 +77,7 @@ app.include_router(checkout_sessions.router)
 # Admin product management
 app.include_router(catalog_router)
 
-# Router Registration
+# Support Router Registration
 app.include_router(support_router)
 
 

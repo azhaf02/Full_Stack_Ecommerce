@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import apiClient, { getErrorMessage } from '../../services/apiClient';
 
 interface FAQItem {
   id: number;
@@ -8,6 +9,7 @@ interface FAQItem {
 }
 
 const FaqAdminPage: React.FC = () => {
+  
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
   const [question, setQuestion] = useState<string>('');
   const [answer, setAnswer] = useState<string>('');
@@ -15,18 +17,14 @@ const FaqAdminPage: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
 
   const refreshFaqs = async () => {
-    try {
-      const res = await fetch('/api/support/faq');
-      const data = await res.json();
-      setFaqs(data);
-    } catch {
-      setFaqs([
-        { id: 1, question: "How do I track my active order status tracking updates?", answer: "Go directly to your customer dashboard workspace panel and hit the Orders listing tab layout widget.", sort_order: 1 },
-        { id: 2, question: "What are the rules regarding returns and refunds?", answer: "In alignment with Rukhsar's ORD-07 modules parameters entries, return queries must be raised within 14 transaction days timeline grids.", sort_order: 2 }
-      ]);
-    }
-  };
-
+try {
+const res = await apiClient.get('/api/support/faq');
+setFaqs(res.data);
+} catch (err) {
+console.error('Failed to load FAQs:', getErrorMessage(err));
+setFaqs([]);
+}
+};
   useEffect(() => { refreshFaqs(); }, []);
 
   const handleSaveFAQ = async (e: React.FormEvent) => {
@@ -34,35 +32,48 @@ const FaqAdminPage: React.FC = () => {
     if (!question.trim() || !answer.trim()) return;
 
     const url = editingId ? `/api/support/admin/faq/${editingId}` : '/api/support/admin/faq';
-    const method = editingId ? 'PUT' : 'POST';
+    
 
-    try {
-      await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, answer, sort_order: sortOrder })
-      });
-    } catch {}
+    
+try {
+const payload = { question, answer, sort_order: sortOrder };
 
-    if (editingId) {
-      setFaqs(faqs.map(f => f.id === editingId ? { id: editingId, question, answer, sort_order: sortOrder } : f));
-    } else {
-      setFaqs([...faqs, { id: Date.now(), question, answer, sort_order: sortOrder }]);
-    }
+if (editingId) {
+await apiClient.put(url, payload);
+} else {
+await apiClient.post(url, payload);
+}
+} catch (err) {
+alert(getErrorMessage(err, 'Failed to save FAQ.'));
+return;
+}
 
-    setQuestion(''); setAnswer(''); setSortOrder(0); setEditingId(null);
-  };
+    await refreshFaqs();
 
-  const handleStartEdit = (f: FAQItem) => {
-    setEditingId(f.id); setQuestion(f.question); setAnswer(f.answer); setSortOrder(f.sort_order);
-  };
+
+setQuestion('');
+setAnswer('');
+setSortOrder(0);
+setEditingId(null);
+
+
+};
+
+const handleStartEdit = (f: FAQItem) => {
+setEditingId(f.id);
+setQuestion(f.question);
+setAnswer(f.answer);
+setSortOrder(f.sort_order);
+};
 
   const handleDeleteFAQ = async (id: number) => {
-    try {
-      await fetch(`/api/support/admin/faq/${id}`, { method: 'DELETE' });
-    } catch {}
-    setFaqs(faqs.filter(f => f.id !== id));
-  };
+try {
+await apiClient.delete(`/api/support/admin/faq/${id}`);
+await refreshFaqs();
+} catch (err) {
+alert(getErrorMessage(err, 'Failed to delete FAQ.'));
+}
+};
 
   return (
     <div style={{ minHeight: 'auto', backgroundColor: '#F8F7F2', paddingBottom: '10px' }}>
@@ -109,7 +120,6 @@ const FaqAdminPage: React.FC = () => {
         </div>
 
       </div>
-    </div>
   );
 };
 

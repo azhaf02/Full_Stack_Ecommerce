@@ -105,17 +105,36 @@ const FaqPage: React.FC = () => {
   };
 
   const globalFilteredFaqs = () => {
-    if (!searchQuery.trim()) return [];
-    let collector: { catLabel: string; q: string; a: string; id: number }[] = [];
-    categoryRegistry.forEach(c => {
-      c.faqs.forEach(f => {
-        if (f.question.toLowerCase().includes(searchQuery.toLowerCase()) || c.label.toLowerCase().includes(searchQuery.toLowerCase())) {
-          collector.push({ catLabel: c.label, q: f.question, a: f.answer, id: f.id });
-        }
-      });
+  const query = searchQuery.trim().toLowerCase();
+
+  if (!query) return [];
+
+  const collector: {
+    catLabel: string;
+    q: string;
+    a: string;
+    id: number;
+  }[] = [];
+
+  categoryRegistry.forEach(category => {
+    category.faqs.forEach(faq => {
+      const matchesQuestion = faq.question.toLowerCase().includes(query);
+      const matchesAnswer = faq.answer.toLowerCase().includes(query);
+      const matchesCategory = category.label.toLowerCase().includes(query);
+
+      if (matchesQuestion || matchesAnswer || matchesCategory) {
+        collector.push({
+          catLabel: category.label,
+          q: faq.question,
+          a: faq.answer,
+          id: faq.id,
+        });
+      }
     });
-    return collector;
-  };
+  });
+
+  return collector;
+};
     return (
     <div className="container-fluid min-vh-100 py-5" style={{ backgroundColor: '#FAF8F5', color: '#1B241C', fontFamily: 'monospace' }}>
       <div className="container shadow-sm bg-white p-4 p-md-5 border" style={{ maxWidth: '850px', borderRadius: '12px', borderColor: '#E5DFD5' }}>
@@ -262,7 +281,7 @@ const FaqPage: React.FC = () => {
                 className="btn btn-sm text-white fw-bold px-4"
                 style={{ borderRadius: '8px', backgroundColor: '#3B4D3C', fontSize: '11px', border: 'none', cursor: 'pointer' }}
               >
-                OPEN OFFICIAL SUPPORT FORM
+                SUPPORT FORM
               </button>
             </div>
           </div>
