@@ -57,6 +57,8 @@ app.include_router(audit_logs.router)
 app.include_router(analytics.router)
 app.include_router(orders.router)
 app.include_router(payment.router)
+from app.routers import invoice
+app.include_router(invoice.router)
 app.include_router(checkout_sessions.router)
 app.include_router(checkout_sessions.address_router)
 app.include_router(product.router)

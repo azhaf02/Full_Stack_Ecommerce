@@ -41,3 +41,25 @@ def save_payment_method(
 
 	db.flush()
 	return payment
+
+def apply_payment_result(
+    db: Session,
+    payment: Payment,
+    result: PaymentStatus,
+) -> Payment:
+    """Synchronize payment status with its associated order."""
+    if result not in (PaymentStatus.SUCCESS, PaymentStatus.FAILED):
+        raise ValueError("Result must be SUCCESS or FAILED")
+
+    if payment.status != PaymentStatus.PENDING:
+        raise ValueError("Only pending payments can be updated")
+
+    order = db.query(Order).filter(Order.id == payment.order_id).first()
+    if order is None:
+        raise ValueError("Order not found")
+
+    payment.status = result
+    order.payment_status = result.value
+
+    db.flush()
+    return payment

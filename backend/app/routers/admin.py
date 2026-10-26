@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.core.security import require_role
 from app.models.order import Order, OrderStatus
+from app.models.payment import Payment
 from app.models.role import Role
 from app.models.user import User
 
@@ -296,3 +297,43 @@ def list_orders(params: Annotated[OrderListParams, Query()], db: Session = Depen
         "page_size": params.page_size,
         "total_pages": max(1, ceil(total / params.page_size)),
     }
+
+# ---------- PAY-07: admin payment history ----------
+@router.get("/payments")
+def admin_payment_history(
+    status_filter: str | None = Query(default=None, alias="status"),
+    db: Session = Depends(get_db),
+):
+    """Return all payment records, optionally filtered by status."""
+    query = db.query(Payment)
+
+    if status_filter:
+        allowed_statuses = {"SUCCESS", "FAILED", "PENDING", "REFUNDED"}
+        normalized_status = status_filter.upper()
+
+        if normalized_status not in allowed_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid payment status filter",
+            )
+
+        query = query.filter(Payment.status == normalized_status)
+
+    payments = query.order_by(
+        Payment.created_at.desc(),
+        Payment.id.desc(),
+    ).all()
+
+    return [
+        {
+            "payment_id": payment.id,
+            "order_id": payment.order_id,
+            "method": payment.method.value,
+            "status": payment.status.value,
+            "transaction_id": payment.transaction_id,
+            "amount": payment.amount,
+            "created_at": payment.created_at,
+            "updated_at": payment.updated_at,
+        }
+        for payment in payments
+    ]

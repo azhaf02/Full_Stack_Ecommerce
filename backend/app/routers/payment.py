@@ -128,7 +128,6 @@ def select_payment_method(
 # =========================================================
 # MOCK ONLINE PAYMENT - PROCESS
 # =========================================================
-
 @router.post(
     "/mock/process",
     response_model=MockPaymentProcessResponse,
@@ -147,7 +146,7 @@ def process_mock_payment(
         )
 
     try:
-        get_order_for_user(
+        order = get_order_for_user(
             db,
             payment.order_id,
             current_user.id,
@@ -164,31 +163,49 @@ def process_mock_payment(
             detail="Mock payment is only available for ONLINE payments",
         )
 
-    if payment.status != PaymentStatus.PENDING:
+    if order.status != "PLACED":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Payment is not pending",
+            detail="Payment cannot be retried for this order",
         )
 
-    gateway_response = mock_gateway.process_payment(
-        amount=payment.amount,
-        simulate_failure=data.simulate_failure,
-    )
-
-    if gateway_response.status == MockGatewayStatus.SUCCESS:
-        payment.transaction_id = (
-            f"MOCK-SUCCESS-"
-            f"{gateway_response.transaction_id.removeprefix('MOCK-')}"
+    if payment.status == PaymentStatus.SUCCESS:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Successful payments cannot be retried",
         )
-    else:
-        payment.transaction_id = (
-            f"MOCK-FAILED-"
-            f"{gateway_response.transaction_id.removeprefix('MOCK-')}"
+
+    if payment.status == PaymentStatus.FAILED:
+        payment.status = PaymentStatus.PENDING
+        payment.transaction_id = None
+        order.payment_status = PaymentStatus.PENDING.value
+
+    elif payment.status != PaymentStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Payment cannot be retried in its current status",
         )
 
     try:
+        gateway_response = mock_gateway.process_payment(
+            amount=payment.amount,
+            simulate_failure=data.simulate_failure,
+        )
+
+        if gateway_response.status == MockGatewayStatus.SUCCESS:
+            payment.transaction_id = (
+                "MOCK-SUCCESS-"
+                f"{gateway_response.transaction_id.removeprefix('MOCK-')}"
+            )
+        else:
+            payment.transaction_id = (
+                "MOCK-FAILED-"
+                f"{gateway_response.transaction_id.removeprefix('MOCK-')}"
+            )
+
         db.commit()
         db.refresh(payment)
+
     except Exception:
         db.rollback()
         raise
@@ -479,3 +496,62 @@ def mark_cod_as_paid(
         "status": payment.status.value,
         "message": "Cash on Delivery payment marked as paid successfully",
     }
+
+# =========================================================
+# PAY-07: PAYMENT HISTORY
+# =========================================================
+
+@router.get("/history/account")
+def customer_payment_history(
+    current_user: User = Depends(require_role("customer")),
+    db: Session = Depends(get_db),
+):
+    """Return payment history belonging to the current customer."""
+    payments = (
+        db.query(Payment)
+        .join(Order, Payment.order_id == Order.id)
+        .filter(Order.user_id == current_user.id)
+        .order_by(Payment.created_at.desc(), Payment.id.desc())
+        .all()
+    )
+
+    return [
+        {
+            "payment_id": payment.id,
+            "order_id": payment.order_id,
+            "method": payment.method.value,
+            "status": payment.status.value,
+            "transaction_id": payment.transaction_id,
+            "amount": payment.amount,
+            "created_at": payment.created_at,
+            "updated_at": payment.updated_at,
+        }
+        for payment in payments
+    ]
+
+
+@router.get("/history/admin")
+def admin_payment_history(
+    _admin: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    """Return payment history across all customers for admins."""
+    payments = (
+        db.query(Payment)
+        .order_by(Payment.created_at.desc(), Payment.id.desc())
+        .all()
+    )
+
+    return [
+        {
+            "payment_id": payment.id,
+            "order_id": payment.order_id,
+            "method": payment.method.value,
+            "status": payment.status.value,
+            "transaction_id": payment.transaction_id,
+            "amount": payment.amount,
+            "created_at": payment.created_at,
+            "updated_at": payment.updated_at,
+        }
+        for payment in payments
+    ]
