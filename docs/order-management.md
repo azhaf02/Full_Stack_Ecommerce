@@ -260,3 +260,18 @@ python scripts/backfill_cod_payments.py --apply    # saves the rows
 ```
 
 Each missing row gets the state the order implies: `PENDING` for open orders, `SUCCESS` for delivered ones (the order's `payment_status` is updated to match), and `CANCELLED` for cancelled ones. Orders that already have a row are skipped, so running it twice is safe. It uses `DATABASE_URL` from `backend/.env`, so check which database that points to before using `--apply`.
+
+## Order notifications
+
+`app/services/order_notification_hook.py` is registered in `app/main.py` as a status hook. When an order changes status it adds one row to `notifications` for `order.user_id`, type `order_status`, in the same transaction. The wording was agreed with Aliza:
+
+| New status | Message |
+|---|---|
+| `CONFIRMED` | Your order #{order_number} has been confirmed. |
+| `SHIPPED` | Your order #{order_number} has been shipped and is on the way! |
+| `OUT_FOR_DELIVERY` | Your order #{order_number} is out for delivery today. |
+| `DELIVERED` | Your order #{order_number} has been delivered. Enjoy your purchase! |
+| `CANCELLED` | Your order #{order_number} has been cancelled. |
+| `REFUNDED` | Refund for order #{order_number} has been processed. |
+
+Other statuses send nothing. The hook writes the row itself instead of calling `NotificationService.create_notification()`, because that helper commits and a hook must not commit in the middle of an order. The insert runs in a savepoint, so a notification problem is logged and never blocks the order. To change a message, edit `TEMPLATES` in that file.

@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.services import order_service
 from app.services.inventory_service import on_order_status_change
 from app.services.cod_payment_hook import on_cod_order_change
+from app.services.order_notification_hook import on_order_notification
 from app.routers import (
     notifications,
     reviews,
@@ -31,6 +32,7 @@ app = FastAPI(title="Customer Dashboard & Reviews API")
 # Inventory stock deduction/restocking and COD payment hooks.
 order_service.register_status_hook(on_order_status_change)
 order_service.register_status_hook(on_cod_order_change)
+order_service.register_status_hook(on_order_notification)
 
 app.add_middleware(
     CORSMiddleware,
