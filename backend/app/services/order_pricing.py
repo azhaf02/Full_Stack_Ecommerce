@@ -321,7 +321,7 @@ def price_order(
 
     pricing = calculate_pricing(
         items,
-        tax_rate=Decimal("0.00"),
+        tax_rate=None,
         discount=Decimal("0.00"),
     )
 
@@ -366,7 +366,7 @@ def price_order(
 
     pricing = calculate_pricing(
         items,
-        tax_rate=Decimal("0.00"),
+        tax_rate=None,
         discount=discount,
     )
 
