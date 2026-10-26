@@ -63,6 +63,15 @@ export default function ProductFormPage() {
       setStockQuantity(String(product.stock_quantity));
       setCategoryId(String(product.category_id));
       setStatus(product.status);
+
+      const savedImage =
+        product.images?.find((image) => image.is_primary)?.image_url ||
+        product.images?.[0]?.image_url ||
+        product.image_url ||
+        null;
+
+      setPreviewUrl(savedImage);
+      setSelectedFile(null);
     } catch (error) {
       console.error("Failed to load product:", error);
       alert("Failed to load product.");
