@@ -275,3 +275,7 @@ Each missing row gets the state the order implies: `PENDING` for open orders, `S
 | `REFUNDED` | Refund for order #{order_number} has been processed. |
 
 Other statuses send nothing. The hook writes the row itself instead of calling `NotificationService.create_notification()`, because that helper commits and a hook must not commit in the middle of an order. The insert runs in a savepoint, so a notification problem is logged and never blocks the order. To change a message, edit `TEMPLATES` in that file.
+
+## Tax
+
+Orders use the shop-wide flat tax rate `TAX_RATE_PERCENT` (a percentage, default `0.00` until the project-approved rate is confirmed). It is read in one place, `app/core/pricing_config.py`, from `backend/.env`, and the cart summary, checkout review/session and order pricing must all use it. Tax is charged on the subtotal after the discount: `tax = (subtotal - discount) x rate / 100`, and `total = subtotal - discount + tax + shipping`. The order stores it in `orders.tax_amount`. A value that is not a number, below 0 or above 100 stops pricing with a clear error instead of silently charging the wrong amount.

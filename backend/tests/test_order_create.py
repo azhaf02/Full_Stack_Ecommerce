@@ -832,3 +832,51 @@ def test_a_direct_order_does_not_touch_the_cart(env):
     seed_carts(env)
     assert env.client.post("/api/orders", json=body()).status_code == 201
     assert cart_item_ids(env) == [1, 2, 3]
+
+
+# ------------------------------------------------------------------ flat tax (TAX_RATE_PERCENT)
+
+def test_tax_is_zero_by_default(env, monkeypatch):
+    monkeypatch.delenv("TAX_RATE_PERCENT", raising=False)
+    order = env.client.post("/api/orders", json=body()).json()
+    assert float(order["tax_amount"]) == 0.0 and float(order["total_amount"]) == 1048.0
+
+
+def test_direct_order_charges_the_configured_tax(env, monkeypatch):
+    monkeypatch.setenv("TAX_RATE_PERCENT", "18")
+    order = env.client.post("/api/orders", json=body()).json()     # subtotal 998.00, shipping 50.00
+    assert float(order["tax_amount"]) == 179.64
+    assert float(order["total_amount"]) == 1227.64                 # 998.00 + 179.64 + 50.00
+
+
+def test_session_order_charges_the_same_tax(env, monkeypatch):
+    monkeypatch.setenv("TAX_RATE_PERCENT", "18")
+    make_session(env)
+    order = from_session(env).json()
+    assert float(order["tax_amount"]) == 179.64 and float(order["total_amount"]) == 1227.64
+
+
+def test_tax_rate_is_validated():
+    from app.core.pricing_config import get_tax_rate_percent
+    import os
+    for bad in ["abc", "-1", "101", "nan"]:
+        os.environ["TAX_RATE_PERCENT"] = bad
+        try:
+            with pytest.raises(RuntimeError):
+                get_tax_rate_percent()
+        finally:
+            os.environ.pop("TAX_RATE_PERCENT", None)
+    os.environ["TAX_RATE_PERCENT"] = "5.5"
+    try:
+        assert str(get_tax_rate_percent()) == "5.5"
+    finally:
+        os.environ.pop("TAX_RATE_PERCENT", None)
+    assert str(get_tax_rate_percent()) == "0.00"
+
+
+def test_tax_is_charged_on_the_amount_after_discount(monkeypatch):
+    from decimal import Decimal
+    from app.services.order_pricing import _tax_on
+    monkeypatch.setenv("TAX_RATE_PERCENT", "18")
+    assert _tax_on(Decimal("898.00")) == Decimal("161.64")         # 998.00 - 100.00 discount
+    assert _tax_on(Decimal("-5.00")) == Decimal("0.00")
