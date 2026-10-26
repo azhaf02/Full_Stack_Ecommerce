@@ -364,3 +364,41 @@ The following checks are covered by the current payment-history and payment-inte
 - Invalid payment transitions and missing orders are rejected.
 
 Latest regression result: **29 passed** across `tests/test_payment_integration.py` and `tests/test_payment_history.py`. This result does not by itself verify the frontend UI or the full order-module integration.
+### PAY-08 â€” Checkpoint 4: Payment, Order Creation & Inventory
+
+Objective: Verify that payment, order confirmation, and inventory deduction occur in the correct sequence.
+
+Acceptance criteria:
+- An online order remains unconfirmed and does not deduct inventory while payment is pending.
+- Successful payment confirms the order only when sufficient inventory remains.
+- COD orders are confirmed according to the COD acceptance flow.
+- Inventory is deducted only after order confirmation and is not deducted twice.
+- Cancelling a paid online order restores inventory and initiates the refund flow.
+- Cancelling a COD order restores inventory and cancels its payment.
+- Cancelling an unconfirmed order does not incorrectly add inventory.
+- If stock is sold while an online payment is pending, confirmation is blocked when insufficient stock remains.
+
+Checkpoint 4 test result:
+- `tests/test_checkpoint4_order_payment_inventory.py`: 7 passed.
+- Combined checkpoint, order-inventory, and payment integration tests: 31 passed.
+
+These results cover the automated tests run so far. Full end-to-end acceptance and Checkpoint 4 sign-off remain to be confirmed.
+### PAY-08 — Checkpoint 4: Payment, Order Creation & Inventory
+
+Objective: Verify that payment, order confirmation, and inventory deduction occur in the correct sequence.
+
+**Acceptance criteria:**
+- An online order remains unconfirmed and does not deduct inventory while payment is pending.
+- Successful payment confirms the order only when sufficient inventory remains.
+- COD orders are confirmed according to the COD acceptance flow.
+- Inventory is deducted only after order confirmation and is not deducted twice.
+- Cancelling a paid online order restores inventory and initiates the refund flow.
+- Cancelling a COD order restores inventory and cancels its payment.
+- Cancelling an unconfirmed order does not incorrectly add inventory.
+- If stock is sold while an online payment is pending, confirmation is blocked when insufficient stock remains.
+
+**Checkpoint 4 test results:**
+- `tests/test_checkpoint4_order_payment_inventory.py`: 7 passed.
+- Combined checkpoint, order-inventory, and payment integration tests: 31 passed.
+
+These results cover the automated tests run so far. Full end-to-end acceptance and Checkpoint 4 sign-off remain to be confirmed.
