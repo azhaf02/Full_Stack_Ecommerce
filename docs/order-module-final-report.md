@@ -8,15 +8,15 @@ Student 7 (Rukhsar Shaikh), branch `feature/orders`. Written 2026-10-24.
 |---|---|---|
 | ORD-01 | Requirements and state diagram (`docs/order-management.md`) | Done |
 | ORD-02 | `orders`, `order_items`, `order_status_history`, `returns`, `return_items` tables, migrations `0007` to `0011` | Done |
-| ORD-03 | `POST /api/orders` (direct, or from a checkout session), `order_service.create_order`, server-side pricing, confirmation page | Done. Stock deduction waits for the inventory PR (#28). |
+| ORD-03 | `POST /api/orders` (direct, or from a checkout session), `order_service.create_order`, server-side pricing, confirmation page | Done, including stock deduction (inventory PR #28 is merged). |
 | ORD-04 | `update_status()` with transition allow-list and history, `PUT /api/admin/orders/{id}/status`, `GET /api/admin/orders/{id}` | Done |
 | ORD-05 | `GET /api/account/orders[/{id}]`, My Orders and tracking pages, login guard | Done |
-| ORD-06 | `POST /api/account/orders/{id}/cancel`, refund start | Done. Restock waits for #28. |
+| ORD-06 | `POST /api/account/orders/{id}/cancel`, refund start | Done, including restock and the refund start. |
 | ORD-07 | Returns: request, admin approve or reject, returned, refund; admin routes | Done |
-| ORD-08 | Checkpoints 4 and 5 integration testing | Checkpoint 4 test written and passing against Rehan's PR; it runs once #28 is on main. Checkpoint 5 needs Aliza's notifications. |
-| ORD-09 | Regression and final docs | Regression recorded in `docs/test-evidence/ORD-09-regression-status.md`; final run after #28 merges. |
+| ORD-08 | Checkpoints 4 and 5 integration testing | Checkpoint 4 (payment + order + inventory) passes. Checkpoint 5 needs Aliza's notifications. |
+| ORD-09 | Regression and final docs | Final regression run and recorded in `docs/test-evidence/ORD-09-regression-status.md`. |
 
-Tests: 222 backend tests pass, 1 skipped (the checkpoint 4 test, waiting for #28), 70 frontend tests pass, `vite build` succeeds.
+Tests: 243 backend tests pass, 0 skipped, 70 frontend tests pass, `vite build` succeeds, one Alembic head.
 18 other backend tests (teammates' login and register tests) fail only on the machine used for testing, because of a
 `passlib` and `bcrypt` version mismatch. They do not touch orders.
 
@@ -30,15 +30,14 @@ Tests: 222 backend tests pass, 1 skipped (the checkpoint 4 test, waiting for #28
 - Customer routes and pages: My Orders, tracking, cancel, return request, order confirmation, all behind the login guard.
 - Returns: request, approve or reject, returned, refund; admin routes.
 - Cash on Delivery: payment row at confirmation and marked paid on delivery.
-- Tests (222 backend, 70 frontend), checkpoint 4 test written, regression record, documentation, this report.
+- Stock deduct on confirmation and restock on cancel or return (inventory PR #28 merged), COD payment cancelled when an unpaid order is cancelled.
+- Tests (243 backend, 70 frontend), checkpoint 4 passing, final regression record, documentation, this report.
 
 **Remaining**
 
-- Stock deduct on confirmation and restock on cancel or return on main: waiting for Rehan to merge PR #28. My code and tests are ready.
-- Run the checkpoint 4 test and the final regression after #28 merges (ORD-08, ORD-09).
 - Order notifications (checkpoint 5): depends on Aliza.
 - Tax: the rate is 0 until the team agrees a rule.
-- Submit the tasks in the task app and get Anas's review and Rishi's confirmation.
+- Push and merge the latest commits to main, submit the tasks in the task app, and get Anas's review and Rishi's confirmation.
 
 ## 2. The flow of the project (one order, start to finish)
 
@@ -117,8 +116,7 @@ Return (within 7 days of delivery):
 
 | Item | Owner | Note |
 |---|---|---|
-| Stock deduct and restock on main | Rehan, PR #28 | Merges cleanly with this branch and passes all tests; needs merging. |
-| Checkpoint 4 test activates | Automatic | `test_checkpoint4_order_payment_inventory.py` runs once #28 is on main. |
 | Order notifications (checkpoint 5) | Aliza | Not started on the order side. |
 | Tax | Team decision | Rate is 0 until agreed. |
 | Real foreign keys for user, address, product, variant, coupon | Later migration | Kept off the ORM so other modules' branches merge first. |
+| Latest commits on main, task submission, mentor review | Rukhsar | Push and merge `feature/orders`, then submit. |
