@@ -30,7 +30,11 @@ def get_inventory_stock_status(
         query = query.filter(
             Inventory.variant_id == variant_id
         )
-
+    else:
+        query = query.filter(
+            Inventory.variant_id.is_(None)
+        )  
+  
     inventory = query.first()
 
     if inventory is None:
@@ -86,6 +90,10 @@ def validate_stock(
         query = query.filter(
             Inventory.variant_id == variant_id
         )
+    else:
+        query = query.filter(
+            Inventory.variant_id.is_(None)
+        )
 
     inventory = query.first()
 
@@ -118,9 +126,12 @@ def _get_inventory(
         query = query.filter(
             Inventory.variant_id == variant_id
         )
+    else:
+        query = query.filter(
+            Inventory.variant_id.is_(None)
+        )
 
     return query.first()
-
 
 def _add_history(
     db: Session,

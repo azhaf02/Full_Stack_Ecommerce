@@ -125,3 +125,26 @@ def test_stock_change_between_cart_and_checkout_is_rejected(db):
             product_id=6,
             requested_quantity=5
         )
+
+
+def test_product_without_variant_uses_only_product_inventory(db):
+    add_inventory(db, product_id=7, quantity=4, variant_id=None)
+    add_inventory(db, product_id=7, quantity=10, variant_id=1)
+
+    inventory = validate_stock(
+        db,
+        product_id=7,
+        requested_quantity=4,
+        variant_id=None
+    )
+
+    assert inventory.variant_id is None
+    assert inventory.quantity == 4
+
+    with pytest.raises(InsufficientStockError, match="Available quantity: 4"):
+        validate_stock(
+            db,
+            product_id=7,
+            requested_quantity=5,
+            variant_id=None
+        )
