@@ -79,6 +79,9 @@ export default function AdminOrderDetailPage() {
     order.payment_status === "PENDING" &&
     !["CANCELLED", "RETURNED", "REFUND_PENDING", "REFUNDED"].includes(order.status);
 
+  // Cash is collected at the door, so this only applies while the order is out for delivery
+  const cashCollectable = order !== null && order.status === "OUT_FOR_DELIVERY";
+
   useEffect(() => {
     if (!order || !codUnpaid) {
       setCodPayment(null);
@@ -289,7 +292,12 @@ export default function AdminOrderDetailPage() {
                 <Loader2 size={12} className="animate-spin" /> Checking payment record...
               </p>
             )}
-            {codUnpaid && codLookupDone && codPayment && codPayment.status === "PENDING" && (
+            {codUnpaid && codLookupDone && codPayment && codPayment.status === "PENDING" && !cashCollectable && (
+              <p className="mt-3 text-xs text-slate-500">
+                Cash is collected on delivery. "Mark as paid" becomes available when the order is out for delivery.
+              </p>
+            )}
+            {codUnpaid && codLookupDone && codPayment && codPayment.status === "PENDING" && cashCollectable && (
               <button
                 onClick={() => {
                   setPaidError("");

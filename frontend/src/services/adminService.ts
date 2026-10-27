@@ -293,6 +293,44 @@ export async function reviewReturn(id: number, action: ReturnAction, remarks: st
 }
 
 // =========================================================
+// REVIEWS (APIs from the reviews module)
+// =========================================================
+
+// One review as returned by GET/PUT /api/admin/reviews
+export interface AdminReview {
+  id: number;
+  productId: number;
+  userId: number;
+  orderId: number;
+  rating: number; // 1 to 5
+  title: string | null;
+  comment: string;
+  status: string; // PENDING, APPROVED, REJECTED
+  createdAt: string | null;
+}
+
+export type ReviewStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+// Reviews, newest first, optionally filtered by status
+export async function getReviews(status: string): Promise<AdminReview[]> {
+  const response = await api.get("/api/admin/reviews", {
+    params: { status: status || undefined },
+  });
+  return response.data;
+}
+
+// Approves or rejects one review
+export async function updateReviewStatus(id: number, status: ReviewStatus): Promise<AdminReview> {
+  const response = await api.put(`/api/admin/reviews/${id}/status`, { status });
+  return response.data;
+}
+
+// Permanently deletes one review
+export async function deleteReview(id: number): Promise<void> {
+  await api.delete(`/api/admin/reviews/${id}`);
+}
+
+// =========================================================
 // PAYMENTS
 // =========================================================
 

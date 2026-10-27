@@ -1,5 +1,8 @@
 
 import { useCallback, useEffect, useState } from "react";
+import { AlertTriangle, Boxes, PackageX, RefreshCw } from "lucide-react";
+import StatCard from "../../components/admin/StatCard";
+import LoadingRows from "../../components/admin/LoadingRows";
 import {
   adjustInventory,
   getInventory,
@@ -115,77 +118,75 @@ export default function InventoryPage() {
   };
 
   const statusClasses: Record<string, string> = {
-    IN_STOCK: "bg-green-100 text-green-800",
-    LOW_STOCK: "bg-amber-100 text-amber-800",
-    OUT_OF_STOCK: "bg-red-100 text-red-800",
+    IN_STOCK: "bg-green-100 text-green-700",
+    LOW_STOCK: "bg-amber-100 text-amber-700",
+    OUT_OF_STOCK: "bg-red-100 text-red-700",
   };
 
+  const field =
+    "w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500";
+  const th = "px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500";
+
   return (
-    <main className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-primary-900">
-            Inventory Management
-          </h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Monitor stock, adjust quantities, and review low-stock items.
-          </p>
-        </div>
+    <div className="space-y-6">
+      {/* Page intro; the page title is already in the top bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-slate-500">
+          Monitor stock, adjust quantities, and review low-stock items.
+        </p>
         <button
           type="button"
           onClick={() => void loadInventory()}
           disabled={loading}
-          className="rounded-lg border border-primary-300 bg-white px-4 py-2 text-sm font-semibold text-primary-800 hover:bg-primary-50 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-lg border bg-cream-50 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-cream-100 disabled:opacity-50"
         >
+          <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
           Refresh
         </button>
-      </header>
+      </div>
 
       {error && (
-        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
       {success && (
-        <div role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+        <div role="status" className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
           {success}
         </div>
       )}
 
       <section className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Inventory records</p>
-          <p className="mt-2 text-3xl font-bold text-primary-900">
-            {items.length}
-          </p>
-        </div>
-        <div className="rounded-xl border bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Low stock</p>
-          <p className="mt-2 text-3xl font-bold text-amber-700">
-            {lowStockItems.filter((item) => item.status === "LOW_STOCK").length}
-          </p>
-        </div>
-        <div className="rounded-xl border bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Out of stock</p>
-          <p className="mt-2 text-3xl font-bold text-red-700">
-            {lowStockItems.filter((item) => item.status === "OUT_OF_STOCK").length}
-          </p>
-        </div>
+        <StatCard
+          title="Inventory records"
+          value={String(items.length)}
+          icon={Boxes}
+          iconBg="bg-primary-100 text-primary-700"
+        />
+        <StatCard
+          title="Low stock"
+          value={String(lowStockItems.filter((item) => item.status === "LOW_STOCK").length)}
+          icon={AlertTriangle}
+          iconBg="bg-amber-100 text-amber-700"
+        />
+        <StatCard
+          title="Out of stock"
+          value={String(lowStockItems.filter((item) => item.status === "OUT_OF_STOCK").length)}
+          icon={PackageX}
+          iconBg="bg-red-100 text-red-700"
+        />
       </section>
 
-      <section className="rounded-xl border bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-primary-900">
-          Manual stock adjustment
-        </h2>
-        <p className="mt-1 text-sm text-gray-600">
-          Use a positive number to add stock or a negative number to remove stock.
-          A reason is required.
+      <section className="admin-card p-6">
+        <h2 className="font-display text-lg font-semibold text-slate-800">Manual stock adjustment</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Use a positive number to add stock or a negative number to remove stock. A reason is required.
         </p>
 
         <form onSubmit={handleAdjustment} className="mt-5 grid gap-4 md:grid-cols-2">
           <div>
-            <label htmlFor="inventory-record" className="mb-1 block text-sm font-medium">
+            <label htmlFor="inventory-record" className="mb-1 block text-sm font-medium text-slate-700">
               Inventory record
             </label>
             <select
@@ -193,7 +194,7 @@ export default function InventoryPage() {
               value={selectedId}
               onChange={(event) => setSelectedId(event.target.value)}
               required
-              className="w-full rounded-lg border p-2.5"
+              className={field}
             >
               <option value="">Select a record</option>
               {items.map((item) => (
@@ -205,14 +206,15 @@ export default function InventoryPage() {
               ))}
             </select>
             {selectedItem && (
-              <p className="mt-1 text-xs text-gray-500">
-                Current stock: {selectedItem.quantity} · Threshold: {selectedItem.low_stock_threshold}
+              <p className="mt-1.5 text-xs text-slate-500">
+                Current stock: <span className="font-semibold text-slate-700">{selectedItem.quantity}</span> · Threshold:{" "}
+                {selectedItem.low_stock_threshold}
               </p>
             )}
           </div>
 
           <div>
-            <label htmlFor="quantity-change" className="mb-1 block text-sm font-medium">
+            <label htmlFor="quantity-change" className="mb-1 block text-sm font-medium text-slate-700">
               Quantity change
             </label>
             <input
@@ -222,13 +224,13 @@ export default function InventoryPage() {
               required
               value={quantityChange}
               onChange={(event) => setQuantityChange(event.target.value)}
-              className="w-full rounded-lg border p-2.5"
+              className={field}
               placeholder="e.g. 5 or -2"
             />
           </div>
 
           <div className="md:col-span-2">
-            <label htmlFor="adjustment-reason" className="mb-1 block text-sm font-medium">
+            <label htmlFor="adjustment-reason" className="mb-1 block text-sm font-medium text-slate-700">
               Reason <span className="text-red-600">*</span>
             </label>
             <textarea
@@ -239,16 +241,16 @@ export default function InventoryPage() {
               minLength={1}
               maxLength={500}
               rows={3}
-              className="w-full rounded-lg border p-2.5"
+              className={field}
               placeholder="Explain why this stock adjustment is needed"
             />
           </div>
 
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 flex justify-end">
             <button
               type="submit"
               disabled={saving || loading || items.length === 0}
-              className="rounded-lg bg-primary-700 px-5 py-2.5 font-semibold text-white hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg bg-primary-600 px-5 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save stock adjustment"}
             </button>
@@ -256,48 +258,44 @@ export default function InventoryPage() {
         </form>
       </section>
 
-      <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
-        <div className="border-b p-5">
-          <h2 className="text-lg font-semibold text-primary-900">
-            Inventory list
-          </h2>
-          <p className="mt-1 text-sm text-gray-600">
-            Current stock quantities and status for every inventory record.
-          </p>
-        </div>
+      <section className="admin-card p-6">
+        <h2 className="font-display text-lg font-semibold text-slate-800">Inventory list</h2>
+        <p className="mt-1 mb-4 text-sm text-slate-500">
+          Current stock quantities and status for every inventory record.
+        </p>
 
         {loading ? (
-          <p className="p-6 text-sm text-gray-600">Loading inventory...</p>
+          <LoadingRows />
         ) : items.length === 0 ? (
-          <p className="p-6 text-sm text-gray-600">No inventory records found.</p>
+          <p className="py-8 text-center text-sm text-slate-500">No inventory records found.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border">
             <table className="w-full text-left text-sm">
-              <thead className="bg-primary-50 text-primary-900">
+              <thead className="border-b bg-cream-100/70">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">ID</th>
-                  <th className="px-4 py-3 font-semibold">Product</th>
-                  <th className="px-4 py-3 font-semibold">Variant</th>
-                  <th className="px-4 py-3 font-semibold">Quantity</th>
-                  <th className="px-4 py-3 font-semibold">Threshold</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Location</th>
+                  <th className={th}>ID</th>
+                  <th className={th}>Product</th>
+                  <th className={th}>Variant</th>
+                  <th className={th}>Quantity</th>
+                  <th className={th}>Threshold</th>
+                  <th className={th}>Status</th>
+                  <th className={th}>Location</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody>
                 {items.map((item) => (
-                  <tr key={item.id} className="hover:bg-primary-50/50">
-                    <td className="whitespace-nowrap px-4 py-3">{item.id}</td>
-                    <td className="min-w-40 px-4 py-3 font-medium">{item.product_name}</td>
-                    <td className="px-4 py-3">{item.variant_id ?? "—"}</td>
-                    <td className="px-4 py-3 font-semibold">{item.quantity}</td>
-                    <td className="px-4 py-3">{item.low_stock_threshold}</td>
-                    <td className="px-4 py-3">
-                      <span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses[item.status] ?? "bg-gray-100 text-gray-700"}`}>
-                       {item.status.split("_").join(" ")}
+                  <tr key={item.id} className="border-b last:border-0 text-slate-700 transition-colors hover:bg-cream-100/60">
+                    <td className="whitespace-nowrap px-4 py-3.5 text-slate-500">#{item.id}</td>
+                    <td className="min-w-40 px-4 py-3.5 font-medium text-slate-800">{item.product_name}</td>
+                    <td className="px-4 py-3.5">{item.variant_id ?? "—"}</td>
+                    <td className="px-4 py-3.5 font-semibold">{item.quantity}</td>
+                    <td className="px-4 py-3.5">{item.low_stock_threshold}</td>
+                    <td className="px-4 py-3.5">
+                      <span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium capitalize ${statusClasses[item.status] ?? "bg-slate-100 text-slate-700"}`}>
+                        {item.status.split("_").join(" ").toLowerCase()}
                       </span>
                     </td>
-                    <td className="px-4 py-3">{item.location ?? "—"}</td>
+                    <td className="px-4 py-3.5">{item.location ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -306,42 +304,40 @@ export default function InventoryPage() {
         )}
       </section>
 
-      <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
-        <div className="border-b p-5">
-          <h2 className="text-lg font-semibold text-primary-900">
-            Low-stock report
-          </h2>
-          <p className="mt-1 text-sm text-gray-600">
-            Records with quantities at or below their configured threshold.
-          </p>
-        </div>
+      <section className="admin-card p-6">
+        <h2 className="font-display text-lg font-semibold text-slate-800">Low-stock report</h2>
+        <p className="mt-1 mb-4 text-sm text-slate-500">
+          Records with quantities at or below their configured threshold.
+        </p>
 
         {loading ? (
-          <p className="p-6 text-sm text-gray-600">Loading low-stock report...</p>
+          <LoadingRows />
         ) : lowStockItems.length === 0 ? (
-          <p className="p-6 text-sm text-gray-600">No low-stock records. All records are above their thresholds.</p>
+          <p className="py-8 text-center text-sm text-slate-500">
+            No low-stock records. All records are above their thresholds.
+          </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-amber-200">
             <table className="w-full text-left text-sm">
-              <thead className="bg-amber-50 text-amber-900">
+              <thead className="border-b border-amber-200 bg-amber-50">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Product</th>
-                  <th className="px-4 py-3 font-semibold">Variant</th>
-                  <th className="px-4 py-3 font-semibold">Quantity</th>
-                  <th className="px-4 py-3 font-semibold">Threshold</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className={th}>Product</th>
+                  <th className={th}>Variant</th>
+                  <th className={th}>Quantity</th>
+                  <th className={th}>Threshold</th>
+                  <th className={th}>Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody>
                 {lowStockItems.map((item) => (
-                  <tr key={item.id}>
-                    <td className="px-4 py-3 font-medium">{item.product_name}</td>
-                    <td className="px-4 py-3">{item.variant_id ?? "—"}</td>
-                    <td className="px-4 py-3">{item.quantity}</td>
-                    <td className="px-4 py-3">{item.low_stock_threshold}</td>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses[item.status] ?? "bg-gray-100 text-gray-700"}`}>
-                       {item.status.split("_").join(" ")}
+                  <tr key={item.id} className="border-b border-amber-100 last:border-0 text-slate-700">
+                    <td className="px-4 py-3.5 font-medium text-slate-800">{item.product_name}</td>
+                    <td className="px-4 py-3.5">{item.variant_id ?? "—"}</td>
+                    <td className="px-4 py-3.5 font-semibold">{item.quantity}</td>
+                    <td className="px-4 py-3.5">{item.low_stock_threshold}</td>
+                    <td className="px-4 py-3.5">
+                      <span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium capitalize ${statusClasses[item.status] ?? "bg-slate-100 text-slate-700"}`}>
+                        {item.status.split("_").join(" ").toLowerCase()}
                       </span>
                     </td>
                   </tr>
@@ -351,6 +347,6 @@ export default function InventoryPage() {
           </div>
         )}
       </section>
-    </main>
+    </div>
   );
 }

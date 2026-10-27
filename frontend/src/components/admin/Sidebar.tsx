@@ -8,7 +8,7 @@ import { getSession, logout } from "../../services/authService";
 const SECTIONS: { title: string; labels: string[] }[] = [
   { title: "Overview", labels: ["Dashboard", "Analytics"] },
   { title: "Sales", labels: ["Orders", "Returns", "Payments"] },
-  { title: "Catalog", labels: ["Products", "Categories"] },
+  { title: "Catalog", labels: ["Products", "Categories", "Inventory", "Reviews"] },
   { title: "People", labels: ["Customers", "Roles"] },
 ];
 

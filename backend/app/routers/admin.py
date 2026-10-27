@@ -16,6 +16,7 @@ from app.models.payment import Payment, PaymentMethod, PaymentStatus
 from app.models.role import Role
 from app.models.user import User
 from app.models.audit_log import AuditLog
+from app.models.review import Review
 
 router = APIRouter(
     prefix="/api/admin",
@@ -602,3 +603,42 @@ def update_user_role(
         role=user.role.name.upper(),
         status=user.status,
     )
+
+
+# ============================================================
+# REVIEW DELETE — ADM-08
+# ============================================================
+
+# DELETE /api/admin/reviews/{review_id}
+# Permanently removes a review (e.g. spam or personal details).
+# Approve / reject come from the reviews module.
+@router.delete("/reviews/{review_id}", status_code=204)
+def delete_review(
+    review_id: int,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(require_role("admin")),
+):
+    review = db.query(Review).filter(Review.id == review_id).first()
+
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found.")
+
+    try:
+        db.add(
+            AuditLog(
+                actor_id=current_admin.id,
+                action="REVIEW_DELETED",
+                entity_type="review",
+                entity_id=review.id,
+                details=(
+                    f"Deleted {review.rating}-star review on product "
+                    f"{review.product_id} by user {review.user_id}"
+                ),
+            )
+        )
+        db.delete(review)
+        db.commit()
+
+    except Exception:
+        db.rollback()
+        raise

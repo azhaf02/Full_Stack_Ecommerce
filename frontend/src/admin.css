@@ -94,3 +94,97 @@
     background-color: #ffffff;
   }
 }
+
+/* Sage (#879b70) as the third colour: olive stays the main colour,
+   sage marks buttons, active tabs, highlights and charts. */
+:root {
+  --color-sage: #879b70;
+  --color-sage-dark: #6b7d57;
+  --color-sage-soft: #eef2e8;
+}
+
+/* Page title: sage underline that fades out */
+header h1.font-display::after {
+  content: "";
+  display: block;
+  width: 3.5rem;
+  height: 4px;
+  margin-top: 0.4rem;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--color-sage), #c6d2b6);
+}
+
+/* Main buttons and active tabs in sage */
+main .bg-primary-600 {
+  background-color: var(--color-sage);
+  box-shadow: 0 2px 8px rgb(135 155 112 / 0.25);
+}
+main .hover\:bg-primary-700:hover,
+main .bg-primary-600:hover {
+  background-color: var(--color-sage-dark);
+}
+
+/* KPI cards: sage top edge, lift on hover */
+main .bg-cream-50.rounded-xl.shadow-sm {
+  border-top: 3px solid var(--color-sage);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+main .bg-cream-50.rounded-xl.shadow-sm:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgb(135 155 112 / 0.15);
+}
+
+/* Table rows: sage edge and warm tint on hover */
+main tbody tr:hover {
+  background-color: var(--color-sage-soft);
+  box-shadow: inset 3px 0 0 var(--color-sage);
+}
+
+/* Links in sage */
+main a.text-primary-600 {
+  color: var(--color-sage);
+}
+main a.text-primary-600:hover {
+  color: var(--color-sage-dark);
+}
+
+/* Charts: bars and revenue line in sage */
+.recharts-bar-rectangle path {
+  fill: var(--color-sage);
+}
+.recharts-bar-rectangle:hover path {
+  fill: var(--color-sage-dark);
+}
+.recharts-area-curve {
+  stroke: var(--color-sage);
+}
+#revFill stop {
+  stop-color: var(--color-sage);
+}
+.recharts-area-dots circle,
+.recharts-active-dot circle {
+  fill: var(--color-sage);
+}
+/* Sidebar: sage logo tile, section titles, active page and avatar */
+aside .bg-primary-600 {
+  background-color: var(--color-sage);
+}
+aside .text-primary-300,
+aside .text-primary-300\/80 {
+  color: #c6d2b6;
+}
+aside a.active {
+  background: linear-gradient(90deg, rgb(135 155 112 / 0.45), rgb(135 155 112 / 0.1));
+}
+aside a.active svg {
+  color: #dde5d2;
+}
+aside a.active .bg-cream-100 {
+  background-color: #c6d2b6;
+}
+aside a:not(.active):hover svg {
+  color: #c6d2b6;
+}
+aside .ring-primary-500 {
+  --tw-ring-color: #c6d2b6;
+}
