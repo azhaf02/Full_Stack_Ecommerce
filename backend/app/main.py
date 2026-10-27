@@ -1,11 +1,20 @@
 
 from dotenv import load_dotenv
-
 load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+
+# Load every SQLAlchemy model in app/models so relationships between modules
+# (e.g. Product -> ProductVariant, Inventory -> InventoryHistory) can resolve
+import importlib
+import pkgutil
+
+import app.models as _models_pkg
+
+for _module in pkgutil.iter_modules(_models_pkg.__path__):
+    importlib.import_module(f"app.models.{_module.name}")
 
 from app.services import order_service
 from app.services.inventory_service import on_order_status_change
@@ -51,9 +60,11 @@ app.add_middleware(
 # Serve uploaded product images
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# Register routers
-app.include_router(notifications.router)
-app.include_router(reviews.router)
+# Register routers with /api prefix for reviews & notifications
+app.include_router(notifications.router, prefix="/api")
+app.include_router(reviews.router, prefix="/api")
+
+# Admin Dashboard
 app.include_router(admin.router)
 app.include_router(category.router)
 

@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import {
   fetchAnalyticsSummary,
   fetchAnalyticsCharts,
+  //@ts-ignore
 } from "../../api";
 
 import { getSession, logout } from "../../services/authService";

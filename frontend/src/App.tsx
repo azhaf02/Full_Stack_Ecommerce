@@ -1,54 +1,58 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import DashboardLayout from './components/DashboardLayout';
 import ProductDetailPage from './ProductDetailPage';
+// @ts-expect-error CheckoutPage is a .jsx file without type declarations
 import CheckoutPage from './checkout/pages/CheckoutPage';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Loaded separately so each area's styles stay on its own pages:
 // admin (Tailwind), customer dashboard (Bootstrap), VIORA pages (home + auth).
-const AdminApp = lazy(() => import('./AdminApp'));
-const CustomerApp = lazy(() => import('./CustomerApp'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const ProductListingPage = lazy(() => import('./pages/ProductListingPage'));
+const AdminApp = lazy(() => import('./AdminApp'));
+const CustomerApp = lazy(() => import('./CustomerApp'));
 
-function App() {
+export default function App() {
   return (
-    <AuthProvider>
-      <Suspense fallback={null}>
-        <Routes>
-          {/* Storefront home (Madeeha) */}
-          <Route path="/" element={<HomePage />} />
+    <Router>
+      <AuthProvider>
+        <Suspense fallback={null}>
+          <Routes>
+            {/* Storefront home (Madeeha) */}
+            <Route path="/" element={<HomePage />} />
 
-          {/* Until the product listing page exists, /products opens the Home page product section */}
-          <Route path="/products" element={<HomePage />} />
+            {/* Product listing + details (Chandani) */}
+            <Route path="/products" element={<ProductListingPage />} />
+            <Route path="/product/:id" element={<ProductDetailPage />} />
 
-          {/* Admin Dashboard */}
-          <Route path="/admin/*" element={<AdminApp />} />
+            {/* Checkout (Safiya) */}
+            <Route path="/checkout" element={<CheckoutPage />} />
 
-          {/* Product Details */}
-          <Route path="/product/:id" element={<ProductDetailPage />} />
+            {/* Auth pages (Madeeha) */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
 
-          {/* Checkout (Safiya) */}
-          <Route path="/checkout" element={<CheckoutPage />} />
+            {/* Customer-only pages (Madeeha, AUTH-05) */}
+            <Route element={<ProtectedRoute role="customer" />}>
+              <Route path="/profile" element={<ProfilePage />} />
+            </Route>
 
-          {/* Auth pages (Madeeha) */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+            {/* Admin Dashboard */}
+            <Route path="/admin/*" element={<AdminApp />} />
 
-          {/* Customer-only pages (Madeeha) */}
-          <Route element={<ProtectedRoute role="customer" />}>
-            <Route path="/profile" element={<ProfilePage />} />
-          </Route>
+            {/* Customer Dashboard (Aliza) */}
+            <Route path="/dashboard" element={<DashboardLayout />} />
 
-          {/* Customer Dashboard: keep this LAST, it catches all other paths */}
-          <Route path="*" element={<CustomerApp />} />
-        </Routes>
-      </Suspense>
-    </AuthProvider>
+            {/* Order pages (Rukhsar), then the customer dashboard: keep this LAST, it catches all other paths */}
+            <Route path="*" element={<CustomerApp />} />
+          </Routes>
+        </Suspense>
+      </AuthProvider>
+    </Router>
   );
 }
-
-export default App;

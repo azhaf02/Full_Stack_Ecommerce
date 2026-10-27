@@ -1,3 +1,7 @@
+@import "tailwindcss";
+@import "bootstrap/dist/css/bootstrap.min.css";
+@import "bootstrap-icons/font/bootstrap-icons.css";
+
 @layer theme, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities) important;
@@ -26,6 +30,32 @@
   .viora-fade, .viora-rise, .viora-leaf { animation: none; }
 }
 
+:root {
+  --viora-primary: #5F6B3A;
+  --viora-hover: #4D572F;
+  --viora-navbar: #343A20;
+  --viora-bg: #F8F7F2;
+  --viora-card: #FFFFFF;
+  --viora-border: #E5E2D8;
+  --viora-text: #252A20;
+}
+
+body {
+  background-color: var(--viora-bg) !important;
+  color: var(--viora-text) !important;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+.viora-navbar { background-color: var(--viora-navbar) !important; }
+.viora-btn-primary { background-color: var(--viora-primary) !important; border-color: var(--viora-primary) !important; color: #ffffff !important; }
+.viora-btn-primary:hover { background-color: var(--viora-hover) !important; }
+.viora-card { background-color: var(--viora-card) !important; border: 1px solid var(--viora-border) !important; border-radius: 8px; }
+.badge-success-custom { color: #198754 !important; background-color: #D1E7DD !important; }
+.badge-warning-custom { color: #664d03 !important; background-color: #FFF3CD !important; }
+
+/* ===== Checkout pages (Safiya) and shared page basics ===== */
 :root {
   font-family: Inter, "Segoe UI", Arial, sans-serif;
   color: #252A20;
