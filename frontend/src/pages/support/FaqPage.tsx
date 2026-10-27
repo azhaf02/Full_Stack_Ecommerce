@@ -205,7 +205,7 @@ const FaqPage: React.FC = () => {
                       cursor: 'pointer',
                       backgroundColor: '#FFFFFF',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.01)',
-                      Height: '150px',    
+                      height: '150px',    
                       display: 'flex',
                       flexDirection: 'column',
                      justifyContent: 'space-between'

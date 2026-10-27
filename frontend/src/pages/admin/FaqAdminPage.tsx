@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiClient, { getErrorMessage } from '../../services/apiClient';
+import supportAdminService from '../../services/supportAdminService';
 
 interface FAQItem {
   id: number;
@@ -39,9 +40,9 @@ try {
 const payload = { question, answer, sort_order: sortOrder };
 
 if (editingId) {
-await apiClient.put(url, payload);
+await supportAdminService.put(url, payload);
 } else {
-await apiClient.post(url, payload);
+await supportAdminService.post(url, payload);
 }
 } catch (err) {
 alert(getErrorMessage(err, 'Failed to save FAQ.'));
@@ -68,7 +69,7 @@ setSortOrder(f.sort_order);
 
   const handleDeleteFAQ = async (id: number) => {
 try {
-await apiClient.delete(`/api/support/admin/faq/${id}`);
+await supportAdminService.delete(`/api/support/admin/faq/${id}`);
 await refreshFaqs();
 } catch (err) {
 alert(getErrorMessage(err, 'Failed to delete FAQ.'));

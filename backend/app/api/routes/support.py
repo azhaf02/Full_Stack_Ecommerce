@@ -109,11 +109,53 @@ def admin_get_all_tickets(admin_user = Depends(require_role("admin")), db: Sessi
     Allows role-verified administrative panel accounts to grab full tracking logs.
     """
     return db.query(SupportTicket).all()
+@router.get("/admin/tickets/{ticket_id}")
+def admin_get_ticket_details(
+    ticket_id: int,
+    admin_user=Depends(require_role("admin")),
+    db: Session = Depends(get_db)
+):
+    ticket = db.query(SupportTicket).filter(
+        SupportTicket.id == ticket_id
+    ).first()
 
+    if not ticket:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Support ticket not found."
+        )
+
+    messages = db.query(SupportMessage).filter(
+        SupportMessage.ticket_id == ticket_id
+    ).order_by(SupportMessage.timestamp.asc()).all()
+
+    return {
+        "ticket": {
+            "id": ticket.id,
+            "customer_id": ticket.customer_id,
+            "order_id": ticket.order_id,
+            "category": ticket.category,
+            "subject": ticket.subject,
+            "description": ticket.description,
+            "status": ticket.status,
+            "created_at": ticket.created_at,
+        },
+        "messages": [
+            {
+                "id": message.id,
+                "ticket_id": message.ticket_id,
+                "sender_type": message.sender_type,
+                "message": message.message,
+                "timestamp": message.timestamp,
+            }
+            for message in messages
+        ],
+    }
 
 @router.post("/admin/tickets/{ticket_id}/reply")
 def admin_reply_to_ticket(ticket_id: int, payload: TicketReplySchema, admin_user = Depends(require_role("admin")), db: Session = Depends(get_db)):
     """
+    
     POST /api/support/admin/tickets/{ticket_id}/reply
     Appends official Support Staff conversation message and appends it to customer stream view.
     """
