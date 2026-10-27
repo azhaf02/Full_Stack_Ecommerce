@@ -319,3 +319,70 @@ Backend API checks performed:
 - The original quantity of 10 was restored.
 
 The frontend production build completed successfully after adding the inventory page and route.
+
+## INV-08 Checkpoint 4 Support — Payment, Order Creation & Inventory
+
+### Overview
+
+INV-08 verifies that inventory changes are coordinated with order confirmation, payment outcomes, cancellation, and returns.
+
+The Order service invokes the inventory status hook when an order changes status. The hook handles stock deduction and restoration. Database commits remain controlled by the calling transaction.
+
+### Successful Payment and Stock Deduction
+
+For an online order:
+
+1. The order is created in `PLACED` status.
+2. The payment result is verified by the backend.
+3. On successful payment, the order is confirmed.
+4. Confirmation triggers inventory deduction.
+5. Inventory history records the deduction, including the order ID.
+
+Failed, cancelled, or pending payment results do not confirm the online order and do not deduct stock.
+
+COD orders follow the order service's confirmation workflow.
+
+### Cancellation and Returns
+
+- Cancelling an order that has not consumed stock does not require stock restoration.
+- Cancelling a confirmed order restores the ordered quantities.
+- A partial return restores only the quantities included in the approved return.
+- A return must follow the configured return workflow.
+- Repeating the completion action for an already completed return is rejected, preventing duplicate restoration through the return service.
+
+Restock history records the order ID, inventory ID, change amount, previous quantity, new quantity, and reason.
+
+### Verification
+
+The following test suites passed during INV-08 verification:
+
+| Test suite | Result |
+|---|---:|
+| `test_order_inventory_integration.py` | 5 passed |
+| `test_payment_integration.py` | 19 passed |
+| `test_cod_payment_hook.py` | 8 passed |
+| `test_order_workflow.py` | 44 passed |
+
+The combined regression run reported **76 passed, 57 warnings, 0 failures** before the final return-test additions. The updated order workflow suite subsequently passed with 44 tests.
+
+Additional assertions verify that:
+- Successful online payment deducts the expected product and variant quantities.
+- Deduction history is linked to the order.
+- Failed, cancelled, and pending payments leave stock unchanged.
+- Partial return restores the expected quantity.
+- Restock history is linked to the order.
+- Repeating return completion does not restore stock twice.
+
+### Database and Migration Safety
+
+INV-08 verification was performed using the automated test suite and its test database. No shared Supabase database migration was run as part of this verification.
+
+### Definition of Done
+
+- Successful payment triggers stock deduction.
+- Failed or pending online payment does not deduct stock.
+- Cancellation and return flows restore the appropriate quantities.
+- Inventory history records stock changes against the order.
+- Duplicate return completion does not cause duplicate restocking.
+- Relevant regression tests pass.
+- Documentation and Git changes are reviewed before committing.

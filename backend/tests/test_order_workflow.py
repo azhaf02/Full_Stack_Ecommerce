@@ -127,18 +127,55 @@ def test_inconsistent_order_data_is_rejected(db, override, message):
 
 def test_verified_payment_confirms_an_online_order(db):
     order = create_order(db, order_input())
+
     apply_payment_result(db, order, "SUCCESS", changed_by=2)
-    assert order.status == "CONFIRMED" and order.payment_status == "SUCCESS"
+
+    assert order.status == "CONFIRMED"
+    assert order.payment_status == "SUCCESS"
     assert stock_was_deducted(order)
+
+    # Product 10: 100 - 2 ordered
+    assert db.query(Inventory).filter_by(product_id=10).one().quantity == 98
+
+    # Product 11, variant 5: 100 - 1 ordered
+    assert (
+        db.query(Inventory)
+        .filter_by(product_id=11, variant_id=5)
+        .one()
+        .quantity
+        == 99
+    )
+
+    # Verify deduction history was recorded for this order.
+    history = (
+        db.query(InventoryHistory)
+        .filter_by(order_id=order.id, change_type="DEDUCTION")
+        .all()
+    )
+    assert len(history) == 2
+    assert sum(row.change_amount for row in history) == -3
 
 
 @pytest.mark.parametrize("result", ["FAILED", "CANCELLED", "PENDING"])
 def test_failed_or_cancelled_payment_does_not_confirm(db, result):
     order = create_order(db, order_input())
+
     apply_payment_result(db, order, result)
-    assert order.status == "PLACED" and order.payment_status == result
+
+    assert order.status == "PLACED"
+    assert order.payment_status == result
     assert not stock_was_deducted(order)
 
+    assert db.query(Inventory).filter_by(product_id=10).one().quantity == 100
+    assert (
+        db.query(Inventory)
+        .filter_by(product_id=11, variant_id=5)
+        .one()
+        .quantity
+        == 100
+    )
+
+    assert db.query(InventoryHistory).count() == 0
 
 def test_a_late_second_success_does_not_confirm_twice(db):
     order = create_order(db, order_input())
@@ -251,11 +288,59 @@ def test_full_return_and_refund_flow(db):
 def test_partial_return_refunds_only_the_returned_items(db):
     order = delivered_paid_order(db)
     first, _ = item_ids(order)
+
+    # Stock before return: product 10 = 98, product 11 = 99
     ret = request_return(db, order, 1, "wrong size", [(first, 1)])
     review_return(db, ret, 9, True)
     mark_returned(db, ret, 9)
+
     assert ret.refund_amount == Decimal("50.00") == refund_amount_for(ret)
 
+    # Only the returned unit is restored.
+    assert db.query(Inventory).filter_by(product_id=10).one().quantity == 99
+    assert (
+        db.query(Inventory)
+        .filter_by(product_id=11, variant_id=5)
+        .one()
+        .quantity
+        == 99
+    )
+
+    # Verify exactly one unit was recorded as restocked.
+    history = (
+        db.query(InventoryHistory)
+        .filter_by(order_id=order.id, change_type="RESTOCK")
+        .all()
+    )
+    assert len(history) == 1
+    assert history[0].change_amount == 1
+
+def test_return_cannot_restock_the_same_items_twice(db):
+    order = delivered_paid_order(db)
+    first, _ = item_ids(order)
+
+    ret = request_return(db, order, 1, "wrong size", [(first, 1)])
+    review_return(db, ret, 9, True)
+    mark_returned(db, ret, 9)
+
+    # One unit was restored: 98 -> 99.
+    inventory = db.query(Inventory).filter_by(product_id=10).one()
+    assert inventory.quantity == 99
+
+    # A second completion attempt must be rejected.
+    with pytest.raises(ReturnNotAllowed):
+        mark_returned(db, ret, 9)
+
+    # Stock must remain unchanged.
+    assert inventory.quantity == 99
+
+    history = (
+        db.query(InventoryHistory)
+        .filter_by(order_id=order.id, change_type="RESTOCK")
+        .all()
+    )
+    assert len(history) == 1
+    assert sum(row.change_amount for row in history) == 1
 
 def test_rejected_return_puts_the_order_back_to_delivered(db):
     order = delivered_paid_order(db)

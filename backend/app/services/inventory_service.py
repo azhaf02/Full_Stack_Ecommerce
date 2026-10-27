@@ -254,6 +254,7 @@ def restock(db: Session, order, items, reason: str = "cancel"):
             changed_by=order.user_id,
             change_type="RESTOCK",
             reason=reason,
+            order_id=order.id,
         )
 
 def on_order_status_change(db, order, previous_status, new_status):
