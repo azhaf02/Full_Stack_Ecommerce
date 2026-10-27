@@ -86,15 +86,12 @@ def edit_category(
     return category
 
 
-@router.delete("/{category_id}")
+@router.delete(
+    "/{category_id}",
+    response_model=CategoryResponse,
+)
 def delete(category_id: int, db: Session = Depends(get_db)):
-    try:
-        category = delete_category(db, category_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        )
+    category = delete_category(db, category_id)
 
     if not category:
         raise HTTPException(
@@ -102,8 +99,4 @@ def delete(category_id: int, db: Session = Depends(get_db)):
             detail="Category not found",
         )
 
-    return {
-        "message": "Category permanently deleted",
-        "id": category_id,
-        "name": category.name,
-    }
+    return category
