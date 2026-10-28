@@ -66,3 +66,7 @@ this discrepancy cannot currently be reconciled and neither figure is presented 
 verified run. The targeted result of 176 passed and 6 warnings is documented as a subset
 of the full suite; the counts must not be added together. Before final sign-off, compare the
 original run logs or perform a fresh full-suite run and record its actual output.
+
+## CHK-09 Documentation Scope
+
+These CHK-09 documents are supplemental documentation deliverables. They do not replace the existing docs/final_test_case_sheet.csv, docs/generated/integration_test_log.txt, or docs/test-evidence/ORD-04-order-status-transitions.md. Those remain separate project artifacts; their historical contents are not treated as newly verified CHK-09 acceptance evidence.

@@ -20,14 +20,23 @@ The frontend package was previously reported as lacking a dedicated test script.
 
 ## 2. Source-reviewed API contracts
 
-The backend source snippets reviewed for this documentation update identify these distinct routes and contracts:
+The backend source inspected on `origin/integration-v2` identifies the following:
 
-- `POST /api/checkout/review`: authenticated customer request with `address_id`, `shipping_method_id` and optional `coupon_code`; extra request fields are forbidden. The review response includes items, coupon details, summary values (`subtotal`, `discount`, `tax`, `shipping`, `total`) and `ready_for_payment`.
-- `POST /api/checkout/session`: re-runs review, requires `ready_for_payment`, and creates a 30-minute handoff session containing the server-generated checkout snapshot. Response includes `checkout_reference_id`, `session_id`, `status`, `expires_at` and `checkout`.
-- `POST /api/checkout/sessions` and `GET /api/checkout/sessions/{session_id}`: separate plural lifecycle endpoints. The inspected implementation scopes retrieval to the owning customer and uses 404 for missing/non-owned sessions and 410 for expired/inactive sessions.
+- The checkout-session router is mounted at `/api/checkout/sessions`.
+- `POST /api/checkout/sessions` accepts `customer_id` and returns session identifiers, status and timestamps. The inspected handler does not declare customer authentication.
+- `GET /api/checkout/sessions/{session_id}` retrieves a session by ID. The inspected handler does not declare authentication or check that the requester owns the session. It returns 404 for a missing session and 410 for an inactive or expired session.
+- The checkout-session model's default expiry is 30 minutes after creation.
+- The singular routes `POST /api/checkout/review` and `POST /api/checkout/session` were not found in the inspected `integration-v2` source. Their handoff contract is therefore not verified as implemented on that branch.
+- The inspected order-service logic confirms COD orders after creation. Online orders remain `PLACED` until verified payment status `SUCCESS` permits confirmation.
 
-This is a source-contract review only. It is not evidence that these endpoints were executed successfully. Runtime/API checks and browser acceptance remain pending unless separate execution evidence is attached.
-## 2. Manual checkout acceptance
+
+### Authentication and Ownership Enforcement Review
+
+The inspected application setup showed CORS middleware; no global authentication middleware was identified in the reviewed main.py setup. The security module defines get_current_user and
+require_role dependencies, which apply to routes that declare them. The checkout-address route uses a customer-role dependency. The inspected payment routes use get_current_user, and payment-method selection checks that the checkout session belongs to the authenticated user. The plural checkout-session create and retrieve handlers showed database dependencies but no explicit authentication dependency or ownership check in the inspected handlers. This is source inspection only: it does not establish whether deployment-level controls exist or prove that the endpoints are publicly accessible. Runtime security behavior was not tested in this review.
+This is source inspection only, not runtime evidence. Do not claim that any endpoint or end-to-end journey passed. Runtime/API checks and browser acceptance remain pending unless separate execution evidence is attached.
+
+## 3. Manual checkout acceptance
 
 **Status: PENDING VERIFICATION**
 
@@ -60,3 +69,7 @@ this discrepancy cannot currently be reconciled and neither figure is presented 
 verified run. The targeted result of 176 passed and 6 warnings is documented as a subset
 of the full suite; the counts must not be added together. Before final sign-off, compare the
 original run logs or perform a fresh full-suite run and record its actual output.
+
+## CHK-09 Documentation Scope
+
+These CHK-09 documents are supplemental documentation deliverables. They do not replace the existing docs/final_test_case_sheet.csv, docs/generated/integration_test_log.txt, or docs/test-evidence/ORD-04-order-status-transitions.md. Those remain separate project artifacts; their historical contents are not treated as newly verified CHK-09 acceptance evidence.
