@@ -54,3 +54,12 @@ body {
 .viora-card { background-color: var(--viora-card) !important; border: 1px solid var(--viora-border) !important; border-radius: 8px; }
 .badge-success-custom { color: #198754 !important; background-color: #D1E7DD !important; }
 .badge-warning-custom { color: #664d03 !important; background-color: #FFF3CD !important; }
+/* Order pages: every link (incl. the Bootstrap btn-link back button) uses the same green as the page's
+   buttons, underlined only on hover. */
+.order-link,
+.order-link:hover,
+.order-link:focus {
+  color: var(--bs-success, #198754);
+}
+.order-link { text-decoration: none; }
+.order-link:hover { text-decoration: underline; }
