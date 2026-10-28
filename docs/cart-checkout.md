@@ -138,7 +138,7 @@ The router is mounted at `/api/checkout/sessions`:
 - The `GET` handler returns 404 when the session is missing and 410 when its status is inactive or its expiry has passed.
 - The checkout-session model sets a default expiry 30 minutes after creation.
 
-Do not describe these plural lifecycle handlers as authenticated or owner-scoped; the inspected source does not support those claims. These routes are distinct from the singular checkout handoff routes, which were not found on `integration-v2`.
+Do not describe these plural lifecycle handlers as authenticated or owner-scoped; the inspected source does not support those claims. Although the router defines `customer_only`, neither plural session handler declares that dependency. These routes are distinct from the singular checkout handoff routes, which were not found on `integration-v2`.
 
 ### Verification boundary
 
