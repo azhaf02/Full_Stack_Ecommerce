@@ -13,7 +13,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-64 h-screen sticky top-0 bg-primary-800 text-primary-100 flex flex-col p-4">
+    <aside className="admin-sidebar w-64 h-screen sticky top-0 bg-primary-800 text-primary-100 flex flex-col p-4">
       {/* Logo */}
       <div className="flex items-center gap-3 text-xl font-bold text-white mb-8 px-2">
         <span className="p-2 rounded-lg bg-primary-600">

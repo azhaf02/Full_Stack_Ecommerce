@@ -46,3 +46,14 @@
     background-color: #ffffff;
   }
 }
+
+/* Unlayered on purpose: Bootstrap (loaded globally) sets `a { text-decoration: underline }` outside any
+   cascade layer, and unlayered rules beat Tailwind utilities. Scoped to the sidebar only. */
+.admin-sidebar a {
+  text-decoration: none;
+}
+
+.admin-sidebar a:hover,
+.admin-sidebar a[aria-current="page"] {
+  color: #ffffff;
+}
