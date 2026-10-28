@@ -135,18 +135,19 @@ export default function OrdersListView({ onReviewSubmitted }: OrdersListViewProp
                         🛍️
                       </div>
                       <div>
-                        <Link to={`/orders/${order.id}`} style={{ fontWeight: '600', color: '#1e241e', textDecoration: 'none' }}>
+                        <Link to={`/orders/${order.id}`} style={{ fontWeight: '600', color: '#1e241e', textDecoration: 'none', whiteSpace: 'nowrap' }}>
                           {order.order_number}
                         </Link>
                       </div>
                     </td>
-                    <td style={{ padding: '16px', color: '#455045' }}>{formatDateTime(order.created_at)}</td>
+                    <td style={{ padding: '16px', color: '#455045', whiteSpace: 'nowrap' }}>{formatDateTime(order.created_at)}</td>
                     <td style={{ padding: '16px' }}>
                       <span style={{
                         padding: '4px 10px',
                         borderRadius: '20px',
                         fontSize: '12px',
                         fontWeight: '600',
+                        whiteSpace: 'nowrap',
                         backgroundColor: delivered ? '#eaf0eb' : '#fdf5ea',
                         color: delivered ? '#2f3e30' : '#b7791f'
                       }}>
