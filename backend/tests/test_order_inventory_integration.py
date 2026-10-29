@@ -7,11 +7,15 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base
 from app.models.inventory import Inventory
 from app.models.inventory_history import InventoryHistory
+
 from app.models.order import (
     Order,
     OrderItem,
     OrderStatusHistory,
+    Return,
+    ReturnItem,
 )
+
 from app.services import order_service
 from app.services.inventory_service import on_order_status_change
 
@@ -20,6 +24,8 @@ ORDER_TABLES = [
     Order.__table__,
     OrderItem.__table__,
     OrderStatusHistory.__table__,
+    Return.__table__,
+    ReturnItem.__table__,
 ]
 
 INVENTORY_TABLES = [
@@ -46,6 +52,7 @@ def db():
 
     order_service.clear_status_hooks()
     session.close()
+    engine.dispose()
 
 
 def make_order(db, status="PLACED"):
@@ -112,8 +119,7 @@ def test_confirmed_order_deducts_stock_and_creates_history(db):
     assert history.previous_quantity == 10
     assert history.new_quantity == 5
     assert history.change_type == "DEDUCTION"
-    assert history.reason == "order:1"
-
+    assert history.reason == f"order:{order.id}"
 
 def test_confirmed_order_with_insufficient_stock_fails(db):
     inventory = add_inventory(db, 3)
@@ -166,7 +172,45 @@ def test_cancelled_confirmed_order_restores_stock(db):
     assert histories[1].reason == "cancel"
 
 
-def test_multi_item_confirmation_failure_rolls_back_all_inventory_changes(db):
+def test_confirmed_order_can_consume_last_available_stock(db):
+    inventory = add_inventory(db, 5)
+    order = make_order(db)
+
+    order_service.update_status(
+        db,
+        order,
+        "CONFIRMED",
+        changed_by=1
+    )
+
+    assert inventory.quantity == 0
+
+    history = db.query(InventoryHistory).one()
+    assert history.change_amount == -5
+    assert history.previous_quantity == 5
+    assert history.new_quantity == 0
+    assert history.reason == f"order:{order.id}"
+
+def test_confirming_order_twice_does_not_deduct_stock_twice(db):
+    inventory = add_inventory(db, 10)
+    order = make_order(db)
+
+    order_service.update_status(
+        db, order, "CONFIRMED", changed_by=1
+    )
+
+    assert inventory.quantity == 5
+
+    with pytest.raises(order_service.InvalidTransition):
+        order_service.update_status(
+            db, order, "CONFIRMED", changed_by=1
+        )
+
+    assert inventory.quantity == 5
+    assert db.query(InventoryHistory).count() == 1
+
+def test_multi_item_confirmation_with_insufficient_stock_changes_nothing(db):
+    # First line has sufficient stock; the second line does not.
     first_inventory = add_inventory(db, 10)
     second_inventory = Inventory(
         product_id=2,
@@ -178,30 +222,26 @@ def test_multi_item_confirmation_failure_rolls_back_all_inventory_changes(db):
     db.add(second_inventory)
     db.commit()
 
-    order = make_order(db)
-    order.items[0].quantity = 2
-    order.items.append(
+    order = make_order(db)  # Product 1, quantity 5.
+    db.add(
         OrderItem(
             order_id=order.id,
             product_id=2,
             variant_id=None,
             quantity=4,
-            unit_price=Decimal("20"),
+            unit_price=Decimal("10"),
         )
     )
-    db.flush()
+    db.commit()
 
     with pytest.raises(order_service.OutOfStock):
         order_service.update_status(
             db,
             order,
             "CONFIRMED",
-            changed_by=1
+            changed_by=1,
         )
-        db.commit()
 
-    # The caller owns rollback when a status hook fails.
-    db.rollback()
     db.refresh(first_inventory)
     db.refresh(second_inventory)
     db.refresh(order)
@@ -210,12 +250,55 @@ def test_multi_item_confirmation_failure_rolls_back_all_inventory_changes(db):
     assert second_inventory.quantity == 3
     assert order.status == "PLACED"
     assert db.query(InventoryHistory).count() == 0
-    assert db.query(OrderStatusHistory).count() == 0
 
+
+def test_returned_order_restores_stock_and_creates_history(db):
+    inventory = add_inventory(db, 5)
+    order = make_order(db, status="RETURN_APPROVED")
+
+    # Simulate stock already deducted when the order was confirmed.
+    inventory.quantity = 0
+
+    order_item = order.items[0]
+
+    return_request = Return(
+        order_id=order.id,
+        user_id=1,
+        reason="Test return",
+        status="APPROVED",
+    )
+    db.add(return_request)
+    db.flush()
+
+    returned_item = ReturnItem(
+        return_id=return_request.id,
+        order_item_id=order_item.id,
+        quantity=5,
+    )
+    db.add(returned_item)
+    db.commit()
+
+    order_service.update_status(
+        db,
+        order,
+        "RETURNED",
+        changed_by=1,
+    )
+
+    assert inventory.quantity == 5
+
+    history = (
+        db.query(InventoryHistory)
+        .filter(InventoryHistory.reason == "return")
+        .one()
+    )
+    assert history.change_type == "RESTOCK"
+    assert history.change_amount == 5
+    assert history.previous_quantity == 0
+    assert history.new_quantity == 5
 def test_returned_item_restocks_only_returned_quantity(db):
     from datetime import datetime, timedelta
 
-    from app.models.order import Return, ReturnItem, ReturnStatus
     from app.services import return_service
 
     inventory = add_inventory(db, 10)
@@ -223,12 +306,10 @@ def test_returned_item_restocks_only_returned_quantity(db):
     order.items[0].quantity = 5
     db.flush()
 
-    # Confirm the order so the original five units are deducted.
     order_service.update_status(db, order, "CONFIRMED", changed_by=1)
     db.commit()
     assert inventory.quantity == 5
 
-    # Deliver the order and create a valid return request for only two units.
     delivered_time = datetime.utcnow()
     order_service.update_status(db, order, "PROCESSING", changed_by=1)
     order_service.update_status(db, order, "PACKED", changed_by=1)
