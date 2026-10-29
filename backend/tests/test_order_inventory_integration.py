@@ -211,3 +211,52 @@ def test_multi_item_confirmation_failure_rolls_back_all_inventory_changes(db):
     assert order.status == "PLACED"
     assert db.query(InventoryHistory).count() == 0
     assert db.query(OrderStatusHistory).count() == 0
+
+def test_returned_item_restocks_only_returned_quantity(db):
+    from datetime import datetime, timedelta
+
+    from app.models.order import Return, ReturnItem, ReturnStatus
+    from app.services import return_service
+
+    inventory = add_inventory(db, 10)
+    order = make_order(db)
+    order.items[0].quantity = 5
+    db.flush()
+
+    # Confirm the order so the original five units are deducted.
+    order_service.update_status(db, order, "CONFIRMED", changed_by=1)
+    db.commit()
+    assert inventory.quantity == 5
+
+    # Deliver the order and create a valid return request for only two units.
+    delivered_time = datetime.utcnow()
+    order_service.update_status(db, order, "PROCESSING", changed_by=1)
+    order_service.update_status(db, order, "PACKED", changed_by=1)
+    order_service.update_status(db, order, "SHIPPED", changed_by=1)
+    order_service.update_status(db, order, "OUT_FOR_DELIVERY", changed_by=1)
+    order_service.update_status(db, order, "DELIVERED", changed_by=1)
+    db.flush()
+    order.status_history[-1].changed_at = delivered_time
+    db.flush()
+
+    ret = return_service.request_return(
+        db,
+        order,
+        user_id=order.user_id,
+        reason="Inventory restock integration test",
+        items=[(order.items[0].id, 2)],
+        now=delivered_time + timedelta(hours=1),
+    )
+    return_service.review_return(db, ret, admin_id=1, approve=True)
+    return_service.mark_returned(db, ret, admin_id=1)
+    db.commit()
+
+    db.refresh(inventory)
+    histories = db.query(InventoryHistory).order_by(InventoryHistory.id).all()
+
+    assert inventory.quantity == 7
+    assert len(histories) == 2
+    assert histories[0].change_amount == -5
+    assert histories[1].change_amount == 2
+    assert histories[1].change_type == "RESTOCK"
+    assert histories[1].reason == "return"
