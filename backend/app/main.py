@@ -1,3 +1,4 @@
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -15,6 +16,9 @@ import app.models as _models_pkg
 for _module in pkgutil.iter_modules(_models_pkg.__path__):
     importlib.import_module(f"app.models.{_module.name}")
 
+from app.services import order_service
+from app.services.inventory_service import on_order_status_change
+from app.services.cod_payment_hook import on_cod_order_change
 from app.routers import (
     notifications,
     reviews,
@@ -25,16 +29,21 @@ from app.routers import (
     audit_logs,
     analytics,
     orders,
+    cart,
     payment,
     checkout_sessions,
+    shipping_methods,
 )
-
+from app.api.routes import checkout, inventory
 from app.api.routes.catalog import router as catalog_router, public_router
 from app.api.routes.product import router as product_router
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
 
-# Enable CORS for React frontend
+# Inventory stock deduction/restocking and COD payment hooks.
+order_service.register_status_hook(on_order_status_change)
+order_service.register_status_hook(on_cod_order_change)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -67,22 +76,24 @@ app.include_router(public_router)
 app.include_router(account.router)
 app.include_router(auth.router)
 app.include_router(audit_logs.router)
-
-# Analytics
 app.include_router(analytics.router)
-
-# Orders, cancellation and returns
 app.include_router(orders.router)
-
-# Payment
 app.include_router(payment.router)
-
-# Checkout sessions
 app.include_router(checkout_sessions.router)
+app.include_router(checkout_sessions.address_router)
 
 # Admin product management
 app.include_router(catalog_router)
 
+# Cart
+app.include_router(cart.router)
+
+# Checkout and shipping
+app.include_router(checkout.router)
+app.include_router(shipping_methods.router)
+
+
+app.include_router(inventory.router)
 
 @app.get("/")
 def root():
