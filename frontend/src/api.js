@@ -25,18 +25,18 @@ export const submitProductReview = (reviewData) =>
   api.post('/api/v1/reviews/api/reviews/', reviewData);
 
 export default api;
-export const fetchAnalyticsSummary = async () => {
-  return {
-    totalRevenue: 0,
-    totalOrders: 0,
-    activeUsers: 0,
-    conversionRate: 0,
-  };
-};
+// Admin Analytics: KPI summary (GET /api/admin/analytics/summary, admin only)
+export const fetchAnalyticsSummary = (token) =>
+  api.get('/api/admin/analytics/summary', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
-export const fetchAnalyticsCharts = async () => {
-  return {
-    revenueTimeline: [],
-    categoryBreakdown: [],
-  };
-};
+// Admin Analytics: chart data (GET /api/admin/analytics/charts, admin only)
+export const fetchAnalyticsCharts = (token) =>
+  api.get('/api/admin/analytics/charts', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
