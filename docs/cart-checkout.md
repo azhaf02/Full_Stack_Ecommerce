@@ -1,288 +1,185 @@
-\# Cart \& Checkout
+# Cart and Checkout
 
+## Shipping method selection
 
-
-\## Shipping Method Selection
-
-
-
-The checkout page loads active shipping methods from the backend using:
-
-
+The checkout flow loads active shipping methods from the backend:
 
 `GET /api/shipping-methods`
 
+Shipping methods are stored in the `shipping_methods` database table.
 
+The documented options are:
 
-The available shipping methods are read from the `shipping\_methods` database table.
+- Standard Delivery
+- Express Delivery
+- Same Day Delivery
 
+Confirm availability and the current charge from the API response rather than assuming a fixed charge in documentation.
 
+## Shipping validation
 
-\### Shipping Methods
-
-
-
-Each shipping method provides:
-
-
-
-\- `id` — Shipping method ID
-
-\- `name` — Shipping method name
-
-\- `cost` — Shipping cost
-
-\- `estimated\_days` — Estimated delivery time
-
-\- `status` — Active/inactive status
-
-
-
-The checkout currently supports:
-
-
-
-\- Standard Delivery
-
-\- Express Delivery
-
-\- Same Day Delivery
-
-
-
-\## Shipping Cost Calculation
-
-
-
-When the customer selects a shipping method, the selected shipping cost is added to the checkout total:
-
-
-
-`Total = Subtotal - Discount + Shipping Cost`
-
-
-
-The frontend displays the updated total based on the selected shipping method.
-
-
-
-\## Shipping Validation
-
-
-
-A shipping method must be selected before the customer can continue to the review step.
-
-
-
-If no shipping method is selected, checkout displays:
-
-
+A shipping method must be selected before the customer can continue to checkout review. When no shipping method is selected, the frontend should display a clear validation message, such as:
 
 `Please select a shipping method.`
 
+## Server-side pricing
 
+Checkout prices and totals must be calculated or validated by the backend. Do not trust prices, discounts, shipping costs, tax amounts, or totals supplied by the browser.
 
-\## Order Pricing
+Expected contract only—not verified as implemented on `origin/integration-v2`: a checkout review/session flow should validate relevant cart items, stock, address, shipping method, coupon and pricing data, with a server-generated snapshot used for handoff. The singular routes `POST /api/checkout/review` and `POST /api/checkout/session` were not found in the inspected source, so this expected behavior must not be treated as a verified implementation on that branch.
 
+Tax and discount behavior must follow the active shared pricing configuration and the applicable backend path. Older notes stating that tax and discount are always zero are not authoritative after the shared pricing configuration changes. Do not document a fixed rate unless it has been verified against the active configuration.
 
+## Checkout API flow
 
-The final shipping cost is calculated on the backend by the server-side order pricing service.
+### Review route — unverified reference
 
+`POST /api/checkout/review` is an intended route reference, not a verified implementation in the inspected `origin/integration-v2` source. Its request fields, authentication, validation, and response contract have not been verified on that branch. Do not treat the route as available until its implementation is located and reviewed.
 
+### Create checkout session — unverified reference
 
-The frontend does not send prices, totals, or shipping costs when creating an order.
+`POST /api/checkout/session` was not found in the inspected `origin/integration-v2` source. Its authentication, validation, response fields, expiry behavior, and snapshot contract therefore remain unverified on that branch.
+### Payment/order handoff
 
+The frontend should retain and pass `checkout_reference_id` only when required by the verified target API contract. The singular checkout handoff route was not found in the inspected `origin/integration-v2` source, so its implementation and snapshot behavior remain unverified. The receiving module must follow the actual implementation and must not trust browser-supplied totals.
 
+`POST /api/orders` is also part of the project order API. See the Order creation section below for the source-inspected request contract and the distinction between checkout-reference and direct-items order paths. This documentation does not replace runtime or manual acceptance evidence.
 
-The order request sends:
+## CHK-06: Checkout-to-order handoff
 
+The intended checkout-session contract would carry validated checkout information from review to the next stage, using server-generated data rather than browser-supplied prices or totals. However, the singular checkout-session route was not found in the inspected `origin/integration-v2` source; the existence and contents of a snapshot for that handoff are not verified on this branch.
 
+Any changes to the handoff contract should be coordinated with the responsible module owner. Do not describe the intended snapshot handoff as implemented until its actual route and behavior are verified.
 
-\- `address\_id`
-
-\- `shipping\_method\_id`
-
-\- `payment\_method`
-
-\- `items`
-
-
-
-The backend reads the selected shipping method from the database and calculates the final order total.
-
-
-
-\## Order Total
-
-
-
-The server calculates:
-
-
-
-`Total = Subtotal + Shipping Cost`
-
-
-
-Tax and discount are currently zero until the shared pricing engine is integrated.
-
-
-
-\## API Flow
-
-
-
-```text
-
-Checkout Page
-
-&#x20;    |
-
-&#x20;    | GET /api/shipping-methods
-
-&#x20;    v
-
-Shipping Methods
-
-&#x20;    |
-
-&#x20;    | Customer selects method
-
-&#x20;    v
-
-Updated Checkout Total
-
-&#x20;    |
-
-&#x20;    | POST /api/orders
-
-&#x20;    v
-
-Server-side Order Pricing
-
-&#x20;    |
-
-&#x20;    v
-
-Final Order Total
-
-
-## CHK-06: Checkout-to-Order Handoff
-
-### Create checkout session
-
-`POST /api/checkout/session`
-
-Authentication: customer bearer token required.
-
-Request body:
-
-```json
-{
-  "address_id": 1,
-  "shipping_method_id": 1,
-  "coupon_code": null
-}
-```
-
-The session endpoint revalidates the checkout on the server. Product availability, prices, coupon discount, shipping cost, and final total must come from the validated checkout review, not client-supplied totals.
-
-Successful response includes:
-
-- `checkout_reference_id`: reference for the pending checkout.
-- `session_id`: checkout session identifier.
-- `status`: session status.
-- `expires_at`: session expiry.
-- `checkout`: validated review snapshot, including items, coupon, and summary totals.
-
-The checkout session stores the server-generated review snapshot for the Payment handoff. Session lifetime is 30 minutes.
-
-### Payment handoff contract
-
-The frontend should retain `checkout_reference_id` and pass it to the Payment module. The Payment module should use the reference to retrieve or validate the pending checkout; it must not trust totals supplied by the browser.
-
-
-## CHK-07: Checkpoint 3 Integration � Cart + Checkout + Address + Shipping
+## CHK-07: Checkpoint 3 integration - Cart, Checkout, Address and Shipping
 
 ### Expected customer flow
 
-Cart with coupon ? Address ? Shipping ? Review ? Order handoff
+Cart -> Coupon -> Address -> Shipping -> Review -> Order handoff
 
 ### Verification status
 
-- Frontend production build: PASS (`npm.cmd --prefix frontend run build`).
-- Checkout review and order creation without a coupon: MANUALLY VERIFIED.
-- Coupon application and discounted checkout: PENDING VERIFICATION.
-- Full Cart-to-Checkout integration: PENDING FINAL VERIFICATION.
-- Cart API integration: Depends on the Cart module owner; Cart implementation is outside this assigned scope.
-- Mentor sign-off: PENDING.
+- Frontend production build: previously reported successful; not rerun in this documentation review.
+- No-coupon checkout/order flow: previously documented as manually verified; the evidence was not independently rechecked here.
+- Coupon application and discounted checkout: **PENDING VERIFICATION**.
+- Full Cart-to-Checkout integration: **PENDING FINAL VERIFICATION**.
+- Mentor sign-off: **PENDING**.
 
 ### Integration requirements
 
 - Checkout must use actual cart items, not hard-coded demo items.
 - Address and shipping selections must be retained through review.
-- Prices, discounts, shipping costs, and totals must be validated server-side.
-- Order handoff must use the server-generated `checkout_reference_id`.
+- Prices, discounts, shipping costs and totals must be validated server-side.
+- Order handoff must use the server-generated checkout reference as required by the current API contract.
 - Cart implementation remains the responsibility of the Cart module owner.
 
-### Submission status
+Do not mark Checkpoint 3 complete until the outstanding checks are confirmed with supporting evidence.
 
-The frontend production build passes, and the no-coupon checkout/order flow has been manually verified. Coupon testing, full Cart-to-Checkout integration verification, and mentor sign-off remain pending. Do not mark Checkpoint 3 complete until the outstanding checks are confirmed.
+## CHK-09: Final testing, bug fixing and documentation
 
-## CHK-09: Final Testing, Bug Fixing & Documentation
+### Historical automated regression results
 
-### Checkout API contracts
+The following results were previously recorded. They were not rerun during this documentation review.
 
-- `POST /api/checkout/review`: requires `address_id` and `shipping_method_id`; `coupon_code` is optional. The backend validates address ownership, shipping, cart items, stock, coupon and server-side pricing.
-- `POST /api/checkout/session`: creates a checkout handoff session and returns a checkout reference, session ID, status, expiry and checkout snapshot. Session lifetime is 30 minutes.
-- `GET /api/checkout/sessions/{session_id}`: retrieves the customer's active session; expired or inactive sessions return a gone response.
-- `POST /api/orders`: uses server-side prices and revalidates checkout-session handoff when applicable. Client-supplied prices and totals are not trusted.
+- Full backend regression: **238 passed, 0 failed**; warning count not recorded.
+- Targeted checkout/order regression: **176 passed, 0 failed, 6 warnings**.
+- Frontend production build: previously reported successful.
+- Frontend lint: previously reported successful.
 
-### Pricing behaviour
+The targeted suite is a subset of the full backend suite; do not add its count to the full-suite count. A historical result is not evidence of a fresh run.
 
-- Cart summary supports subtotal, discount, tax and total.
-- Coupons are validated by the backend.
-- Tax defaults to 0% unless a project-approved rate is configured.
-- Checkout-session pricing recalculates coupon discount, tax and shipping using server-side data.
-- The non-session order path currently sets discount and tax to zero and calculates subtotal plus shipping.
-- Full cart-to-checkout coupon integration must be verified before claiming end-to-end completion.
+### Manual acceptance and outstanding work
 
-### Automated regression results
+The complete browser journey has not been independently verified in this documentation review. The following remain pending:
 
-- Full backend suite: **229 passed, 60 warnings**.
-- Targeted checkout/order regression: **176 passed, 6 warnings**. This is a subset of the full suite and must not be added to its total.
-- Frontend production build: **passed**.
-- Frontend lint: **passed**, with no reported errors.
-- Warnings included deprecations, a pytest collection warning and an insecure-length HMAC test-key warning.
-- The frontend package has no test script, and a dedicated checkout-page test file was not found in the inspected paths.
+- Cart loading and expected quantities.
+- Coupon apply/remove and discount verification.
+- Address selection and invalid-address rejection.
+- Shipping method selection and charge verification.
+- Review subtotal, discount, shipping, tax and final total.
+- Server-side pricing behavior during checkout.
+- COD order creation and cart clearing.
+- Authentication rejection and error/recovery behavior.
+- Applicable final bug/PR reference verification.
+- Mentor sign-off confirmation.
 
-### Remaining acceptance checks
+Refer to `docs/chk-09-final-test-case-sheet.md` for the complete 12-case matrix and `docs/test-evidence/CHK-09-final-regression.md` for the summarized evidence status.
 
-- Verify the browser flow: cart, coupon apply/remove, address, shipping, review totals, checkout-session handoff and order creation.
-- Record applicable closed bug IDs and final PR references.
-- Obtain mentor sign-off before marking the module COMPLETED.
+### Scope limitations
+
+A Product listing API Internal Server Error was reported in earlier project documentation as a separate Product-module issue. Its current status was not verified here, and this checkout documentation does not claim it is fixed.
+
+PR #60 is referenced in earlier documentation as merged. Independent verification of its merge status was not performed in this review.
 
 ### Final status
 
-Automated backend regression, frontend build and lint passed in the recorded local run. Manual end-to-end checks and mentor sign-off remain unconfirmed. Do not mark CHK-09 COMPLETED until these acceptance checks are confirmed.
+- Automated results: **HISTORICAL - NOT RERUN IN THIS REVIEW**.
+- Manual checkout acceptance: **PENDING VERIFICATION**.
+- Mentor sign-off: **PENDING CONFIRMATION**.
+- Overall CHK-09 status: **NOT COMPLETE - pending verification**.
 
-## CHK-09 Final Regression Evidence
+Do not mark CHK-09 complete until manual acceptance evidence and the required sign-off are confirmed.
 
-Verification date: 2026-10-24
+## CHK-09 API contract reference
 
-### Automated verification
-- Full backend regression: PASS — 229 passed, 0 failed, 60 warnings.
-- Targeted checkout/order regression: PASS — 176 passed, 0 failed, 6 warnings.
-- Frontend production build: PASS.
-- Frontend ESLint: PASS.
+The following route findings were checked against `origin/integration-v2` source. They describe source inspection only, not successful runtime or browser testing.
 
-Warnings are recorded rather than treated as test failures. They include dependency/API deprecations, pytest collection warnings, and an insecure-length test JWT key warning.
+### Checkout review and singular handoff routes
 
-### Acceptance status
-- Automated backend regression: PASS.
-- Frontend build and lint: PASS.
-- Full browser journey (cart, coupon apply/remove, address, shipping, review, order creation, and cart clearing): NOT YET VERIFIED in this final CHK-09 run.
-- Final bug IDs and PR references: TO BE RECORDED after verification.
-- Mentor sign-off: PENDING.
+The inspected `integration-v2` source did not contain the singular routes `POST /api/checkout/review` or `POST /api/checkout/session`. Therefore, this document does not claim that these endpoints are implemented on that branch. The checkout-reference snapshot handoff contract must be verified against the actual target implementation before it is documented as available.
 
-Do not mark CHK-09 COMPLETED until the remaining acceptance checks, bug/PR references, and required sign-off are confirmed.
+### Plural checkout-session lifecycle API
+
+The router is mounted at `/api/checkout/sessions`:
+
+- `POST /api/checkout/sessions` accepts a `customer_id` in its request body and returns `session_id`, `customer_id`, `status`, `created_at` and `expires_at`.
+- The inspected `POST` handler has no customer-authentication dependency.
+- `GET /api/checkout/sessions/{session_id}` fetches a session by its ID. The inspected handler has no owner check and no customer-authentication dependency.
+- The `GET` handler returns 404 when the session is missing and 410 when its status is inactive or its expiry has passed.
+- The checkout-session model sets a default expiry 30 minutes after creation.
+
+Do not describe these plural lifecycle handlers as authenticated or owner-scoped; the inspected source does not support those claims. Although the router defines `customer_only`, neither plural session handler declares that dependency. These routes are distinct from the singular checkout handoff routes, which were not found on `integration-v2`.
+
+### Verification boundary
+
+These are source-review findings only. They do not establish that any endpoint, manual acceptance case, or end-to-end journey executed successfully. Keep all manual cases pending until evidence is captured.
+
+## Historical backend test-count discrepancy
+
+Historical documentation contains conflicting full-suite figures: an earlier record reports
+229 passed and 60 warnings, while a later summary reports 238 passed and does not record
+the warning count. The original test logs have not been independently reviewed here, so
+this discrepancy cannot currently be reconciled and neither figure is presented as a fresh
+verified run. The targeted result of 176 passed and 6 warnings is documented as a subset
+of the full suite; the counts must not be added together. Before final sign-off, compare the
+original run logs or perform a fresh full-suite run and record its actual output.
+
+## Additional verified API details
+
+### Active shipping methods
+
+`GET /api/shipping-methods` returns active shipping methods. The inspected response schema contains:
+
+- `id`: shipping method identifier
+- `name`: display name
+- `cost`: shipping charge
+- `estimated_days`: estimated delivery duration in days
+- `status`: active/inactive flag
+
+The inspected handler filters for active methods and orders results by identifier. Confirm current charges from the API response; do not hard-code them.
+
+### Order creation
+
+`POST /api/orders`
+
+Authentication: the inspected order route requires a customer bearer token. The endpoint returns HTTP `201 Created` with an order detail response.
+
+The inspected direct-order request accepts `payment_method` (`ONLINE` or `COD`) and an `items` list. Each item contains `product_id`, optional `variant_id`, and `quantity` from 1 to 100; the direct path also requires `address_id` and `shipping_method_id`. The inspected `integration-v2` source did not show the documented `checkout_reference_id` snapshot handoff contract; do not present that path as implemented on this branch without additional source evidence.
+
+Client-supplied prices, discounts, shipping charges, taxes and totals must not be trusted.
+
+According to the inspected order-service logic, COD orders are confirmed after creation. Online orders remain `PLACED` until the payment module reports verified `SUCCESS`, at which point confirmation is allowed. These are source-contract details, not evidence of a successful manual test.
+
+## CHK-09 Documentation Scope
+
+These CHK-09 documents are supplemental documentation deliverables. They do not replace the existing docs/final_test_case_sheet.csv, docs/generated/integration_test_log.txt, or docs/test-evidence/ORD-04-order-status-transitions.md. Those remain separate project artifacts; their historical contents are not treated as newly verified CHK-09 acceptance evidence.
