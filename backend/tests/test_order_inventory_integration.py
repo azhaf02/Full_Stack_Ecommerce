@@ -164,3 +164,50 @@ def test_cancelled_confirmed_order_restores_stock(db):
     assert histories[1].change_amount == 5
     assert histories[1].new_quantity == 10
     assert histories[1].reason == "cancel"
+
+
+def test_multi_item_confirmation_failure_rolls_back_all_inventory_changes(db):
+    first_inventory = add_inventory(db, 10)
+    second_inventory = Inventory(
+        product_id=2,
+        variant_id=None,
+        quantity=3,
+        low_stock_threshold=2,
+        status="IN_STOCK",
+    )
+    db.add(second_inventory)
+    db.commit()
+
+    order = make_order(db)
+    order.items[0].quantity = 2
+    order.items.append(
+        OrderItem(
+            order_id=order.id,
+            product_id=2,
+            variant_id=None,
+            quantity=4,
+            unit_price=Decimal("20"),
+        )
+    )
+    db.flush()
+
+    with pytest.raises(order_service.OutOfStock):
+        order_service.update_status(
+            db,
+            order,
+            "CONFIRMED",
+            changed_by=1
+        )
+        db.commit()
+
+    # The caller owns rollback when a status hook fails.
+    db.rollback()
+    db.refresh(first_inventory)
+    db.refresh(second_inventory)
+    db.refresh(order)
+
+    assert first_inventory.quantity == 10
+    assert second_inventory.quantity == 3
+    assert order.status == "PLACED"
+    assert db.query(InventoryHistory).count() == 0
+    assert db.query(OrderStatusHistory).count() == 0
