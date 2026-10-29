@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   Tags,
   BarChart3,
+  ClipboardList,
   Package,
   RotateCcw,
   Star,
@@ -22,4 +23,5 @@ export const adminNav = [
   { label: "Reviews", path: "/admin/reviews", icon: Star },
   { label: "Products", path: "/admin/products", icon: Package },
   { label: "Analytics", path: "/admin/analytics", icon: BarChart3 },
+  { label: "Audit Logs", path: "/admin/audit-logs", icon: ClipboardList },
 ];

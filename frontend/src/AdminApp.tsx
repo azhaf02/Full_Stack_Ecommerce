@@ -13,6 +13,7 @@ import AdminReturnsPage from "./pages/admin/AdminReturnsPage";
 import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
 import AdminCategoriesPage from "./pages/admin/AdminCategoriesPage";
 import AnalyticsPage from "./pages/admin/AnalyticsPage";
+import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import ProductsPage from "./pages/admin/ProductsPage";
 import ProductFormPage from "./pages/admin/ProductFormPage";
 
@@ -40,6 +41,7 @@ export default function AdminApp() {
         <Route path="roles" element={<AdminRolesPage />} />
         <Route path="categories" element={<AdminCategoriesPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="audit-logs" element={<AuditLogsPage />} />
 
         {/* Product Catalog */}
         <Route path="products" element={<ProductsPage />} />
