@@ -1,3 +1,5 @@
+# Node.js dependencies
+node_modules/
 # Python cache files
 __pycache__/
 *.pyc
@@ -7,9 +9,17 @@ __pycache__/
 .env
 .env.*
 !.env.example
+backend/.env
 frontend/.env
 
 # Frontend build files
 dist/
-# Local SQLite database files
+
+# Local databases
 *.db
+*.sqlite3
+sql_app.db
+
+# TypeScript build cache
+*.tsbuildinfo
+frontend/tsconfig.tsbuildinfo

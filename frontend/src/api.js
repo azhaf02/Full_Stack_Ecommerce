@@ -24,7 +24,7 @@ export const markAllNotificationsRead = (userId) =>
 export const submitProductReview = (reviewData) =>
   api.post('/api/v1/reviews/api/reviews/', reviewData);
 
-// Admin Analytics - KPI
+// Admin Analytics - KPI summary
 export const fetchAnalyticsSummary = (token) =>
   api.get('/api/admin/analytics/summary', {
     headers: {

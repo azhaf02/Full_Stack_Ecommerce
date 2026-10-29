@@ -1,5 +1,5 @@
 
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import "./admin.css";
 
 import AdminLayout from "./layouts/AdminLayout";
@@ -12,6 +12,8 @@ import AdminOrdersPage from "./pages/admin/AdminOrdersPage";
 import AdminPaymentsPage from "./pages/admin/AdminPaymentsPage";
 import AdminRolesPage from "./pages/admin/AdminRolesPage";
 import AdminOrderDetailPage from "./pages/admin/AdminOrderDetailPage";
+import AdminReturnsPage from "./pages/admin/AdminReturnsPage";
+import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
 import AdminCategoriesPage from "./pages/admin/AdminCategoriesPage";
 import AnalyticsPage from "./pages/admin/AnalyticsPage";
 import ProductsPage from "./pages/admin/ProductsPage";
@@ -35,19 +37,18 @@ export default function AdminApp() {
         <Route path="customers" element={<AdminCustomersPage />} />
         <Route path="orders" element={<AdminOrdersPage />} />
         <Route path="orders/:id" element={<AdminOrderDetailPage />} />
+        <Route path="returns" element={<AdminReturnsPage />} />
+        <Route path="reviews" element={<AdminReviewsPage />} />
         <Route path="payments" element={<AdminPaymentsPage />} />
         <Route path="roles" element={<AdminRolesPage />} />
         <Route path="categories" element={<AdminCategoriesPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="audit-logs" element={<AuditLogsPage />} />
 
-        {/* Product Catalog */}
         <Route path="products" element={<ProductsPage />} />
         <Route path="products/new" element={<ProductFormPage />} />
         <Route path="products/:id/edit" element={<ProductFormPage />} />
       </Route>
-
-      <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>
   );
 }
