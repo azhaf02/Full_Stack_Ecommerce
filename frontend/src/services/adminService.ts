@@ -496,6 +496,8 @@ export interface Product {
   price: string;
   stock_quantity: number;
   status: "ACTIVE" | "INACTIVE";
+  image_url?: string | null;
+  images?: ProductImage[];
 }
 
 export interface ProductCreateData {

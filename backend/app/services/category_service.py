@@ -46,20 +46,22 @@ def update_category(
     if category_data.description is not None:
         category.description = category_data.description
 
+    if category_data.is_active is not None:
+        category.is_active = category_data.is_active
+
     db.commit()
     db.refresh(category)
 
     return category
 
 
-def deactivate_category(db: Session, category_id: int):
+def delete_category(db: Session, category_id: int):
     category = get_category(db, category_id)
 
     if not category:
         return None
 
     category.is_active = False
-
     db.commit()
     db.refresh(category)
 
