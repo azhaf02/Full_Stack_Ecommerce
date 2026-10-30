@@ -4,7 +4,7 @@ import {
   fetchAnalyticsSummary,
   fetchAnalyticsCharts,
   //@ts-ignore
-} from "../../api";
+} from "../../services/api";
 
 import { getSession, logout } from "../../services/authService";
 
