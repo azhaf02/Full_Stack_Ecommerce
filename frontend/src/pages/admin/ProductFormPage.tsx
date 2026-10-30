@@ -312,8 +312,6 @@ export default function ProductFormPage() {
               required
             >
               <option value="">Select category</option>
-
-              
 {categories.map((category) => {
   const isCurrentCategory = String(category.id) === String(categoryId);
   const isInactive = !category.is_active;
