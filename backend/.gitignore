@@ -1,2 +1,19 @@
-
+#  Ignore Environment Secrets Logs
 .env
+.env.*
+backend/.env
+backend/.env.*
+
+# Ignore Compiled Python Bytecode & Binary Caches
+__pycache__/
+*.pyc
+backend/models/__pycache__/
+backend/migrations/versions/__pycache__/
+
+#  Ignore Vite Frontend Assets & Builds Bundles
+frontend/.vite/
+frontend/dist/
+frontend/node_modules/
+node_modules/
+
+
