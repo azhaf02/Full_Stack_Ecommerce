@@ -1,4 +1,4 @@
-﻿"""Order endpoints: a customer's orders, cancellation and returns, and the admin status and returns screens.
+"""Order endpoints: a customer's orders, cancellation and returns, and the admin status and returns screens.
 
 The routes only check who is asking and translate errors; the rules live in services/order_service.py and
 return_service.py. A route commits once at the end, so a status change and everything hooked onto it
@@ -14,10 +14,11 @@ from sqlalchemy.orm import Session
 from app.core.security import require_role
 from app.database import get_db
 from app.models.order import Order, OrderStatus, Return, ReturnStatus
+from app.models.address import Address
 from app.models.user import User
 from app.schemas.order import (
-    CancelRequest, OrderActions, OrderCreate, OrderDetailOut, OrderSummaryOut, ReturnOut, ReturnRequest,
-    ReturnReview, StatusUpdate,
+    AddressBrief, AdminOrderDetailOut, CancelRequest, CustomerBrief, OrderActions, OrderCreate, OrderDetailOut,
+    OrderSummaryOut, ReturnOut, ReturnRequest, ReturnReview, StatusUpdate,
 )
 from app.services import order_pricing, order_service, return_service
 from app.services.order_service import OrderServiceError
@@ -36,10 +37,6 @@ _ERROR_STATUS = [
     (OrderServiceError, status.HTTP_409_CONFLICT),
 ]
 
-# Only the returns workflow may move an order through these, so orders and returns never disagree.
-_RETURN_ONLY_STATUSES = {OrderStatus.RETURN_REQUESTED.value, OrderStatus.RETURN_APPROVED.value,
-                         OrderStatus.RETURNED.value}
-_IN_RETURN_FLOW = _RETURN_ONLY_STATUSES | {OrderStatus.REFUND_PENDING.value}
 
 
 def _http_error(exc: OrderServiceError) -> HTTPException:
@@ -63,13 +60,20 @@ def _run(db: Session, action):
         raise
 
 
-def _detail(order: Order) -> OrderDetailOut:
-    out = OrderDetailOut.model_validate(order)
+def _detail(order: Order, for_admin: bool = False, db: Session = None) -> OrderDetailOut:
+    out = (AdminOrderDetailOut if for_admin else OrderDetailOut).model_validate(order)
     out.actions = OrderActions(
         can_cancel=order_service.can_customer_cancel(order),
         can_request_return=return_service.can_request_return(order),
         return_deadline=return_service.return_deadline(order),
+        # Only the admin screens need this; it is what PUT /api/admin/orders/{id}/status will accept.
+        allowed_next_statuses=order_service.admin_next_statuses(order) if for_admin else None,
     )
+    if for_admin and db is not None:
+        customer = db.get(User, order.user_id)
+        address = db.get(Address, order.address_id)
+        out.customer = CustomerBrief.model_validate(customer) if customer else None
+        out.address = AddressBrief.model_validate(address) if address else None
     return out
 
 
@@ -90,9 +94,9 @@ def place_order(data: OrderCreate, user: User = Depends(customer_only), db: Sess
         request = order_pricing.OrderRequest(
             address_id=data.address_id, shipping_method_id=data.shipping_method_id,
             payment_method=data.payment_method,
+            coupon_code=data.coupon_code,
             items=[order_pricing.OrderLine(product_id=i.product_id, variant_id=i.variant_id, quantity=i.quantity)
-                   for i in data.items],
-            coupon_code=data.coupon_code)
+                   for i in data.items])
         return order_service.create_order(db, order_pricing.price_order(db, user.id, request))
     return _detail(_run(db, action))
 
@@ -133,18 +137,28 @@ def request_my_return(order_id: int, data: ReturnRequest,
 
 # ---------------------------------------------------------------- admin
 
-@router.put("/api/admin/orders/{order_id}/status", response_model=OrderDetailOut)
+@router.get("/api/admin/orders/{order_id}", response_model=AdminOrderDetailOut)
+def admin_get_order(order_id: int, admin: User = Depends(admin_only), db: Session = Depends(get_db)):
+    """One order for the admin page: items, status history, returns, the customer, the shipping address, and
+    `actions.allowed_next_statuses` for the status dropdown."""
+    order = db.get(Order, order_id)
+    if order is None:
+        raise _http_error(order_service.OrderNotFound(f"Order {order_id} not found"))
+    return _detail(order, for_admin=True, db=db)
+
+
+@router.put("/api/admin/orders/{order_id}/status", response_model=AdminOrderDetailOut)
 def admin_update_status(order_id: int, data: StatusUpdate,
                         admin: User = Depends(admin_only), db: Session = Depends(get_db)):
     def action():
         order = db.get(Order, order_id)
         if order is None:
             raise order_service.OrderNotFound(f"Order {order_id} not found")
-        if data.status in _RETURN_ONLY_STATUSES or (order.returns and order.status in _IN_RETURN_FLOW):
+        if order_service.admin_status_is_blocked(order, data.status):
             raise order_service.OrderServiceError(
                 "This step belongs to the returns workflow; use PUT /api/admin/returns/{id}")
         return order_service.update_status(db, order, data.status, changed_by=admin.id, remarks=data.remarks)
-    return _detail(_run(db, action))
+    return _detail(_run(db, action), for_admin=True, db=db)
 
 
 @router.get("/api/admin/returns", response_model=List[ReturnOut])
@@ -174,4 +188,3 @@ def admin_review_return(return_id: int, data: ReturnReview,
             return return_service.mark_returned(db, ret, admin.id)
         return return_service.complete_refund(db, ret, admin.id)
     return _run(db, action)
-

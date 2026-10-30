@@ -1,39 +1,53 @@
-﻿import LoginPage from './pages/LoginPage';
-import React from 'react';
+import { lazy, Suspense } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout';
-import CartPage from './pages/CartPage';
-import CouponsPage from './pages/admin/CouponsPage';
-import CheckoutPage from './checkout/pages/CheckoutPage';
+import ProductDetailPage from './ProductDetailPage';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 
-function App() {
-  if (window.location.pathname === "/login") {
-    return <LoginPage />;
-  }
+// VIORA storefront + auth pages (Madeeha), loaded on demand
+const HomePage = lazy(() => import('./pages/HomePage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const ProductListingPage = lazy(() => import('./pages/ProductListingPage'));
+const AdminApp = lazy(() => import('./AdminApp'));
+// Bootstrap + index.css for every page except /admin
+const StorefrontLayout = lazy(() => import('./StorefrontLayout'));
 
-  const path = window.location.pathname;
+export default function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <Suspense fallback={null}>
+          <Routes>
+            {/* Admin Dashboard: uses its own admin.css, so it stays outside the storefront styles */}
+            <Route path="/admin/*" element={<AdminApp />} />
 
-  if (path === '/checkout') {
-    return <CheckoutPage />;
-  }
+            <Route element={<StorefrontLayout />}>
+              {/* Storefront home (Madeeha) */}
+              <Route path="/" element={<HomePage />} />
 
-  if (path === '/cart') {
-    return (
-      <CartPage
-        onContinueShopping={() => {
-          window.location.href = '/';
-        }}
-        onCheckout={() => {
-          window.location.href = '/checkout';
-        }}
-      />
-    );
-  }
+              {/* Product listing + details (Chandani) */}
+              <Route path="/products" element={<ProductListingPage />} />
+              <Route path="/product/:id" element={<ProductDetailPage />} />
 
-  if (path === '/admin/coupons') {
-    return <CouponsPage />;
-  }
+              {/* Auth pages (Madeeha) */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
 
-  return <DashboardLayout />;
+              {/* Customer-only pages (Madeeha, AUTH-05) */}
+              <Route element={<ProtectedRoute role="customer" />}>
+                <Route path="/profile" element={<ProfilePage />} />
+              </Route>
+
+              {/* Customer Dashboard (Aliza), unchanged from integration-v2 */}
+              <Route path="/dashboard" element={<DashboardLayout />} />
+              <Route path="*" element={<DashboardLayout />} />
+            </Route>
+          </Routes>
+        </Suspense>
+      </AuthProvider>
+    </Router>
+  );
 }
-
-export default App;
