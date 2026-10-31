@@ -1,12 +1,11 @@
-
 from datetime import date, datetime, time, timedelta, timezone
 from math import ceil
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
-from sqlalchemy import func, or_, text
+from sqlalchemy import func, or_, text, cast, String
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -66,8 +65,6 @@ def dashboard_summary(db: Session = Depends(get_db)):
         )
     ).scalar()
 
-    # Real stock is kept in the inventory module; each item has its own threshold.
-    # Out-of-stock items (quantity 0) count as low stock too. Same rule as the analytics API.
     low_stock_count = db.execute(
         text("SELECT COUNT(*) FROM inventory WHERE quantity <= low_stock_threshold")
     ).scalar()
@@ -325,8 +322,75 @@ def list_orders(
     }
 
 
-# The admin order detail (GET /api/admin/orders/{id}) and status change
-# (PUT /api/admin/orders/{id}/status) live in the orders module (routers/orders.py).
+# =====================================================================
+# Reviews Moderation Endpoints for Admin Panel
+# =====================================================================
+
+class AdminReviewStatusUpdate(BaseModel):
+    status: Literal[
+        "PENDING", "APPROVED", "REJECTED",
+        "pending", "approved", "rejected",
+        "Hidden", "hidden", "HIDDEN",
+        "Approved", "Pending", "Rejected"
+    ]
+
+
+class AdminReviewRow(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)
+
+    id: int
+    product_id: int
+    user_id: int
+    order_id: int
+    rating: int
+    title: Optional[str] = ""
+    comment: str
+    status: str
+    created_at: Optional[datetime] = None
+
+
+# 1. GET /api/admin/reviews (with status filter)
+@router.get("/reviews", response_model=list[AdminReviewRow])
+def list_admin_reviews(
+    status: Optional[str] = Query(None, description="Filter reviews by status (PENDING, APPROVED, REJECTED)"),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Review)
+    if status:
+        status_val = status.strip().upper()
+        if status_val == "HIDDEN":
+            status_val = "REJECTED"
+
+        query = query.filter(cast(Review.status, String) == status_val)
+
+    return query.order_by(Review.created_at.desc(), Review.id.desc()).all()
+
+
+# 2. PUT /api/admin/reviews/{review_id}/status
+@router.put("/reviews/{review_id}/status", response_model=AdminReviewRow)
+def update_admin_review_status(
+    review_id: int,
+    payload: AdminReviewStatusUpdate,
+    db: Session = Depends(get_db)
+):
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Review with id {review_id} not found"
+        )
+
+    status_upper = payload.status.strip().upper()
+    if status_upper == "HIDDEN":
+        status_upper = "REJECTED"
+
+    db.execute(
+        text("UPDATE reviews SET status = CAST(:val AS reviewstatus), updated_at = NOW() WHERE id = :id"),
+        {"val": status_upper, "id": review_id}
+    )
+    db.commit()
+    db.refresh(review)
+    return review
 
 
 # ============================================================
@@ -367,10 +431,9 @@ class AdminPaymentList(BaseModel):
     page: int
     page_size: int
     total_pages: int
-    collected_amount: float  # paid orders (orders.payment_status SUCCESS)
+    collected_amount: float
     collected_count: int
     status_counts: dict[str, int]
-    # Unpaid orders from the orders table, per method: {"COD": {"count", "amount"}, "ONLINE": {...}}
     awaiting_payment: dict[str, dict[str, float]]
 
 
@@ -430,9 +493,6 @@ def list_payments(
         for payment, order_number, name in rows
     ]
 
-    # Money received, read from the orders table (same source as "awaiting" below),
-    # so paid orders without a payments row are counted too. Refunded orders have
-    # payment_status REFUNDED, so they drop out automatically.
     collected_count, collected = (
         db.query(func.count(Order.id), func.coalesce(func.sum(Order.total_amount), 0))
         .filter(Order.payment_status == "SUCCESS")
@@ -445,9 +505,6 @@ def list_payments(
         .all()
     )
 
-    # Unpaid orders, read from the orders table. Older orders have no payments row,
-    # so the payments table alone would miss them. Cancelled, returned and
-    # refunded orders are left out: there is nothing to collect for them.
     awaiting_rows = (
         db.query(Order.payment_method, func.count(Order.id), func.coalesce(func.sum(Order.total_amount), 0))
         .filter(
@@ -481,8 +538,6 @@ def list_payments(
 # ============================================================
 
 class AdminRoleUserOut(BaseModel):
-    """User information returned to the admin roles screen."""
-
     id: int
     name: str
     email: str
@@ -491,13 +546,9 @@ class AdminRoleUserOut(BaseModel):
 
 
 class UserRoleUpdate(BaseModel):
-    """Only the two roles supported by this project's role system."""
-
     role: Literal["admin", "customer"]
 
 
-# GET /api/admin/users
-# List users and their current roles.
 @router.get("/users", response_model=list[AdminRoleUserOut])
 def list_users_for_role_management(db: Session = Depends(get_db)):
     users = (
@@ -519,8 +570,6 @@ def list_users_for_role_management(db: Session = Depends(get_db)):
     ]
 
 
-# PUT /api/admin/users/{user_id}/role
-# Promote a customer to admin or demote an admin to customer.
 @router.put("/users/{user_id}/role", response_model=AdminRoleUserOut)
 def update_user_role(
     user_id: int,
@@ -553,14 +602,12 @@ def update_user_role(
             detail="User already has this role",
         )
 
-    # Do not allow the logged-in admin to demote themselves.
     if user.id == current_admin.id and payload.role == "customer":
         raise HTTPException(
             status_code=409,
             detail="You cannot demote your own account",
         )
 
-    # Do not allow demotion of the last remaining admin.
     if old_role == "admin" and payload.role == "customer":
         admin_count = (
             db.query(User)
@@ -583,9 +630,7 @@ def update_user_role(
             action="USER_ROLE_CHANGED",
             entity_type="user",
             entity_id=user.id,
-            details=(
-                f"Role changed from {old_role} to {payload.role}"
-            ),
+            details=f"Role changed from {old_role} to {payload.role}",
         )
 
         db.add(audit_entry)
@@ -609,9 +654,6 @@ def update_user_role(
 # REVIEW DELETE — ADM-08
 # ============================================================
 
-# DELETE /api/admin/reviews/{review_id}
-# Permanently removes a review (e.g. spam or personal details).
-# Approve / reject come from the reviews module.
 @router.delete("/reviews/{review_id}", status_code=204)
 def delete_review(
     review_id: int,

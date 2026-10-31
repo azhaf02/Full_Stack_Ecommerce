@@ -23,13 +23,13 @@ const FaqPage: React.FC = () => {
   const [currentCategory, setCurrentCategory] = useState<CategoryMetaData | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // 🎨 Explicit 6 Card Categories Configured with Beautiful Pastel Colors
+
   const categoryRegistry: CategoryMetaData[] = [
     {
       id: 'account',
       label: 'ACCOUNT MANAGEMENT',
       icon: '👤',
-      bgColor: '#E8F0FE', // Pastel Slate Blue
+      bgColor: '#E8F0FE',
       borderColor: '#B4CDFB',
       tagline: 'Manage profile records, passwords, security tokens, and account access bounds.',
       faqs: [
@@ -41,7 +41,7 @@ const FaqPage: React.FC = () => {
       id: 'orders',
       label: 'ORDERS LEDGER',
       icon: '📦',
-      bgColor: '#E6F4EA', // Pastel Mint Green
+      bgColor: '#E6F4EA',
       borderColor: '#A8DAB5',
       tagline: 'Track active shipments invoices, check purchase history logs, or amend routing values.',
       faqs: [
@@ -53,7 +53,7 @@ const FaqPage: React.FC = () => {
       id: 'payments',
       label: 'CHECKOUT & PAYMENTS',
       icon: '💳',
-      bgColor: '#FEF7E0', // Pastel Warm Honey
+      bgColor: '#FEF7E0',
       borderColor: '#FAD896',
       tagline: 'Verify invoice settlements, check payment method filters, or download receipts.',
       faqs: [
@@ -65,7 +65,7 @@ const FaqPage: React.FC = () => {
       id: 'delivery',
       label: 'LOGISTICS & DELIVERY',
       icon: '🚚',
-      bgColor: '#FCE8E6', // Pastel Coral Rose
+      bgColor: '#FCE8E6',
       borderColor: '#F7B4AE',
       tagline: 'Review courier network schedules, customs validation alerts, or delayed drop flags.',
       faqs: [
@@ -77,7 +77,7 @@ const FaqPage: React.FC = () => {
       id: 'returns',
       label: 'RETURNS & REFUNDS',
       icon: '🔄',
-      bgColor: '#F3E8FD', // Pastel Lilac Lavender
+      bgColor: '#F3E8FD',
       borderColor: '#D7B7F9',
       tagline: 'Initiate exchange workflows or track pending return status arrays under ORDER frameworks.',
       faqs: [
@@ -89,7 +89,7 @@ const FaqPage: React.FC = () => {
       id: 'stock',
       label: 'PRODUCT & STOCK',
       icon: '✨',
-      bgColor: '#EAF6F6', // Pastel Teal Aqua
+      bgColor: '#EAF6F6',
       borderColor: '#AEDCDC',
       tagline: 'Check product sizing charts, limited drop schedules, or inventory restock metrics.',
       faqs: [
@@ -105,30 +105,49 @@ const FaqPage: React.FC = () => {
   };
 
   const globalFilteredFaqs = () => {
-    if (!searchQuery.trim()) return [];
-    let collector: { catLabel: string; q: string; a: string; id: number }[] = [];
-    categoryRegistry.forEach(c => {
-      c.faqs.forEach(f => {
-        if (f.question.toLowerCase().includes(searchQuery.toLowerCase()) || c.label.toLowerCase().includes(searchQuery.toLowerCase())) {
-          collector.push({ catLabel: c.label, q: f.question, a: f.answer, id: f.id });
-        }
-      });
+  const query = searchQuery.trim().toLowerCase();
+
+  if (!query) return [];
+
+  const collector: {
+    catLabel: string;
+    q: string;
+    a: string;
+    id: number;
+  }[] = [];
+
+  categoryRegistry.forEach(category => {
+    category.faqs.forEach(faq => {
+      const matchesQuestion = faq.question.toLowerCase().includes(query);
+      const matchesAnswer = faq.answer.toLowerCase().includes(query);
+      const matchesCategory = category.label.toLowerCase().includes(query);
+
+      if (matchesQuestion || matchesAnswer || matchesCategory) {
+        collector.push({
+          catLabel: category.label,
+          q: faq.question,
+          a: faq.answer,
+          id: faq.id,
+        });
+      }
     });
-    return collector;
-  };
+  });
+
+  return collector;
+};
     return (
     <div className="container-fluid min-vh-100 py-5" style={{ backgroundColor: '#FAF8F5', color: '#1B241C', fontFamily: 'monospace' }}>
       <div className="container shadow-sm bg-white p-4 p-md-5 border" style={{ maxWidth: '850px', borderRadius: '12px', borderColor: '#E5DFD5' }}>
-        
-        {/* Dynamic Header Ribbon - Premium Olive Green Controlled */}
+
+
         <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4" style={{ borderColor: '#E5DFD5', borderBottomWidth: '1px' }}>
           <span className="fw-bold tracking-widest text-uppercase" style={{ fontSize: '12px', color: '#232F24' }}>
             VIORA'S HELP CENTER // {activeView === 'hub' ? 'HOW CAN WE HELP?' : currentCategory?.id.toUpperCase() || 'SUPPORT'}
           </span>
           {activeView !== 'hub' && (
-            <button 
-              onClick={() => { setActiveView('hub'); setCurrentCategory(null); }} 
-              className="btn btn-sm text-white px-3 py-1 text-uppercase" 
+            <button
+              onClick={() => { setActiveView('hub'); setCurrentCategory(null); }}
+              className="btn btn-sm text-white px-3 py-1 text-uppercase"
               style={{ borderRadius: '8px', fontSize: '10px', backgroundColor: '#3B4D3C', border: 'none', cursor: 'pointer' }}
             >
               ← BACK TO HELP HUB
@@ -136,18 +155,17 @@ const FaqPage: React.FC = () => {
           )}
         </div>
 
-        {/* -------------------- VIEW 1: MAIN HUB VIEW (WITH CARDS GRID) -------------------- */}
         {activeView === 'hub' && (
           <div>
-            {/* Search Input Box Area (Olive Green Aesthetic Header) */}
+
             <div className="text-center py-4 mb-4 border text-white" style={{ backgroundColor: '#232F24', borderColor: '#1A241B', borderRadius: '12px' }}>
               <h4 className="fw-bold text-uppercase tracking-widest mb-1" style={{ fontSize: '18px', color: '#FAF8F5' }}>HELP CENTER</h4>
               <p className="small text-uppercase tracking-wider mb-3" style={{ fontSize: '9px', color: '#C2CDC0' }}>Search active troubleshooting manuals or catalog indexes before filing formal tickets.</p>
               <div className="px-4 mx-auto" style={{ maxWidth: '450px' }}>
-                <input 
-                  type="text" 
-                  className="form-control text-center text-uppercase" 
-                  placeholder="TYPE KEYWORDS TO SEARCH FAQ MANUALS..." 
+                <input
+                  type="text"
+                  className="form-control text-center text-uppercase"
+                  placeholder="TYPE KEYWORDS TO SEARCH FAQ MANUALS..."
                   style={{ borderRadius: '20px', borderColor: '#E5DFD5', padding: '10px', fontSize: '12px', backgroundColor: '#FAF8F5', color: '#1B241C' }}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
@@ -155,7 +173,7 @@ const FaqPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Global Search Results Layer */}
+
             {searchQuery.trim() !== '' && (
               <div className="mb-4 border p-3 bg-white" style={{ borderRadius: '12px', borderColor: '#C5D3C1' }}>
                 <span className="badge text-white text-uppercase font-monospace mb-3" style={{ borderRadius: '0px', backgroundColor: '#3B4D3C' }}>SEARCH HITS MATRIX</span>
@@ -173,30 +191,34 @@ const FaqPage: React.FC = () => {
               </div>
             )}
 
-            {/* 📦 Savana-Style Dynamic 6 Pastel Categories Grid Enclosure 📦 */}
+
             <div className="row g-3 mb-5">
               {categoryRegistry.map((cat) => (
                 <div key={cat.id} className="col-12 col-sm-6">
-                  <div 
+                  <div
                     onClick={() => handleCategoryClick(cat)}
-                    className="card h-100 p-4"
-                    style={{ 
-                      borderRadius: '12px', 
+                    className=" card p-3"
+                    style={{
+                      borderRadius: '12px',
                       borderColor: cat.borderColor,
                       borderWidth: '1px',
                       cursor: 'pointer',
                       backgroundColor: '#FFFFFF',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.01)'
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.01)',
+                      height: '150px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                     justifyContent: 'space-between'
                     }}
                   >
                     <div className="d-flex align-items-center gap-3 mb-2">
-                      {/* Pastel Color Container Box For Custom Icon */}
-                      <div 
+
+                      <div
                         className="d-flex align-items-center justify-content-center"
-                        style={{ 
-                          width: '44px', 
-                          height: '44px', 
-                          backgroundColor: cat.bgColor, 
+                        style={{
+                          width: '44px',
+                          height: '44px',
+                          backgroundColor: cat.bgColor,
                           border: `1px solid ${cat.borderColor}`,
                           borderRadius: '8px',
                           fontSize: '20px'
@@ -212,14 +234,14 @@ const FaqPage: React.FC = () => {
               ))}
             </div>
 
-            {/* Ingestion CTA Directive (Sir's Catch Specs Locked) */}
+
             <div className="p-4 border bg-white mt-5" style={{ borderRadius: '14px', borderColor: '#E5DFD5', borderWidth: '1px' }}>
               <div className="border-bottom pb-2 mb-3" style={{ borderColor: '#E5DFD5' }}>
                 <h6 className="fw-bold text-uppercase tracking-wider mb-1" style={{ fontSize: '13px', color: '#232F24' }}>OFFICIAL INCIDENT RESOLUTION TERMINAL</h6>
                 <p className="text-muted small text-uppercase mb-0" style={{ fontSize: '9px' }}>The reporting mechanism securely captures Category, Order ID, and Product IDs parameters.</p>
               </div>
-              <button 
-                onClick={() => setActiveView('form')} 
+              <button
+                onClick={() => setActiveView('form')}
                 className="btn text-white fw-bold text-uppercase w-100 py-3 tracking-widest text-center"
                 style={{ borderRadius: '10px', backgroundColor: '#3B4D3C', fontSize: '12px', border: 'none', cursor: 'pointer' }}
               >
@@ -229,10 +251,10 @@ const FaqPage: React.FC = () => {
           </div>
         )}
 
-        {/* -------------------- VIEW 2: DYNAMIC SPECIFIC CATEGORY DEDICATED PAGE -------------------- */}
+
         {activeView === 'category' && currentCategory && (
           <div className="py-2">
-            {/* Category Header Profile Card Layout */}
+
             <div className="d-flex align-items-center gap-3 p-4 mb-4 border" style={{ backgroundColor: currentCategory.bgColor, borderColor: currentCategory.borderColor, borderRadius: '12px' }}>
               <div style={{ fontSize: '32px' }}>{currentCategory.icon}</div>
               <div>
@@ -241,7 +263,7 @@ const FaqPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Rendered Questions Stream */}
+
             <div className="d-flex flex-column gap-3 mb-5">
               {currentCategory.faqs.map(f => (
                 <div key={f.id} className="p-4 bg-white border" style={{ borderColor: '#E5DFD5', borderRadius: '10px' }}>
@@ -251,32 +273,30 @@ const FaqPage: React.FC = () => {
               ))}
             </div>
 
-            {/* Inner Redirection Callout Button */}
+
             <div className="text-center py-4 border bg-light" style={{ borderRadius: '10px' }}>
               <p className="small text-muted text-uppercase tracking-wider mb-3" style={{ fontSize: '10px' }}>Could not locate structural answers under this category?</p>
-              <button 
-                onClick={() => setActiveView('form')} 
+              <button
+                onClick={() => setActiveView('form')}
                 className="btn btn-sm text-white fw-bold px-4"
                 style={{ borderRadius: '8px', backgroundColor: '#3B4D3C', fontSize: '11px', border: 'none', cursor: 'pointer' }}
               >
-                OPEN OFFICIAL SUPPORT FORM
+                SUPPORT FORM
               </button>
             </div>
           </div>
         )}
 
-        {/* -------------------- VIEW 3: INTAKE SUPPORT TICKETS CREATION FORM VIEW -------------------- */}
+
         {activeView === 'form' && (
           <NewTicketPage onBackToHub={() => { setActiveView('hub'); setCurrentCategory(null); }} />
         )}
 
       </div>
 
-      {/* 🤖 GLOBAL CONVERSATIONAL CHAT ICON ASSISTANT FLOATS SECURELY IN THE BACKGROUND 🤖 */}
       <SupportChatbot />
     </div>
   );
 };
 
 export default FaqPage;
-
