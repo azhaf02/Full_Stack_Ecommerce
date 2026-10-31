@@ -16,6 +16,7 @@ class InventoryHistory(Base):
     )
 
     product_id = Column(Integer, nullable=False, index=True)
+    order_id = Column(Integer, nullable=True, index=True)
     change_amount = Column(Integer, nullable=False)
     changed_by = Column(Integer, nullable=False)
 

@@ -32,6 +32,10 @@ from app.routers import (
 from app.api.routes.catalog import router as catalog_router, public_router
 from app.api.routes.product import router as product_router
 
+from app.api.routes import inventory
+from app.services import order_service
+from app.services.inventory_service import on_order_status_change
+
 app = FastAPI(title="Customer Dashboard & Reviews API")
 
 # Enable CORS for React frontend
@@ -59,6 +63,10 @@ app.include_router(reviews.router, prefix="/api")
 app.include_router(admin.router)
 app.include_router(category.router)
 
+# Admin Inventory
+app.include_router(inventory.router)
+
+
 # Product Catalog
 app.include_router(product_router)
 app.include_router(public_router)
@@ -73,6 +81,9 @@ app.include_router(analytics.router)
 
 # Orders, cancellation and returns
 app.include_router(orders.router)
+
+# Inventory order status integration
+order_service.register_status_hook(on_order_status_change)
 
 # Payment
 app.include_router(payment.router)
