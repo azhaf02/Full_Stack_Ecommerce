@@ -52,7 +52,7 @@ function CheckoutPage() {
 
   // Current demo/test product until shared cart module is connected
   const [cart, setCart] = useState(null);
-const [cartLoading, setCartLoading] = useState(true);
+const [, setCartLoading] = useState(true);
 const subtotal = Number(cart?.summary?.subtotal ?? 0);
 const discount = Number(cart?.summary?.discount ?? 0);
   // =========================

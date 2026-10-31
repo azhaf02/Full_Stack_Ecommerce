@@ -8,7 +8,7 @@ from app.database import get_db
 from app.core.security import get_current_user
 from app.models.faq import FAQ
 
-from app.core.security import require_role 
+from app.core.security import require_role
 from app.models.support_ticket import SupportTicket
 from app.models.support_message import SupportMessage
 
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/support", tags=["Customer Support Thread Managem
 class TicketCreateSchema(BaseModel):
     category: str
     order_id: Optional[int] = None
-    product_id: Optional[int] = None  
+    product_id: Optional[int] = None
     subject: str
     description: str
 
@@ -32,7 +32,7 @@ class AdminStatusUpdateSchema(BaseModel):
 def create_support_ticket(payload: TicketCreateSchema, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     if not payload.subject or not payload.description:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Subject and description narratives required.")
-    
+
     new_ticket = SupportTicket(
         customer_id=current_user.id,
         order_id=payload.order_id,
@@ -41,7 +41,7 @@ def create_support_ticket(payload: TicketCreateSchema, current_user = Depends(ge
         description=payload.description,
         status="Open"
     )
-    
+
     if payload.product_id:
         new_ticket.description += f" [System Product Context Note: Linked to Item ID #{payload.product_id}]"
 
@@ -70,10 +70,10 @@ def get_specific_ticket_details(ticket_id: int, current_user = Depends(get_curre
     ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket context node not located.")
-    
+
     if ticket.customer_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access Denied: Customer profile bounds mismatch.")
-        
+
     messages = db.query(SupportMessage).filter(SupportMessage.ticket_id == ticket_id).order_by(text("id ASC")).all()
     return {"ticket": ticket, "messages": messages}
 
@@ -87,13 +87,13 @@ def customer_append_thread_reply(ticket_id: int, payload: TicketReplySchema, cur
     ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target thread missing.")
-        
+
     if ticket.customer_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access Denied: Scope containment mismatch.")
-        
+
     if ticket.status.lower() in ["closed", "resolved"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Operation Aborted: Support conversation thread is closed.")
-        
+
     new_message = SupportMessage(ticket_id=ticket.id, sender_type="Customer", message=payload.message)
     db.add(new_message)
     db.commit()
@@ -155,14 +155,14 @@ def admin_get_ticket_details(
 @router.post("/admin/tickets/{ticket_id}/reply")
 def admin_reply_to_ticket(ticket_id: int, payload: TicketReplySchema, admin_user = Depends(require_role("admin")), db: Session = Depends(get_db)):
     """
-    
+
     POST /api/support/admin/tickets/{ticket_id}/reply
     Appends official Support Staff conversation message and appends it to customer stream view.
     """
     ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not located inside admin workspace grids.")
-        
+
     new_message = SupportMessage(ticket_id=ticket.id, sender_type="Support", message=payload.message)
     db.add(new_message)
     db.commit()
