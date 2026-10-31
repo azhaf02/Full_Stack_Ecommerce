@@ -1,24 +1,50 @@
 from enum import Enum
-from sqlalchemy import Column, Integer, String, Text, DateTime, CheckConstraint, func
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Text,
+    DateTime,
+    CheckConstraint,
+    UniqueConstraint,
+    ForeignKey,
+    func,
+)
+from sqlalchemy.dialects.postgresql import ENUM
+from sqlalchemy.orm import relationship
 from app.database import Base
 
+
 class ReviewModerationStatus(str, Enum):
-    APPROVED = "Approved"
-    HIDDEN = "Hidden"
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
 
 class Review(Base):
     __tablename__ = "reviews"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     product_id = Column(Integer, nullable=False, index=True)
-    user_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     order_id = Column(Integer, nullable=False, index=True)
     rating = Column(Integer, nullable=False)
     title = Column(String(150), nullable=True)
     comment = Column(Text, nullable=False)
-    status = Column(String(20), default=ReviewModerationStatus.APPROVED.value, nullable=False)
+
+    # Supabase PostgreSQL native ENUM binding (create_type=False prevents migration conflicts)
+    status = Column(
+        ENUM("PENDING", "APPROVED", "REJECTED", name="reviewstatus", create_type=False),
+        nullable=False,
+        server_default="PENDING",
+    )
+
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
     __table_args__ = (
         CheckConstraint("rating >= 1 AND rating <= 5", name="check_rating_range_1_to_5"),
+        UniqueConstraint("user_id", "product_id", "order_id", name="uq_user_product_order_review"),
     )
+
+    user = relationship("app.models.user.User", back_populates="reviews")

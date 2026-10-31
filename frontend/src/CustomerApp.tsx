@@ -1,0 +1,17 @@
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
+import './index.css';
+import { Route, Routes } from 'react-router-dom';
+import DashboardLayout from './components/DashboardLayout';
+import { orderRoutes } from './routes/orderRoutes';
+import ProductListingPage from './pages/ProductListingPage';
+
+export default function CustomerApp() {
+  return (
+    <Routes>
+      {orderRoutes}
+      <Route path="/products" element={<ProductListingPage />} />
+      <Route path="*" element={<DashboardLayout />} />
+    </Routes>
+  );
+}

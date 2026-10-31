@@ -1,39 +1,48 @@
+
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 
-# Load environment variables from backend/.env
+# Project folders
 BACKEND_DIR = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = BACKEND_DIR.parent
+
+# Load shared project settings first, then backend-specific settings.
+# Existing environment variables are not overwritten by default.
+load_dotenv(PROJECT_ROOT / ".env")
 load_dotenv(BACKEND_DIR / ".env")
 
-# Prefer the shared database, with local SQLite as fallback.
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    os.getenv("SUPABASE_DB_URL", "sqlite:///./sql_app.db")
-)
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 
-# SQLite requires special connection arguments.
-connect_args = (
-    {"check_same_thread": False}
-    if DATABASE_URL.startswith("sqlite")
-    else {}
-)
+# Prefer DATABASE_URL, then SUPABASE_DB_URL.
+DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("SUPABASE_DB_URL")
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args=connect_args
-)
+# Fail explicitly in production if no database URL is configured.
+if not DATABASE_URL:
+    if ENVIRONMENT in ["production", "prod"]:
+        raise RuntimeError(
+            "DATABASE_URL must be set in production environment!"
+        )
+    DATABASE_URL = "sqlite:///./sql_app.db"
 
+is_sqlite = DATABASE_URL.startswith("sqlite")
+
+connect_args = {"check_same_thread": False} if is_sqlite else {}
+engine_kwargs = {"connect_args": connect_args}
+
+if not is_sqlite:
+    engine_kwargs["pool_pre_ping"] = True
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
-    bind=engine
+    bind=engine,
 )
-
 Base = declarative_base()
 
 
