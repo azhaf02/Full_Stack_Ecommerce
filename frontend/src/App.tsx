@@ -4,6 +4,7 @@ import DashboardLayout from './components/DashboardLayout';
 import ProductDetailPage from './ProductDetailPage';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import SearchResultsPage from './SearchResultsPage';
 
 // VIORA storefront + auth pages (Madeeha), loaded on demand
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -24,13 +25,19 @@ export default function App() {
             {/* Admin Dashboard: uses its own admin.css, so it stays outside the storefront styles */}
             <Route path="/admin/*" element={<AdminApp />} />
 
-            <Route element={<StorefrontLayout />}>
-              {/* Storefront home (Madeeha) */}
-              <Route path="/" element={<HomePage />} />
+<Route element={<StorefrontLayout />}>
+  {/* Storefront home (Madeeha) */}
+  <Route path="/" element={<HomePage />} />
 
-              {/* Product listing + details (Chandani) */}
-              <Route path="/products" element={<ProductListingPage />} />
-              <Route path="/product/:id" element={<ProductDetailPage />} />
+  {/* Product listing + details (Chandani) */}
+  <Route path="/products" element={<ProductListingPage />} />
+  <Route path="/product/:id" element={<ProductDetailPage />} />
+  <Route path="/search" element={<SearchResultsPage />} />
+
+  {/* Auth pages (Madeeha) */}
+  <Route path="/login" element={<LoginPage />} />
+  <Route path="/register" element={<RegisterPage />} />
+</Route>
 
               {/* Auth pages (Madeeha) */}
               <Route path="/login" element={<LoginPage />} />
