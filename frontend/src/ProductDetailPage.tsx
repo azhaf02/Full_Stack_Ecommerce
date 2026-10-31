@@ -1,8 +1,10 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Product, ProductImage } from "./types/product";
 import { getProductById } from "./services/productService";
 import VariantSelector from "./components/VariantSelector";
+import apiClient, { getErrorMessage } from "./services/apiClient";
 
 interface ProductVariant {
   id: number;
@@ -11,6 +13,10 @@ interface ProductVariant {
   attribute_value: string;
   price_delta: number;
   stock: number;
+}
+
+interface WishlistItem {
+  product_id: number;
 }
 
 function ProductDetailPage() {
@@ -24,12 +30,15 @@ function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [imageChanging, setImageChanging] = useState(false)
+  const [imageChanging, setImageChanging] = useState(false);
   const [wishlistAdded, setWishlistAdded] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] =
-  useState<ProductVariant | null>(null);
+    useState<ProductVariant | null>(null);
 
+  // Fetch product details
   useEffect(() => {
     const fetchProduct = async () => {
       try {
@@ -65,6 +74,74 @@ function ProductDetailPage() {
       fetchProduct();
     }
   }, [id]);
+
+  // Fetch saved wishlist and check current product
+  useEffect(() => {
+    if (!product) return;
+
+    let cancelled = false;
+
+    const fetchWishlist = async () => {
+      try {
+        setWishlistLoading(true);
+
+        const response = await apiClient.get("/api/wishlist");
+
+        const items: WishlistItem[] = response.data.items || [];
+
+        const isAdded = items.some(
+          (item) => item.product_id === product.id
+        );
+
+        if (!cancelled) {
+          setWishlistAdded(isAdded);
+        }
+      } catch (error) {
+        console.error("Unable to fetch wishlist:", error);
+
+        if (!cancelled) {
+          setWishlistAdded(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setWishlistLoading(false);
+        }
+      }
+    };
+
+    fetchWishlist();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [product?.id]);
+
+  // Add or remove product from wishlist
+  const handleWishlistToggle = async () => {
+    if (!product || wishlistLoading) return;
+
+    try {
+      setWishlistLoading(true);
+
+      if (wishlistAdded) {
+        await apiClient.delete(
+          `/api/wishlist/items/${product.id}`
+        );
+
+        setWishlistAdded(false);
+      } else {
+        await apiClient.post("/api/wishlist/items", {
+          product_id: product.id,
+        });
+
+        setWishlistAdded(true);
+      }
+    } catch (error) {
+      alert(getErrorMessage(error, "Unable to update wishlist."));
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
 
   const changeImage = (image: ProductImage) => {
     if (selectedImage?.id === image.id) return;
@@ -207,9 +284,7 @@ function ProductDetailPage() {
   }
 
   const isInStock = product.stock_status !== "out_of_stock";
-
-  // const selectedImageUrl = ...
-    const selectedImageUrl = selectedImage?.image_url || null;
+  const selectedImageUrl = selectedImage?.image_url || null;
 
   return (
     <>
@@ -518,7 +593,7 @@ function ProductDetailPage() {
               transform 0.2s ease;
           }
 
-          .wishlist-button:hover {
+          .wishlist-button:hover:not(:disabled) {
             background: #E8EAD9;
             transform: translateY(-1px);
           }
@@ -526,6 +601,11 @@ function ProductDetailPage() {
           .wishlist-button.added {
             background: #E8EAD9;
             animation: heartPop 0.3s ease;
+          }
+
+          .wishlist-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
           }
 
           .product-meta {
@@ -722,277 +802,285 @@ function ProductDetailPage() {
               {product.name}
             </span>
           </div>
-{/* Main Product Area */}
-<div className="product-main">
 
-  {/* Gallery */}
-  <div className="gallery-panel">
-    <div className="main-image-wrapper">
-      {selectedImageUrl ? (
-        <img
-          src={selectedImageUrl}
-          alt={product.name}
-          className="main-product-image"
-          style={{ opacity: imageChanging ? 0 : 1 }}
-        />
-      ) : (
-        <div className="no-image">No image available</div>
-      )}
-    </div>
+          {/* Main Product Area */}
+          <div className="product-main">
 
+            {/* Gallery */}
+            <div className="gallery-panel">
+              <div className="main-image-wrapper">
+                {selectedImageUrl ? (
+                  <img
+                    src={selectedImageUrl}
+                    alt={product.name}
+                    className="main-product-image"
+                    style={{ opacity: imageChanging ? 0 : 1 }}
+                  />
+                ) : (
+                  <div className="no-image">
+                    No image available
+                  </div>
+                )}
+              </div>
 
-    {product.images.length > 0 && (
-      <div className="thumbnail-row">
-        {product.images.map((image) => (
-          <button
-            key={image.id}
-            type="button"
-            className={`thumbnail-button ${
-              selectedImage?.id === image.id ? "selected" : ""
-            }`}
-            onClick={() => changeImage(image)}
-          >
-            <img
-              src={image.image_url}
-              alt={product.name}
-              className="thumbnail-image"
-            />
-          </button>
-        ))}
-      </div>
-    )}
-  </div>
+              {product.images.length > 0 && (
+                <div className="thumbnail-row">
+                  {product.images.map((image) => (
+                    <button
+                      key={image.id}
+                      type="button"
+                      className={`thumbnail-button ${
+                        selectedImage?.id === image.id ? "selected" : ""
+                      }`}
+                      onClick={() => changeImage(image)}
+                    >
+                      <img
+                        src={image.image_url}
+                        alt={product.name}
+                        className="thumbnail-image"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
+            {/* Details */}
+            <div className="details-panel">
+              {product.category_name && (
+                <div className="category-badge">
+                  {product.category_name}
+                </div>
+              )}
 
-  {/* Details */}
-  <div className="details-panel">
-    {product.category_name && (
-      <div className="category-badge">
-        {product.category_name}
-      </div>
-    )}
+              <h1 className="product-title">
+                {product.name}
+              </h1>
 
-    <h1 className="product-title">
-      {product.name}
-    </h1>
+              <div className="product-price">
+                ₹{(
+                  Number(product.price) +
+                  (selectedVariant?.price_delta ?? 0)
+                ).toFixed(2)}
+              </div>
 
-    <div className="product-price">
-      ₹{(
-        Number(product.price) +
-        (selectedVariant?.price_delta ?? 0)
-      ).toFixed(2)}
-    </div>
+              <VariantSelector
+                productId={product.id}
+                basePrice={Number(product.price)}
+                onVariantChange={setSelectedVariant}
+              />
 
-    <VariantSelector
-      productId={product.id}
-      basePrice={Number(product.price)}
-      onVariantChange={setSelectedVariant}
-    />
+              <div className="availability-row">
+                <span
+                  className="availability-dot"
+                  style={{
+                    backgroundColor:
+                      (selectedVariant?.stock ?? product.stock_quantity) > 0
+                        ? "#198754"
+                        : "#DC3545",
+                  }}
+                />
 
-    <div className="availability-row">
-      <span
-        className="availability-dot"
-        style={{
-          backgroundColor:
-            (selectedVariant?.stock ?? product.stock_quantity) > 0
-              ? "#198754"
-              : "#DC3545",
-        }}
-      />
+                <span
+                  style={{
+                    color:
+                      (selectedVariant?.stock ?? product.stock_quantity) > 0
+                        ? "#198754"
+                        : "#DC3545",
+                    fontWeight: 600,
+                  }}
+                >
+                  {(selectedVariant?.stock ?? product.stock_quantity) > 0
+                    ? `${selectedVariant?.stock ?? product.stock_quantity} units available`
+                    : "Currently out of stock"}
+                </span>
+              </div>
 
-      <span
-        style={{
-          color:
-            (selectedVariant?.stock ?? product.stock_quantity) > 0
-              ? "#198754"
-              : "#DC3545",
-          fontWeight: 600,
-        }}
-      >
-        {(selectedVariant?.stock ?? product.stock_quantity) > 0
-          ? `${selectedVariant?.stock ?? product.stock_quantity} units available`
-          : "Currently out of stock"}
-      </span>
-    </div>
+              {/* Description */}
+              <div className="description-section">
+                <div className="section-label">Description</div>
+                <p className="description-text">
+                  {product.description ||
+                    "No description available for this product."}
+                </p>
+              </div>
 
-    {/* Description */}
-    <div className="description-section">
-      <div className="section-label">Description</div>
-      <p className="description-text">
-        {product.description || "No description available for this product."}
-      </p>
-    </div>
+              {/* Purchase Controls */}
+              <div className="purchase-row">
+                <div className="quantity-control">
+                  <button
+                    type="button"
+                    className="quantity-button"
+                    onClick={decreaseQuantity}
+                    disabled={
+                      selectedVariant
+                        ? selectedVariant.stock <= 0
+                        : !isInStock
+                    }
+                  >
+                    −
+                  </button>
 
+                  <span className="quantity-value">
+                    {quantity}
+                  </span>
 
-{/* Purchase Controls */}
-<div className="purchase-row">
-  <div className="quantity-control">
-    <button
-      type="button"
-      className="quantity-button"
-      onClick={decreaseQuantity}
-      disabled={
-        selectedVariant
-          ? selectedVariant.stock <= 0
-          : !isInStock
-      }
-    >
-      −
-    </button>
+                  <button
+                    type="button"
+                    className="quantity-button"
+                    onClick={increaseQuantity}
+                    disabled={
+                      selectedVariant
+                        ? selectedVariant.stock <= 0 ||
+                          quantity >= selectedVariant.stock
+                        : !isInStock ||
+                          quantity >= product.stock_quantity
+                    }
+                  >
+                    +
+                  </button>
+                </div>
 
-    <span className="quantity-value">
-      {quantity}
-    </span>
+                <button
+                  type="button"
+                  className="cart-button"
+                  disabled={
+                    selectedVariant
+                      ? selectedVariant.stock <= 0
+                      : !isInStock
+                  }
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(
+                        "http://127.0.0.1:8000/api/cart/items",
+                        {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify({
+                            product_id: product.id,
+                            quantity: quantity,
+                            variant_id: selectedVariant?.id ?? null,
+                          }),
+                        }
+                      );
 
-    <button
-      type="button"
-      className="quantity-button"
-      onClick={increaseQuantity}
-      disabled={
-        selectedVariant
-          ? selectedVariant.stock <= 0 ||
-            quantity >= selectedVariant.stock
-          : !isInStock ||
-            quantity >= product.stock_quantity
-      }
-    >
-      +
-    </button>
-  </div>
+                      if (!response.ok) {
+                        throw new Error("Failed to add item to cart");
+                      }
 
-  <button
-    type="button"
-    className="cart-button"
-    disabled={
-      selectedVariant
-        ? selectedVariant.stock <= 0
-        : !isInStock
-    }
-    onClick={async () => {
-      try {
-        const response = await fetch(
-          "http://127.0.0.1:8000/api/cart/items",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              product_id: product.id,
-              quantity: quantity,
-              variant_id: selectedVariant?.id ?? null,
-            }),
-          }
-        );
+                      alert("Product added to cart!");
+                    } catch (error) {
+                      console.error(error);
+                      alert("Unable to add product to cart.");
+                    }
+                  }}
+                >
+                  Add to Cart
+                </button>
 
-        if (!response.ok) {
-          throw new Error("Failed to add item to cart");
-        }
+                <button
+                  type="button"
+                  className={`wishlist-button ${
+                    wishlistAdded ? "added" : ""
+                  }`}
+                  onClick={handleWishlistToggle}
+                  disabled={wishlistLoading}
+                  aria-label={
+                    wishlistAdded
+                      ? "Remove from wishlist"
+                      : "Add to wishlist"
+                  }
+                  title={
+                    wishlistAdded
+                      ? "Remove from wishlist"
+                      : "Add to wishlist"
+                  }
+                >
+                  {wishlistAdded ? "♥" : "♡"}
+                </button>
+              </div>
 
-        alert("Product added to cart!");
-      } catch (error) {
-        console.error(error);
-        alert("Unable to add product to cart.");
-      }
-    }}
-  >
-    Add to Cart
-  </button>
+              {/* Small Product Information */}
+              <div className="product-meta">
+                <div className="meta-item">
+                  <span className="meta-label">
+                    Product ID
+                  </span>
 
-  <button
-    type="button"
-    className={`wishlist-button ${
-      wishlistAdded ? "added" : ""
-    }`}
-    onClick={() =>
-      setWishlistAdded((current) => !current)
-    }
-    aria-label="Add to wishlist"
-  >
-    {wishlistAdded ? "♥" : "♡"}
-  </button>
-</div>
+                  <span className="meta-value">
+                    #{product.id}
+                  </span>
+                </div>
 
-    {/* Small Product Information */}
-    <div className="product-meta">
-      <div className="meta-item">
-        <span className="meta-label">
-          Product ID
-        </span>
+                <div className="meta-item">
+                  <span className="meta-label">
+                    Status
+                  </span>
 
-        <span className="meta-value">
-          #{product.id}
-        </span>
-      </div>
-
-      <div className="meta-item">
-        <span className="meta-label">
-          Status
-        </span>
-
-        <span
-          className="meta-value"
-          style={{
-            color:
-              product.status === "ACTIVE"
-                ? "#198754"
-                : "#6C757D",
-          }}
-        >
-          {product.status}
-        </span>
-      </div>
-    </div>
-  </div>
-</div>
-
-{/* Related Products */}
-{product.related_products.length > 0 && (
-  <section className="related-section">
-    <div className="related-heading">
-      <div>
-        <h2 className="related-title">
-          You may also like
-        </h2>
-
-        <p className="related-subtitle">
-          More products from the same category
-        </p>
-      </div>
-    </div>
-
-    <div className="related-grid">
-      {product.related_products.map((relatedProduct) => (
-        <div
-          key={relatedProduct.id}
-          className="related-card"
-          onClick={() =>
-            navigate(`/products/${relatedProduct.id}`)
-          }
-        >
-          <div className="related-image">
-            <span className="related-image-placeholder">
-              Product
-            </span>
+                  <span
+                    className="meta-value"
+                    style={{
+                      color:
+                        product.status === "ACTIVE"
+                          ? "#198754"
+                          : "#6C757D",
+                    }}
+                  >
+                    {product.status}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <h3 className="related-name">
-            {relatedProduct.name}
-          </h3>
+          {/* Related Products */}
+          {product.related_products.length > 0 && (
+            <section className="related-section">
+              <div className="related-heading">
+                <div>
+                  <h2 className="related-title">
+                    You may also like
+                  </h2>
 
-          <p className="related-price">
-            ₹{Number(relatedProduct.price).toFixed(2)}
-          </p>
+                  <p className="related-subtitle">
+                    More products from the same category
+                  </p>
+                </div>
+              </div>
+
+              <div className="related-grid">
+                {product.related_products.map((relatedProduct) => (
+                  <div
+                    key={relatedProduct.id}
+                    className="related-card"
+                    onClick={() =>
+                      navigate(`/products/${relatedProduct.id}`)
+                    }
+                  >
+                    <div className="related-image">
+                      <span className="related-image-placeholder">
+                        Product
+                      </span>
+                    </div>
+
+                    <h3 className="related-name">
+                      {relatedProduct.name}
+                    </h3>
+
+                    <p className="related-price">
+                      ₹{Number(relatedProduct.price).toFixed(2)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
-      ))}
-    </div>
-  </section>
-)}
-
-</div>
-</div>
-</>
-);
+      </div>
+    </>
+  );
 }
 
 export default ProductDetailPage;

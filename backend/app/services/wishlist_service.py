@@ -1,11 +1,17 @@
-from sqlalchemy.orm import Session
+
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.wishlist import Wishlist, WishlistItem
 
-
+from app.models.product import Product
 def get_or_create_wishlist(db: Session, user_id: int):
     wishlist = (
         db.query(Wishlist)
+        .options(
+            joinedload(Wishlist.items)
+            .joinedload(WishlistItem.product)
+            .joinedload(Product.images)
+        )
         .filter(Wishlist.user_id == user_id)
         .first()
     )
@@ -41,9 +47,8 @@ def add_item(db: Session, user_id: int, product_id: int):
 
     db.add(item)
     db.commit()
-    db.refresh(wishlist)
 
-    return wishlist
+    return get_or_create_wishlist(db, user_id)
 
 
 def remove_item(db: Session, user_id: int, product_id: int):
@@ -63,6 +68,5 @@ def remove_item(db: Session, user_id: int, product_id: int):
 
     db.delete(item)
     db.commit()
-    db.refresh(wishlist)
 
-    return wishlist
+    return get_or_create_wishlist(db, user_id)
