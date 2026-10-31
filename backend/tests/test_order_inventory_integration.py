@@ -177,6 +177,33 @@ def test_cancelled_confirmed_order_restores_stock(db):
     assert histories[1].new_quantity == 10
     assert histories[1].reason == "cancel"
 
+def test_legacy_confirmed_order_without_deduction_does_not_restock(db):
+    inventory = add_inventory(db, 5)
+    order = make_order(db, status="CONFIRMED")
+
+    # This order was confirmed historically, but stock was never deducted.
+    db.add(
+        OrderStatusHistory(
+            order_id=order.id,
+            previous_status="PLACED",
+            new_status="CONFIRMED",
+            changed_by=1,
+            remarks="Legacy order without inventory deduction",
+        )
+    )
+    db.commit()
+
+    order_service.update_status(
+        db,
+        order,
+        "CANCELLED",
+        changed_by=1,
+    )
+
+    # Cancelling must not increase stock because no deduction occurred.
+    assert inventory.quantity == 5
+    assert db.query(InventoryHistory).count() == 0
+
 
 def test_confirmed_order_can_consume_last_available_stock(db):
     inventory = add_inventory(db, 5)
@@ -260,6 +287,38 @@ def test_multi_item_confirmation_with_insufficient_stock_changes_nothing(db):
     assert order.status == "PLACED"
     assert db.query(InventoryHistory).count() == 0
 
+def test_duplicate_order_lines_check_combined_stock_quantity(db):
+    inventory = add_inventory(db, 5)
+    order = make_order(db)  # First line requests 5 items.
+
+    # Add another line for the same product and variant.
+    db.add(
+        OrderItem(
+            order_id=order.id,
+            product_id=1,
+            variant_id=None,
+            quantity=1,
+            unit_price=Decimal("20"),
+        )
+    )
+    db.commit()
+
+    # Combined requested quantity is 6, but only 5 are available.
+    with pytest.raises(order_service.OutOfStock):
+        order_service.update_status(
+            db,
+            order,
+            "CONFIRMED",
+            changed_by=1,
+        )
+
+    db.rollback()
+    db.refresh(inventory)
+    db.refresh(order)
+
+    assert inventory.quantity == 5
+    assert order.status == "PLACED"
+    assert db.query(InventoryHistory).count() == 0
 
 def test_returned_order_restores_stock_and_creates_history(db):
     inventory = add_inventory(db, 5)
@@ -267,6 +326,23 @@ def test_returned_order_restores_stock_and_creates_history(db):
 
     # Simulate stock already deducted when the order was confirmed.
     inventory.quantity = 0
+
+    db.add(
+        InventoryHistory(
+            inventory_id=inventory.id,
+            product_id=inventory.product_id,
+            order_id=order.id,
+            change_amount=-5,
+            changed_by=1,
+            change_type="DEDUCTION",
+            quantity_changed=5,
+            previous_quantity=5,
+            new_quantity=0,
+            reason="order",
+            location=inventory.location,
+        )
+    )
+    db.flush()
 
     order_item = order.items[0]
 
@@ -305,6 +381,7 @@ def test_returned_order_restores_stock_and_creates_history(db):
     assert history.change_amount == 5
     assert history.previous_quantity == 0
     assert history.new_quantity == 5
+
 def test_returned_item_restocks_only_returned_quantity(db):
     from datetime import datetime, timedelta
 
