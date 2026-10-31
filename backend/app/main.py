@@ -58,8 +58,9 @@ app.add_middleware(
 # Serve uploaded product images
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# Notifications and reviews
-app.include_router(notifications.router, prefix="/api")
+# notifications.py already writes the full /api/... paths, so it gets no prefix (a prefix here served
+# /api/api/account/notifications). reviews.py writes /reviews and /products/{id}/reviews, so it is mounted under /api.
+app.include_router(notifications.router)
 app.include_router(reviews.router, prefix="/api")
 
 # Admin dashboard
