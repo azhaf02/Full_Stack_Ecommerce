@@ -24,25 +24,24 @@ export const SupportChatbot: React.FC = () => {
     // --- 🤖 DYNAMIC BRAND OPERATIONS PARSING KNOWLEDGE DICTIONARY 🤖 ---
     setTimeout(() => {
       const prompt = userMsg.text.toLowerCase(); // Context scan trace
-      let responseText = "I HAVE RECEIVED YOUR INQUIRY METRICS LOGS. IF YOU ARE FACING CRITICAL SYSTEM FAULTS, PLEASE FILL OUT THE FORMAL INTAKE TICKETS VIA THE PORTAL CHANNELS GRIDS.";
-
+      let responseText = "FOR REFUND UPDATES, PLEASE CHECK YOUR ORDER DETAILS AND RETURN STATUS. IF YOU NEED FURTHER ASSISTANCE, CREATE A SUPPORT TICKET SO OUR TEAM CAN HELP YOU.";
       if (prompt.includes('which support form') || prompt.includes('find the form') || prompt.includes('check support form') || prompt.includes('where')) {
         responseText = "YOU CAN ACCESS THE CUSTOMER INQUIRY FORM DIRECTLY FROM THE LEFT SIDEBAR MENU OPTION ROW LABELED 'SUPPORT FORM'. CLICK IT TO SPECIFY INVOICE DETAILS AND YOUR MULTI-PRODUCT SPECIFIC PRODUCT ID TARGETS SECURELY.";
       } 
-      else if (prompt.includes('any refunds') || prompt.includes('refund status') || prompt.includes('cash back') || prompt.includes('refund')) {
-        responseText = "REFUNDS ARE SYSTEMATICALLY DISPATCHED DIRECTLY BACK INTO YOUR ORIGINAL ACCOUNT INGESTION BALANCES MATRIX WITHIN 48 PROCESSING HOURS ONCE WAREHOUSE SCANNERS VALIDATE THE UNBROKEN ITEM LABELS.";
-      }
+      else if (prompt.includes('refund') || prompt.includes('cash back')) {
+  responseText = "FOR REFUND UPDATES, PLEASE CHECK YOUR ORDER DETAILS AND RETURN STATUS. IF YOU NEED FURTHER ASSISTANCE, CREATE A SUPPORT TICKET SO OUR TEAM CAN HELP YOU.";
+}
       else if (prompt.includes('exchange')) {
-        responseText = "EXCHANGES ARE HIGHLY ELIGIBLE FOR PRODUCTS WITHIN THE BASELINE GRACE TIMELINE WINDOW. SPECIFY THE NEW REPLACEMENT SIZE ATTRIBUTES DIRECTLY IN THE SUBMISSION PAYLOAD ROWS FORM FIELDS.";
+       responseText = "FOR EXCHANGE ASSISTANCE, PLEASE CHECK YOUR ORDER'S RETURN POLICY OR CREATE A SUPPORT TICKET FOR HELP.";
       }
       else if (prompt.includes('return') || prompt.includes('issue')) {
-        responseText = "IN LINE WITH THE ORDER MANAGEMENT INTERFACE LAYER, RETURNS MUST BE COMPLETED WITHIN 14 CALENDAR DAYS POST-DELIVERY. PLEASE FILL IN THE SUPPORT FORM WITH YOUR ACCURATE ORDER REFEFENCE ID METADATA.";
+       responseText = "FOR RETURN ASSISTANCE, PLEASE CHECK YOUR ORDER DETAILS AND RETURN POLICY. YOU CAN ALSO CREATE A SUPPORT TICKET FOR HELP.";
       } 
       else if (prompt.includes('order') || prompt.includes('track') || prompt.includes('shipment')) {
         responseText = "TO TRACK AN ACTIVE TRANSIT PARCEL IN REAL-TIME PIPELINES, NAVIGATE TO THE 'MY ORDERS' GRID VIA THE SIDEBAR OPTION LEDGER CAPSULE.";
       } 
       else if (prompt.includes('quality') || prompt.includes('fabric') || prompt.includes('material') || prompt.includes('qaulity')) {
-        responseText = "ALL VIORA PRODUCTS ARE CRAFTED FROM PREMIUM, HIGH-DENSITY HEAVYWEIGHT COTTON TO ENSURE MAXIMUM DURABILITY AND COMFORT. IF YOU RECEIVE A FAULTY ITEM, REGISTER IT ON THE SUPPORT FORM IMMEDIATELY!";
+        responseText = "FOR PRODUCT QUALITY OR MATERIAL-RELATED QUESTIONS, PLEASE CREATE A SUPPORT TICKET SO OUR TEAM CAN ASSIST YOU.";
       }
       else if (prompt.includes('hello') || prompt.includes('hi') || prompt.includes('hey')) {
         responseText = "HELLO! CHATBOT PARSING CHECKS ARE FULLY STABLE AND OPERATIONAL. HOW CAN I AID YOUR DIGITAL SHOPPING SPRINT JOURNEY TODAY?";
@@ -73,7 +72,7 @@ export const SupportChatbot: React.FC = () => {
           onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
         >
           {/* Error-Free Vector SVG Chat Icon */}
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://w3.org">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z" fill="#FFFFFF" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>

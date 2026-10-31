@@ -1,12 +1,19 @@
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+
+
+# Load every SQLAlchemy model in app/models so relationships between modules
+# (e.g. Product -> ProductVariant, Inventory -> InventoryHistory) can resolve
+
 # Load every SQLAlchemy model so relationships resolve correctly.
+
 import importlib
 import pkgutil
 
@@ -32,6 +39,7 @@ from app.routers import (
 
 from app.api.routes.catalog import router as catalog_router, public_router
 from app.api.routes.product import router as product_router
+from app.api.routes.support import router as support_router
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
 
@@ -78,10 +86,19 @@ app.include_router(checkout_sessions.router)
 # Admin product management
 app.include_router(catalog_router)
 
+
+# Support Router Registration
+app.include_router(support_router)
+
 # PAY-06: Invoice generation and viewing
 app.include_router(invoice.router)
 
 
+
 @app.get("/")
 def root():
+
+    return {"message": "Customer Dashboard Backend API is running"}
+
     return {"message": "VIORA API is running"}
+
