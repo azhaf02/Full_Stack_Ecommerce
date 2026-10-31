@@ -43,7 +43,7 @@ export default function ProductFormPage() {
 
   const loadCategories = async () => {
     try {
-      const data = await getCategories(true);
+      const data = await getCategories(isEditMode);
       setCategories(data);
     } catch (error) {
       console.error("Failed to load categories:", error);
@@ -63,6 +63,15 @@ export default function ProductFormPage() {
       setStockQuantity(String(product.stock_quantity));
       setCategoryId(String(product.category_id));
       setStatus(product.status);
+
+      const savedImage =
+        product.images?.find((image) => image.is_primary)?.image_url ||
+        product.images?.[0]?.image_url ||
+        product.image_url ||
+        null;
+
+      setPreviewUrl(savedImage);
+      setSelectedFile(null);
     } catch (error) {
       console.error("Failed to load product:", error);
       alert("Failed to load product.");
@@ -303,12 +312,22 @@ export default function ProductFormPage() {
               required
             >
               <option value="">Select category</option>
+{categories.map((category) => {
+  const isCurrentCategory = String(category.id) === String(categoryId);
+  const isInactive = !category.is_active;
 
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
+  return (
+    <option
+      key={category.id}
+      value={category.id}
+      disabled={isInactive && !isCurrentCategory}
+    >
+      {category.name}
+      {isInactive ? " (Inactive)" : ""}
+    </option>
+  );
+})}
+
             </select>
           </div>
 

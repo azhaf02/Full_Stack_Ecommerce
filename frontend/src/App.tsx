@@ -13,6 +13,8 @@ const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const ProductListingPage = lazy(() => import('./pages/ProductListingPage'));
 const AdminApp = lazy(() => import('./AdminApp'));
+// Bootstrap + index.css for every page except /admin
+const StorefrontLayout = lazy(() => import('./StorefrontLayout'));
 
 export default function App() {
   return (
@@ -20,28 +22,36 @@ export default function App() {
       <AuthProvider>
         <Suspense fallback={null}>
           <Routes>
-            {/* Storefront home (Madeeha) */}
-            <Route path="/" element={<HomePage />} />
-
-            {/* Product listing + details (Chandani) */}
-            <Route path="/products" element={<ProductListingPage />} />
-            <Route path="/product/:id" element={<ProductDetailPage />} />
-            <Route path="/search" element={<SearchResultsPage />} />
-            {/* Auth pages (Madeeha) */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-
-            {/* Customer-only pages (Madeeha, AUTH-05) */}
-            <Route element={<ProtectedRoute role="customer" />}>
-              <Route path="/profile" element={<ProfilePage />} />
-            </Route>
-
-            {/* Admin Dashboard */}
+            {/* Admin Dashboard: uses its own admin.css, so it stays outside the storefront styles */}
             <Route path="/admin/*" element={<AdminApp />} />
 
-            {/* Customer Dashboard (Aliza), unchanged from integration-v2 */}
-            <Route path="/dashboard" element={<DashboardLayout />} />
-            <Route path="*" element={<DashboardLayout />} />
+<Route element={<StorefrontLayout />}>
+  {/* Storefront home (Madeeha) */}
+  <Route path="/" element={<HomePage />} />
+
+  {/* Product listing + details (Chandani) */}
+  <Route path="/products" element={<ProductListingPage />} />
+  <Route path="/product/:id" element={<ProductDetailPage />} />
+  <Route path="/search" element={<SearchResultsPage />} />
+
+  {/* Auth pages (Madeeha) */}
+  <Route path="/login" element={<LoginPage />} />
+  <Route path="/register" element={<RegisterPage />} />
+</Route>
+
+              {/* Auth pages (Madeeha) */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+
+              {/* Customer-only pages (Madeeha, AUTH-05) */}
+              <Route element={<ProtectedRoute role="customer" />}>
+                <Route path="/profile" element={<ProfilePage />} />
+              </Route>
+
+              {/* Customer Dashboard (Aliza), unchanged from integration-v2 */}
+              <Route path="/dashboard" element={<DashboardLayout />} />
+              <Route path="*" element={<DashboardLayout />} />
+            </Route>
           </Routes>
         </Suspense>
       </AuthProvider>

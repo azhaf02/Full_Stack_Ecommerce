@@ -5,7 +5,7 @@ from app.database import get_db
 from app.schemas.category import CategoryCreate, CategoryResponse, CategoryUpdate
 from app.services.category_service import (
     create_category,
-    deactivate_category,
+    delete_category,
     get_categories,
     get_category,
     update_category,
@@ -86,12 +86,12 @@ def edit_category(
     return category
 
 
-@router.delete("/{category_id}", response_model=CategoryResponse)
-def deactivate(
-    category_id: int,
-    db: Session = Depends(get_db),
-):
-    category = deactivate_category(db, category_id)
+@router.delete(
+    "/{category_id}",
+    response_model=CategoryResponse,
+)
+def delete(category_id: int, db: Session = Depends(get_db)):
+    category = delete_category(db, category_id)
 
     if not category:
         raise HTTPException(

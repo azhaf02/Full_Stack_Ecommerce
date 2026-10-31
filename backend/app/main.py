@@ -1,3 +1,4 @@
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -9,17 +10,20 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+# Load every SQLAlchemy model so relationships resolve correctly.
 import app.models as _models_pkg
 
-# Load all SQLAlchemy models so relationships can resolve correctly.
 for _module in pkgutil.iter_modules(_models_pkg.__path__):
     importlib.import_module(f"app.models.{_module.name}")
 
+# Product API routes.
 from app.api.routes.wishlist import router as wishlist_router
 from app.api.routes.catalog import router as catalog_router, public_router
 from app.api.routes.product import router as product_router
 from app.api.routes.variant import router as variant_router
+from app.api.routes.support import router as support_router
 
+# Other application routers.
 from app.routers import (
     notifications,
     reviews,
@@ -32,6 +36,7 @@ from app.routers import (
     orders,
     payment,
     checkout_sessions,
+    invoice,
 )
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
@@ -39,12 +44,7 @@ app = FastAPI(title="Customer Dashboard & Reviews API")
 # Enable CORS for the React frontend.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -80,15 +80,20 @@ app.include_router(audit_logs.router)
 # Analytics.
 app.include_router(analytics.router)
 
-# Orders.
+# Orders and payments.
 app.include_router(orders.router)
-
-# Payments.
 app.include_router(payment.router)
 
 # Checkout sessions.
 app.include_router(checkout_sessions.router)
 
+# Support.
+app.include_router(support_router)
+
+# Invoice generation and viewing.
+app.include_router(invoice.router)
+
+
 @app.get("/")
 def root():
-    return {"message": "Customer Dashboard Backend API is running"}
+    return {"message": "VIORA API is running"}

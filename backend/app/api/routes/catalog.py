@@ -1,6 +1,10 @@
+import cloudinary.uploader
+from app.core.cloudinary_config import cloudinary
+
 from pathlib import Path
 from uuid import uuid4
 
+from sqlalchemy import text
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 from app.core.security import require_role
@@ -64,11 +68,28 @@ def get_admin_products(
     return query.order_by(Product.id.desc()).all()
 
 
+
 @router.post("/", response_model=ProductResponse)
 def create_admin_product(
     product: ProductCreate,
     db: Session = Depends(get_db),
 ):
+    category = db.query(Category).filter(
+        Category.id == product.category_id
+    ).first()
+
+    if not category:
+        raise HTTPException(
+            status_code=400,
+            detail="Category not found."
+        )
+
+    if not category.is_active:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot create a product in an inactive category."
+        )
+
     db_product = Product(**product.model_dump())
 
     db.add(db_product)
@@ -76,6 +97,7 @@ def create_admin_product(
     db.refresh(db_product)
 
     return db_product
+
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
@@ -113,10 +135,34 @@ def update_admin_product(
     if not db_product:
         raise HTTPException(
             status_code=404,
-            detail="Product not found"
+            detail="Product not found",
         )
 
     update_data = product.model_dump(exclude_unset=True)
+
+    # Validate category only when category_id is being changed
+    if (
+        "category_id" in update_data
+        and update_data["category_id"] != db_product.category_id
+    ):
+        category = (
+            db.query(Category)
+            .filter(Category.id == update_data["category_id"])
+            .first()
+        )
+
+        if not category:
+            raise HTTPException(
+                status_code=400,
+                detail="Category not found",
+            )
+
+
+        if not category.is_active:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot move product to an inactive category",
+            )
 
     for field, value in update_data.items():
         setattr(db_product, field, value)
@@ -125,6 +171,7 @@ def update_admin_product(
     db.refresh(db_product)
 
     return db_product
+
 
 
 @router.delete("/{product_id}", response_model=ProductResponse)
@@ -141,16 +188,16 @@ def deactivate_admin_product(
     if not db_product:
         raise HTTPException(
             status_code=404,
-            detail="Product not found"
+            detail="Product not found",
         )
 
-    # Soft delete/deactivation instead of physical deletion.
     db_product.status = "INACTIVE"
 
     db.commit()
     db.refresh(db_product)
 
     return db_product
+
 
 
 @router.post(
@@ -172,13 +219,13 @@ async def upload_product_image(
     if not product:
         raise HTTPException(
             status_code=404,
-            detail="Product not found"
+            detail="Product not found",
         )
 
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(
             status_code=400,
-            detail="Only JPG, PNG and WEBP images are allowed"
+            detail="Only JPG, PNG and WEBP images are allowed",
         )
 
     file_content = await file.read()
@@ -186,17 +233,21 @@ async def upload_product_image(
     if len(file_content) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=400,
-            detail="Image size must not exceed 5 MB"
+            detail="Image size must not exceed 5 MB",
         )
 
-    extension = ALLOWED_IMAGE_TYPES[file.content_type]
-    filename = f"{uuid4().hex}{extension}"
-    file_path = UPLOAD_DIR / filename
+    try:
+        upload_result = cloudinary.uploader.upload(
+            file_content,
+            resource_type="image",
+            folder="ecommerce/products",
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Image upload failed",
+        ) from exc
 
-    file_path.write_bytes(file_content)
-
-    # If this image is primary, remove primary status
-    # from all other images of this product.
     if is_primary:
         db.query(ProductImage).filter(
             ProductImage.product_id == product_id
@@ -207,15 +258,28 @@ async def upload_product_image(
 
     image = ProductImage(
         product_id=product_id,
-        image_url=f"/uploads/{filename}",
+        image_url=upload_result["secure_url"],
         is_primary=is_primary,
     )
 
-    db.add(image)
-    db.commit()
-    db.refresh(image)
+    try:
+        db.add(image)
+        db.commit()
+        db.refresh(image)
+    except Exception:
+        db.rollback()
+        # Avoid leaving an orphaned Cloudinary asset if DB save fails.
+        try:
+            cloudinary.uploader.destroy(
+                upload_result["public_id"],
+                resource_type="image",
+            )
+        except Exception:
+            pass
+        raise
 
     return image
+
 
 
 
@@ -229,7 +293,7 @@ def get_public_categories(
         .order_by(Category.id)
         .all()
     )
-    
+
 @public_router.get("/products", response_model=list[ProductResponse])
 def get_public_products(
     page: int = Query(default=1, ge=1),

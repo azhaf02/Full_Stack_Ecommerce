@@ -173,16 +173,12 @@ def get_product_detail(db: Session, product_id: int):
             for item in related_products
         ]
     }
-
-
 def get_product(db: Session, product_id: int):
     return (
         db.query(Product)
         .filter(Product.id == product_id)
         .first()
     )
-
-
 def update_product(
     db: Session,
     product_id: int,
