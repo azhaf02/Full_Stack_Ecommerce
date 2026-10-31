@@ -119,8 +119,9 @@ def get_product_detail(db: Session, product_id: int):
         "images": [
             {
                 "id": image.id,
+                "product_id": image.product_id,
                 "image_url": image.image_url,
-                "is_primary": image.is_primary
+                "is_primary": image.is_primary,
             }
             for image in product.images
         ],
@@ -134,16 +135,12 @@ def get_product_detail(db: Session, product_id: int):
             for item in related_products
         ]
     }
-
-
 def get_product(db: Session, product_id: int):
     return (
         db.query(Product)
         .filter(Product.id == product_id)
         .first()
     )
-
-
 def update_product(
     db: Session,
     product_id: int,

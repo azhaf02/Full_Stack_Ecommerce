@@ -1,3 +1,4 @@
+﻿import uuid
 import pkgutil
 import importlib
 import pytest
@@ -38,7 +39,7 @@ def test_post_review_success():
     payload = {
         "product_id": 1,
         "user_id": 1,
-        "order_id": 9821,
+        "order_id": __import__("uuid").uuid4().int % 2000000000,
         "rating": 5,
         "title": "Outstanding Sound Quality",
         "comment": "Testing automated review submission."
@@ -55,10 +56,11 @@ def test_post_review_invalid_rating():
     payload = {
         "product_id": 1,
         "user_id": 1,
-        "order_id": 9821,
+        "order_id": __import__("uuid").uuid4().int % 2000000000,
         "rating": 6,
         "title": "Invalid",
         "comment": "Rating should fail validation"
     }
     response = client.post("/api/reviews", json=payload)
     assert response.status_code == 422
+

@@ -9,6 +9,11 @@ type Product = {
   stock_status: "IN_STOCK" | "OUT_OF_STOCK";
   status: "ACTIVE" | "INACTIVE";
   image_url?: string | null;
+  images?: {
+    id: number;
+    image_url: string;
+    is_primary: boolean;
+  }[];
   category_id: number;
   category_name?: string | null;
 };
@@ -76,7 +81,14 @@ export default function ProductListingPage() {
     setSelectedCategory(categoryId);
     setPage(1);
   };
+  const getProductImageUrl = (product: Product) => {
+    const imageUrl =
+      product.image_url ||
+      product.images?.find((image) => image.is_primary)?.image_url ||
+      product.images?.[0]?.image_url;
 
+    return getImageUrl(imageUrl);
+  };
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-8">
       <div className="mx-auto max-w-7xl">
@@ -191,19 +203,19 @@ export default function ProductListingPage() {
                   key={product.id}
                   className="overflow-hidden rounded-xl bg-white shadow-sm transition hover:shadow-md"
                 >
-                  <div className="h-52 bg-gray-100">
-                    {getImageUrl(product.image_url) ? (
-  <img
-    src={getImageUrl(product.image_url)!}
-    alt={product.name}
-    className="h-full w-full object-cover"
-  />
-) : (
-                      <div className="flex h-full items-center justify-center text-gray-400">
-                        No Image
-                      </div>
-                    )}
-                  </div>
+<div className="h-52 bg-gray-100">
+  {getProductImageUrl(product) ? (
+    <img
+      src={getProductImageUrl(product)!}
+      alt={product.name}
+      className="h-full w-full object-cover"
+    />
+  ) : (
+    <div className="flex h-full items-center justify-center text-gray-400">
+      No Image
+    </div>
+  )}
+</div>
 
                   <div className="p-4">
                     <div className="mb-2 flex items-center justify-between gap-2">
