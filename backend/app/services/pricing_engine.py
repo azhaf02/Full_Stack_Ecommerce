@@ -1,11 +1,9 @@
-import os
 from decimal import Decimal, ROUND_HALF_UP
+
+from app.core.pricing_config import get_tax_rate_percent
 
 CENT = Decimal("0.01")
 ZERO = Decimal("0.00")
-
-# Single configurable tax rate; remains 0% until Anas confirms the approved rate.
-TAX_RATE_PERCENT = Decimal(os.getenv("TAX_RATE_PERCENT", "0.00"))
 
 
 def _money(value) -> Decimal:
@@ -40,7 +38,7 @@ def calculate_pricing(items, tax_rate=None, discount=ZERO):
     applied_discount = min(subtotal, requested_discount)
 
     discounted_subtotal = max(ZERO, _money(subtotal - applied_discount))
-    rate = TAX_RATE_PERCENT if tax_rate is None else Decimal(str(tax_rate))
+    rate = get_tax_rate_percent() if tax_rate is None else Decimal(str(tax_rate))
     if rate < 0:
         raise ValueError("tax_rate cannot be negative")
 
