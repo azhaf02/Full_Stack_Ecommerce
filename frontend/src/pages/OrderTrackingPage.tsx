@@ -73,7 +73,7 @@ export default function OrderTrackingPage({ orderId, onBack }: OrderTrackingPage
     <div style={{ display: 'grid', gap: '20px', maxWidth: '760px', margin: '0 auto' }}>
       {onBack && (
         <div>
-          <button type="button" className="btn btn-link" style={{ padding: 0 }} onClick={onBack}>← Back to my orders</button>
+          <button type="button" className="btn btn-link order-link" style={{ padding: 0 }} onClick={onBack}>← Back to my orders</button>
         </div>
       )}
 

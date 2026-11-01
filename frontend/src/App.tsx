@@ -1,14 +1,57 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+
+import { lazy, Suspense } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout';
+import ProductDetailPage from './ProductDetailPage';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import SearchResultsPage from './SearchResultsPage';
+
+// VIORA storefront + auth pages
+const HomePage = lazy(() => import('./pages/HomePage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const ProductListingPage = lazy(() => import('./pages/ProductListingPage'));
+const AdminApp = lazy(() => import('./AdminApp'));
+
+// Storefront layout
+const StorefrontLayout = lazy(() => import('./StorefrontLayout'));
 
 export default function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<DashboardLayout />} />
-        <Route path="*" element={<DashboardLayout />} />
-      </Routes>
+      <AuthProvider>
+        <Suspense fallback={null}>
+          <Routes>
+            {/* Admin Dashboard */}
+            <Route path="/admin/*" element={<AdminApp />} />
+
+            {/* Storefront pages */}
+            <Route element={<StorefrontLayout />}>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/products" element={<ProductListingPage />} />
+              <Route path="/product/:id" element={<ProductDetailPage />} />
+              <Route path="/search" element={<SearchResultsPage />} />
+
+              {/* Authentication pages */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+            </Route>
+
+            {/* Protected customer pages */}
+            <Route element={<ProtectedRoute role="customer" />}>
+              <Route path="/profile" element={<ProfilePage />} />
+            </Route>
+
+            {/* Customer Dashboard */}
+            <Route path="/dashboard" element={<DashboardLayout />} />
+
+            {/* Fallback */}
+            <Route path="*" element={<DashboardLayout />} />
+          </Routes>
+        </Suspense>
+      </AuthProvider>
     </Router>
   );
 }
