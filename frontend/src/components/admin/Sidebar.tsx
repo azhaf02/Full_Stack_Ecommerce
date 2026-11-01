@@ -8,8 +8,10 @@ import { getSession, logout } from "../../services/authService";
 const SECTIONS: { title: string; labels: string[] }[] = [
   { title: "Overview", labels: ["Dashboard", "Analytics"] },
   { title: "Sales", labels: ["Orders", "Returns", "Payments"] },
-  { title: "Catalog", labels: ["Products", "Categories", "Reviews"] },
+  { title: "Catalog", labels: ["Products", "Categories", "Inventory", "Reviews"] },
   { title: "People", labels: ["Customers", "Roles"] },
+  { title: "Help", labels: ["Support", "FAQ"] },
+  { title: "System", labels: ["Audit Logs"] },
 ];
 
 type NavItem = (typeof adminNav)[number];
