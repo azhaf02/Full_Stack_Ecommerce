@@ -4,6 +4,24 @@ import NotificationCenter from './NotificationCenter';
 import { ReviewsList } from './ReviewsList';
 import NewTicketPage from '../pages/support/NewTicketPage';
 import { SupportChatbot } from './SupportChatbot';
+import apiClient, { getErrorMessage } from '../services/apiClient';
+
+interface WishlistProduct {
+  id: number;
+  name: string;
+  price: number | string;
+  images: {
+    id: number;
+    image_url: string;
+    is_primary: boolean;
+  }[];
+}
+
+interface WishlistItem {
+  id: number;
+  product_id: number;
+  product: WishlistProduct;
+}
 
 function VioraBrandBag() {
   return (
@@ -13,6 +31,270 @@ function VioraBrandBag() {
       <circle cx="12" cy="17" r="3" stroke="#FAF8F5" strokeWidth="1.4" />
       <path d="M12 14.8V17" stroke="#FAF8F5" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
+  );
+}
+
+// Wishlist component
+function WishlistContent() {
+  const [items, setItems] = useState<WishlistItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [removingId, setRemovingId] = useState<number | null>(null);
+  const [error, setError] = useState('');
+
+  const fetchWishlist = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const response = await apiClient.get('/api/wishlist');
+
+      setItems(response.data.items || []);
+    } catch (err) {
+      setError(getErrorMessage(err, 'Unable to load your wishlist.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWishlist();
+  }, []);
+
+  const handleRemove = async (productId: number) => {
+    try {
+      setRemovingId(productId);
+
+      await apiClient.delete(`/api/wishlist/items/${productId}`);
+
+      setItems((currentItems) =>
+        currentItems.filter(
+          (item) => item.product_id !== productId
+        )
+      );
+    } catch (err) {
+      alert(getErrorMessage(err, 'Unable to remove this product.'));
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{
+        backgroundColor: '#FFFFFF',
+        border: '1px solid #E5DFD5',
+        padding: '50px',
+        textAlign: 'center',
+        color: '#768572'
+      }}>
+        Loading your wishlist...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{
+        backgroundColor: '#FFFFFF',
+        border: '1px solid #E5DFD5',
+        padding: '35px',
+        textAlign: 'center'
+      }}>
+        <p style={{ color: '#9E4E42' }}>{error}</p>
+        <button
+          type="button"
+          onClick={fetchWishlist}
+          style={{
+            backgroundColor: '#232F24',
+            color: '#FAF8F5',
+            border: 'none',
+            padding: '10px 20px',
+            cursor: 'pointer'
+          }}
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div style={{
+        backgroundColor: '#FFFFFF',
+        border: '1px solid #E5DFD5',
+        padding: '55px 25px',
+        textAlign: 'center'
+      }}>
+        <div style={{
+          fontSize: '42px',
+          color: '#8E9E86',
+          marginBottom: '12px'
+        }}>
+          ♡
+        </div>
+
+        <h3 style={{
+          fontFamily: "'Cinzel', Georgia, serif",
+          color: '#232F24',
+          fontSize: '21px',
+          marginBottom: '10px'
+        }}>
+          Your Wishlist is Empty
+        </h3>
+
+        <p style={{
+          color: '#768572',
+          fontSize: '13px',
+          margin: 0
+        }}>
+          Save your favourite products and find them here anytime.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '22px',
+        flexWrap: 'wrap',
+        gap: '10px'
+      }}>
+        <div>
+          <div style={{
+            fontSize: '10px',
+            letterSpacing: '2px',
+            textTransform: 'uppercase',
+            color: '#768572',
+            fontWeight: 600
+          }}>
+            Saved Collection
+          </div>
+
+          <h2 style={{
+            fontFamily: "'Cinzel', Georgia, serif",
+            fontSize: '24px',
+            color: '#232F24',
+            margin: '5px 0 0'
+          }}>
+            My Wishlist
+          </h2>
+        </div>
+
+        <span style={{
+          fontSize: '12px',
+          color: '#768572'
+        }}>
+          {items.length} saved {items.length === 1 ? 'product' : 'products'}
+        </span>
+      </div>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+        gap: '20px'
+      }}>
+        {items.map((item) => {
+          const product = item.product;
+
+          const primaryImage =
+            product.images?.find((image) => image.is_primary) ||
+            product.images?.[0];
+
+          return (
+            <div
+              key={item.id}
+              style={{
+                backgroundColor: '#FFFFFF',
+                border: '1px solid #E5DFD5',
+                padding: '14px',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              <div style={{
+                height: '190px',
+                backgroundColor: '#F8F7F2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                marginBottom: '14px'
+              }}>
+                {primaryImage?.image_url ? (
+                  <img
+                    src={primaryImage.image_url}
+                    alt={product.name}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      padding: '10px'
+                    }}
+                  />
+                ) : (
+                  <span style={{
+                    color: '#8E9E86',
+                    fontSize: '13px'
+                  }}>
+                    No image available
+                  </span>
+                )}
+              </div>
+
+              <h3 style={{
+                color: '#232F24',
+                fontSize: '15px',
+                fontWeight: 600,
+                margin: '0 0 8px',
+                lineHeight: 1.5
+              }}>
+                {product.name}
+              </h3>
+
+              <p style={{
+                color: '#5F6B3A',
+                fontSize: '17px',
+                fontWeight: 700,
+                margin: '0 0 16px'
+              }}>
+                ₹{Number(product.price).toFixed(2)}
+              </p>
+
+              <button
+                type="button"
+                onClick={() => handleRemove(item.product_id)}
+                disabled={removingId === item.product_id}
+                style={{
+                  marginTop: 'auto',
+                  width: '100%',
+                  padding: '11px',
+                  border: '1px solid #9E4E42',
+                  backgroundColor: '#FFFFFF',
+                  color: '#9E4E42',
+                  fontSize: '11px',
+                  letterSpacing: '1px',
+                  textTransform: 'uppercase',
+                  fontWeight: 600,
+                  cursor: removingId === item.product_id
+                    ? 'not-allowed'
+                    : 'pointer',
+                  opacity: removingId === item.product_id ? 0.6 : 1
+                }}
+              >
+                {removingId === item.product_id
+                  ? 'Removing...'
+                  : 'Remove from Wishlist'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -376,7 +658,7 @@ export default function DashboardLayout() {
             </div>
           )}
 
-          {activeTab === 'wishlist' && <div style={{ padding: '20px', color: '#6e776e' }}>Wishlist Content Coming Soon.</div>}
+          {activeTab === 'wishlist' && <WishlistContent />}
 
           {activeTab === 'notifications' && (
             <NotificationCenter onClearBadge={() => setUnreadCount(0)} />

@@ -1,5 +1,10 @@
+
 import { useEffect, useState } from "react";
 import Breadcrumb from "../components/Breadcrumb";
+import ProductFilter, {
+  type ProductFilters,
+} from "../components/ProductFilter";
+
 type Product = {
   id: number;
   name: string;
@@ -9,6 +14,11 @@ type Product = {
   stock_status: "IN_STOCK" | "OUT_OF_STOCK";
   status: "ACTIVE" | "INACTIVE";
   image_url?: string | null;
+  images?: {
+    id: number;
+    image_url: string;
+    is_primary: boolean;
+  }[];
   category_id: number;
   category_name?: string | null;
 };
@@ -17,6 +27,7 @@ type Category = {
   id: number;
   name: string;
 };
+
 const getImageUrl = (imageUrl?: string | null) => {
   if (!imageUrl) return null;
 
@@ -35,6 +46,17 @@ export default function ProductListingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [filters, setFilters] = useState<ProductFilters>({
+    category_id: "",
+    min_price: "",
+    max_price: "",
+    in_stock: null,
+  });
+
+  const [sort, setSort] = useState<
+    "newest" | "price_asc" | "price_desc"
+  >("newest");
+
   const pageSize = 8;
 
   useEffect(() => {
@@ -48,13 +70,33 @@ export default function ProductListingPage() {
     setLoading(true);
     setError("");
 
-    const categoryParam = selectedCategory
-      ? `&category_id=${selectedCategory}`
-      : "";
+    const params = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+      sort,
+    });
+
+    if (filters.category_id !== "") {
+      params.set("category_id", String(filters.category_id));
+    } else if (selectedCategory !== null) {
+      params.set("category_id", String(selectedCategory));
+    }
+
+    if (filters.min_price !== "") {
+      params.set("min_price", filters.min_price);
+    }
+
+    if (filters.max_price !== "") {
+      params.set("max_price", filters.max_price);
+    }
+
+    if (filters.in_stock !== null) {
+      params.set("in_stock", String(filters.in_stock));
+    }
 
     fetch(
-  `http://127.0.0.1:8000/api/products/?page=${page}&page_size=${pageSize}${categoryParam}`
-)
+      `http://127.0.0.1:8000/api/products/?${params.toString()}`
+    )
       .then((res) => {
         if (!res.ok) {
           throw new Error("Failed to load products");
@@ -70,91 +112,152 @@ export default function ProductListingPage() {
         setProducts([]);
         setLoading(false);
       });
-  }, [page, selectedCategory]);
+  }, [page, selectedCategory, filters, sort]);
 
   const handleCategoryChange = (categoryId: number | null) => {
     setSelectedCategory(categoryId);
+    setFilters((prev) => ({
+      ...prev,
+      category_id: categoryId ?? "",
+    }));
     setPage(1);
+  };
+
+  const getProductImageUrl = (product: Product) => {
+    const imageUrl =
+      product.image_url ||
+      product.images?.find((image) => image.is_primary)?.image_url ||
+      product.images?.[0]?.image_url;
+
+    return getImageUrl(imageUrl);
   };
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-8">
       <div className="mx-auto max-w-7xl">
-  <Breadcrumb
-    items={[
-      {
-        label: "Home",
-        onClick: () => handleCategoryChange(null),
-      },
-      ...(selectedCategory !== null
-        ? [
+        <Breadcrumb
+          items={[
             {
-              label:
-                categories.find(
-                  (category) => category.id === selectedCategory
-                )?.name || "Category",
+              label: "Home",
+              onClick: () => handleCategoryChange(null),
             },
-          ]
-        : []),
-    ]}
-  />
+            ...(selectedCategory !== null
+              ? [
+                  {
+                    label:
+                      categories.find(
+                        (category) => category.id === selectedCategory
+                      )?.name || "Category",
+                  },
+                ]
+              : []),
+          ]}
+        />
 
-  <h1 className="mb-6 text-3xl font-bold text-gray-900">
-    Products
-  </h1>
+        <h1 className="mb-6 text-3xl font-bold text-gray-900">
+          Products
+        </h1>
 
         {/* Category Navigation */}
-<div
-  style={{
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "12px",
-    marginBottom: "32px",
-    paddingBottom: "20px",
-    borderBottom: "1px solid #e5e5e5",
-  }}
->
-  <button
-    type="button"
-    onClick={() => handleCategoryChange(null)}
-    style={{
-      padding: "11px 22px",
-      borderRadius: "999px",
-      border: "1px solid #222",
-      background: selectedCategory === null ? "#222" : "#fff",
-      color: selectedCategory === null ? "#fff" : "#222",
-      fontSize: "14px",
-      fontWeight: 600,
-      cursor: "pointer",
-      minWidth: "110px",
-    }}
-  >
-    All Products
-  </button>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "12px",
+            marginBottom: "32px",
+            paddingBottom: "20px",
+            borderBottom: "1px solid #e5e5e5",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => handleCategoryChange(null)}
+            style={{
+              padding: "11px 22px",
+              borderRadius: "999px",
+              border: "1px solid #222",
+              background: selectedCategory === null ? "#222" : "#fff",
+              color: selectedCategory === null ? "#fff" : "#222",
+              fontSize: "14px",
+              fontWeight: 600,
+              cursor: "pointer",
+              minWidth: "110px",
+            }}
+          >
+            All Products
+          </button>
 
-  {categories.map((category) => (
-    <button
-      type="button"
-      key={category.id}
-      onClick={() => handleCategoryChange(category.id)}
-      style={{
-        padding: "11px 22px",
-        borderRadius: "999px",
-        border: "1px solid #d5d5d5",
-        background:
-          selectedCategory === category.id ? "#222" : "#fff",
-        color:
-          selectedCategory === category.id ? "#fff" : "#333",
-        fontSize: "14px",
-        fontWeight: 600,
-        cursor: "pointer",
-        minWidth: "100px",
-      }}
-    >
-      {category.name}
-    </button>
-  ))}
-</div>
+          {categories.map((category) => (
+            <button
+              type="button"
+              key={category.id}
+              onClick={() => handleCategoryChange(category.id)}
+              style={{
+                padding: "11px 22px",
+                borderRadius: "999px",
+                border: "1px solid #d5d5d5",
+                background:
+                  selectedCategory === category.id ? "#222" : "#fff",
+                color:
+                  selectedCategory === category.id ? "#fff" : "#333",
+                fontSize: "14px",
+                fontWeight: 600,
+                cursor: "pointer",
+                minWidth: "100px",
+              }}
+            >
+              {category.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Product Filters and Sorting */}
+        <div className="mb-8 rounded-xl bg-white p-5 shadow-sm">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+            Filter Products
+          </h2>
+
+          <ProductFilter
+            filters={filters}
+            onChange={(updatedFilters) => {
+              setFilters(updatedFilters);
+              setSelectedCategory(
+                updatedFilters.category_id === ""
+                  ? null
+                  : Number(updatedFilters.category_id)
+              );
+              setPage(1);
+            }}
+          />
+
+          <div className="mt-5 max-w-xs">
+            <label
+              htmlFor="product-sort"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Sort by
+            </label>
+
+            <select
+              id="product-sort"
+              value={sort}
+              onChange={(event) => {
+                setSort(
+                  event.target.value as
+                    | "newest"
+                    | "price_asc"
+                    | "price_desc"
+                );
+                setPage(1);
+              }}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
+            >
+              <option value="newest">Newest</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+            </select>
+          </div>
+        </div>
 
         {/* Loading */}
         {loading && (
@@ -192,13 +295,13 @@ export default function ProductListingPage() {
                   className="overflow-hidden rounded-xl bg-white shadow-sm transition hover:shadow-md"
                 >
                   <div className="h-52 bg-gray-100">
-                    {getImageUrl(product.image_url) ? (
-  <img
-    src={getImageUrl(product.image_url)!}
-    alt={product.name}
-    className="h-full w-full object-cover"
-  />
-) : (
+                    {getProductImageUrl(product) ? (
+                      <img
+                        src={getProductImageUrl(product)!}
+                        alt={product.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
                       <div className="flex h-full items-center justify-center text-gray-400">
                         No Image
                       </div>
@@ -215,6 +318,7 @@ export default function ProductListingPage() {
                         {product.status}
                       </span>
                     </div>
+
                     {product.stock_status === "OUT_OF_STOCK" && (
                       <span className="mt-2 inline-block rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
                         Out of Stock

@@ -9,10 +9,14 @@ import AdminOrdersPage from "./pages/admin/AdminOrdersPage";
 import AdminPaymentsPage from "./pages/admin/AdminPaymentsPage";
 import AdminRolesPage from "./pages/admin/AdminRolesPage";
 import AdminOrderDetailPage from "./pages/admin/AdminOrderDetailPage";
+import AdminReturnsPage from "./pages/admin/AdminReturnsPage";
+import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
 import AdminCategoriesPage from "./pages/admin/AdminCategoriesPage";
 import AnalyticsPage from "./pages/admin/AnalyticsPage";
+import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import ProductsPage from "./pages/admin/ProductsPage";
 import ProductFormPage from "./pages/admin/ProductFormPage";
+import InventoryPage from "./pages/admin/InventoryPage";
 
 // Mounted at /admin/* by App.tsx, so the paths here are relative to /admin
 export default function AdminApp() {
@@ -32,10 +36,14 @@ export default function AdminApp() {
         <Route path="customers" element={<AdminCustomersPage />} />
         <Route path="orders" element={<AdminOrdersPage />} />
         <Route path="orders/:id" element={<AdminOrderDetailPage />} />
+        <Route path="returns" element={<AdminReturnsPage />} />
+        <Route path="reviews" element={<AdminReviewsPage />} />
         <Route path="payments" element={<AdminPaymentsPage />} />
         <Route path="roles" element={<AdminRolesPage />} />
         <Route path="categories" element={<AdminCategoriesPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="inventory" element={<InventoryPage />} />
+        <Route path="audit-logs" element={<AuditLogsPage />} />
 
         {/* Product Catalog */}
         <Route path="products" element={<ProductsPage />} />
