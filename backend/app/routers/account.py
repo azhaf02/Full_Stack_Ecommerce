@@ -66,3 +66,45 @@ def delete_address(address_id: int, user: User = Depends(customer_only), db: Ses
 @router.put("/addresses/{address_id}/default", response_model=AddressOut)
 def set_default_address(address_id: int, user: User = Depends(customer_only), db: Session = Depends(get_db)):
     return account_service.set_default_address(db, user, address_id)
+    # ============================================================
+# CUSTOMER DASHBOARD OVERVIEW
+# ============================================================
+
+@router.get("/dashboard")
+def get_customer_dashboard(
+    user: User = Depends(customer_only),
+    db: Session = Depends(get_db),
+):
+    recent_orders_count = db.execute(
+        text("SELECT COUNT(*) FROM orders WHERE user_id = :uid"),
+        {"uid": user.id},
+    ).scalar() or 0
+
+    wishlist_count = db.execute(
+        text("SELECT COUNT(*) FROM wishlist WHERE user_id = :uid"),
+        {"uid": user.id},
+    ).scalar() or 0
+
+    unread_notifications = db.execute(
+        text("SELECT COUNT(*) FROM notifications WHERE user_id = :uid AND is_read = false"),
+        {"uid": user.id},
+    ).scalar() or 0
+
+    return {
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role.name if hasattr(user.role, "name") else str(user.role),
+        },
+        "summary": {
+            "recent_orders_count": recent_orders_count,
+            "wishlist_count": wishlist_count,
+            "unread_notifications": unread_notifications,
+        },
+        "recent_orders": [],
+        "wishlist": {
+            "count": wishlist_count,
+            "items": [],
+        },
+    }
