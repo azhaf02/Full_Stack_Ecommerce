@@ -112,7 +112,7 @@ def add_to_cart(
             detail="Product not found"
         )
 
-    if product["status"] != "ACTIVE":
+    if str(product["status"]).upper() != "ACTIVE":
         raise HTTPException(
             status_code=400,
             detail="Product is not available"

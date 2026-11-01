@@ -1,3 +1,5 @@
+// @ts-ignore - JavaScript checkout component
+import CheckoutPage from "./checkout/pages/CheckoutPage";
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout';
@@ -12,45 +14,53 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const ProductListingPage = lazy(() => import('./pages/ProductListingPage'));
+const CartPage = lazy(() => import('./pages/CartPage'));
 const AdminApp = lazy(() => import('./AdminApp'));
 
 // Storefront layout
 const StorefrontLayout = lazy(() => import('./StorefrontLayout'));
 
 export default function App() {
-  return (
-    <Router>
-      <AuthProvider>
-        <Suspense fallback={null}>
-          <Routes>
-            {/* Admin Dashboard */}
-            <Route path="/admin/*" element={<AdminApp />} />
+return (
+<Router>
+<AuthProvider>
+<Suspense fallback={null}>
+<Routes>
 
-            {/* Storefront pages */}
-            <Route element={<StorefrontLayout />}>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/products" element={<ProductListingPage />} />
-              <Route path="/product/:id" element={<ProductDetailPage />} />
-              <Route path="/search" element={<SearchResultsPage />} />
+        {/* Admin Dashboard */}
+        <Route path="/admin/*" element={<AdminApp />} />
 
-              {/* Authentication pages */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-            </Route>
+        {/* Storefront pages */}
+        <Route element={<StorefrontLayout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/products" element={<ProductListingPage />} />
+          <Route path="/product/:id" element={<ProductDetailPage />} />
+          <Route path="/search" element={<SearchResultsPage />} />
 
-            {/* Protected customer pages */}
-            <Route element={<ProtectedRoute role="customer" />}>
-              <Route path="/profile" element={<ProfilePage />} />
-            </Route>
+          {/* Cart Page */}
+          <Route path="/cart" element={<CartPage onCheckout={() => { window.location.href = "/checkout"; }} />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
 
-            {/* Customer Dashboard */}
-            <Route path="/dashboard/*" element={<DashboardLayout />} />
+          {/* Authentication pages */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+        </Route>
 
-            {/* Fallback: redirect unmatched routes to Home instead of Dashboard */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </AuthProvider>
-    </Router>
-  );
+        {/* Protected customer pages */}
+        <Route element={<ProtectedRoute role="customer" />}>
+          <Route path="/profile" element={<ProfilePage />} />
+        </Route>
+
+        {/* Customer Dashboard */}
+        <Route path="/dashboard/*" element={<DashboardLayout />} />
+
+        {/* Fallback: redirect unmatched routes to Home instead of Dashboard */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+
+      </Routes>
+    </Suspense>
+  </AuthProvider>
+</Router>
+
+);
 }

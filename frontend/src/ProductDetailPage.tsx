@@ -284,7 +284,7 @@ function ProductDetailPage() {
     );
   }
 
-  const isInStock = product.stock_status !== "out_of_stock";
+  const isInStock = product.stock_quantity > 0;
   const selectedImageUrl = selectedImage?.image_url || null;
 
   return (
@@ -956,7 +956,7 @@ function ProductDetailPage() {
       alert("Product added to cart!");
                     } catch (error) {
                       console.error(error);
-                      alert("Unable to add product to cart.");
+                      alert(getErrorMessage(error, "Unable to add product to cart."));
                     }
                   }}
                 >
