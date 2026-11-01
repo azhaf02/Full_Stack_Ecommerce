@@ -1,86 +1,65 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import ReviewSubmissionModal from './ReviewSubmissionModal';
-
-interface OrderItem {
-  id: number;
-  product_id: number;
-  product_name: string;
-  image: string;
-  date: string;
-  status: string;
-  total: string;
-  canReview: boolean;
-}
+import { getOrderErrorMessage, orderService } from '../services/orderService';
+import type { OrderSummary } from '../types/order';
+import { formatDateTime, formatMoney, statusLabel } from '../utils/orderOutcome';
 
 interface OrdersListViewProps {
   onReviewSubmitted?: () => void;
 }
 
-const fallbackOrders: OrderItem[] = [
-  {
-    id: 9821,
-    product_id: 1,
-    product_name: "Bluetooth Noise-Cancelling Headphones",
-    image: "🎧",
-    date: "2026-09-21",
-    status: "Delivered",
-    total: "₹7,499",
-    canReview: true
-  },
-  {
-    id: 9825,
-    product_id: 2,
-    product_name: "Smart Fitness Watch v2",
-    image: "⌚",
-    date: "2026-09-24",
-    status: "Shipped",
-    total: "₹2,499",
-    canReview: false
-  }
-];
+// What the review modal needs. The list endpoint has no product, so product_id comes from the order's
+// first item when the customer presses "Write Review".
+interface ReviewTarget {
+  id: number;
+  product_id: number;
+  product_name: string;
+}
 
 export default function OrdersListView({ onReviewSubmitted }: OrdersListViewProps) {
-  const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
-  const [orders, setOrders] = useState<OrderItem[]>(fallbackOrders);
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+  const [reviewError, setReviewError] = useState<string>('');
+  const [openingId, setOpeningId] = useState<number | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<ReviewTarget | null>(null);
+
+  const loadOrders = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      // GET /api/account/orders, sent with the viora_token JWT by orderService
+      setOrders(await orderService.list(1, 10));
+    } catch (err) {
+      setOrders([]);
+      setError(getOrderErrorMessage(err, 'Could not load your orders.'));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchCustomerOrders = async () => {
-      try {
-        const token = localStorage.getItem('token') || localStorage.getItem('access_token');
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json'
-        };
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
+    void loadOrders();
+  }, [loadOrders]);
 
-        const res = await fetch('/api/orders', { headers });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            const mappedOrders: OrderItem[] = data.map((item: any) => ({
-              id: item.id || item.order_id,
-              product_id: item.product_id || (item.items && item.items[0]?.product_id) || 1,
-              product_name: item.product_name || item.title || (item.items && item.items[0]?.title) || `Order #${item.id}`,
-              image: item.image || "🛍️",
-              date: item.created_at ? item.created_at.split('T')[0] : (item.date || "Recent"),
-              status: item.status || "Processing",
-              total: item.total ? (String(item.total).startsWith('₹') ? item.total : `₹${item.total}`) : "₹0",
-              canReview: (item.status?.toLowerCase() === 'delivered')
-            }));
-            setOrders(mappedOrders);
-          }
-        }
-      } catch (err) {
-        console.warn("Backend orders API unreachable, rendering stored fallback:", err);
-      } finally {
-        setLoading(false);
+  const startReview = async (order: OrderSummary) => {
+    setOpeningId(order.id);
+    setReviewError('');
+    try {
+      const detail = await orderService.get(order.id);
+      const first = detail.items[0];
+      if (!first) {
+        setReviewError('This order has no items to review.');
+        return;
       }
-    };
-
-    fetchCustomerOrders();
-  }, []);
+      setSelectedOrder({ id: order.id, product_id: first.product_id, product_name: `Order ${order.order_number}` });
+    } catch (err) {
+      setReviewError(getOrderErrorMessage(err, 'Could not open the review form.'));
+    } finally {
+      setOpeningId(null);
+    }
+  };
 
   return (
     <div style={{
@@ -96,9 +75,28 @@ export default function OrdersListView({ onReviewSubmitted }: OrdersListViewProp
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#6e776e' }}>Track shipments and leave verified product reviews</p>
         </div>
         {loading && (
-          <span style={{ fontSize: '12px', color: '#768572' }}>Updating ledger...</span>
+          <span role="status" style={{ fontSize: '12px', color: '#768572' }}>Loading your orders...</span>
         )}
       </div>
+
+      {error && (
+        <div role="alert" style={{ padding: '12px 16px', marginBottom: '16px', borderRadius: '10px', backgroundColor: '#fdf5ea', color: '#8a5a12', fontSize: '13px' }}>
+          {error}{' '}
+          <button
+            type="button"
+            onClick={() => void loadOrders()}
+            style={{ border: 'none', background: 'none', padding: 0, color: '#2f3e30', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {reviewError && (
+        <div role="alert" style={{ padding: '12px 16px', marginBottom: '16px', borderRadius: '10px', backgroundColor: '#fdf5ea', color: '#8a5a12', fontSize: '13px' }}>
+          {reviewError}
+        </div>
+      )}
 
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
@@ -112,76 +110,82 @@ export default function OrdersListView({ onReviewSubmitted }: OrdersListViewProp
             </tr>
           </thead>
           <tbody>
-            {orders.length === 0 ? (
+            {!loading && !error && orders.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: '#768572' }}>
-                  No orders found.
+                  You have not placed any orders yet.
                 </td>
               </tr>
             ) : (
-              orders.map((order) => (
-                <tr key={order.id} style={{ borderBottom: '1px solid #f5f2eb' }}>
-                  <td style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{
-                      width: '44px',
-                      height: '44px',
-                      borderRadius: '12px',
-                      backgroundColor: '#f7f5f0',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '22px'
-                    }}>
-                      {order.image}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#1e241e' }}>{order.product_name}</div>
-                      <div style={{ fontSize: '12px', color: '#8a948a' }}>Order #{order.id}</div>
-                    </div>
-                  </td>
-                  <td style={{ padding: '16px', color: '#455045' }}>{order.date}</td>
-                  <td style={{ padding: '16px' }}>
-                    <span style={{
-                      padding: '4px 10px',
-                      borderRadius: '20px',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      backgroundColor: order.status.toLowerCase() === 'delivered' ? '#eaf0eb' : '#fdf5ea',
-                      color: order.status.toLowerCase() === 'delivered' ? '#2f3e30' : '#b7791f'
-                    }}>
-                      {order.status.toLowerCase() === 'delivered' ? '✓ Delivered' : `🚚 ${order.status}`}
-                    </span>
-                  </td>
-                  <td style={{ padding: '16px', fontWeight: '700', color: '#2f3e30' }}>{order.total}</td>
-                  <td style={{ padding: '16px', textAlign: 'right' }}>
-                    {order.canReview ? (
-                      <button
-                        onClick={() => setSelectedOrder(order)}
-                        style={{
-                          padding: '8px 16px',
-                          backgroundColor: '#3b4d3c',
-                          color: '#ffffff',
-                          border: 'none',
-                          borderRadius: '10px',
-                          fontSize: '13px',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          boxShadow: '0 4px 10px rgba(59,77,60,0.18)'
-                        }}
-                      >
-                        ⭐ Write Review
-                      </button>
-                    ) : (
-                      <span style={{ fontSize: '13px', color: '#8a948a', fontStyle: 'italic' }}>
-                        In Transit
+              orders.map((order) => {
+                const delivered = order.status === 'DELIVERED';
+                return (
+                  <tr key={order.id} style={{ borderBottom: '1px solid #f5f2eb' }}>
+                    <td style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <div style={{
+                        width: '44px',
+                        height: '44px',
+                        borderRadius: '12px',
+                        backgroundColor: '#f7f5f0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '22px'
+                      }}>
+                        🛍️
+                      </div>
+                      <div>
+                        <Link to={`/orders/${order.id}`} style={{ fontWeight: '600', color: '#1e241e', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                          {order.order_number}
+                        </Link>
+                      </div>
+                    </td>
+                    <td style={{ padding: '16px', color: '#455045', whiteSpace: 'nowrap' }}>{formatDateTime(order.created_at)}</td>
+                    <td style={{ padding: '16px' }}>
+                      <span style={{
+                        padding: '4px 10px',
+                        borderRadius: '20px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        whiteSpace: 'nowrap',
+                        backgroundColor: delivered ? '#eaf0eb' : '#fdf5ea',
+                        color: delivered ? '#2f3e30' : '#b7791f'
+                      }}>
+                        {delivered ? '✓ ' : ''}{statusLabel(order.status)}
                       </span>
-                    )}
-                  </td>
-                </tr>
-              ))
+                    </td>
+                    <td style={{ padding: '16px', fontWeight: '700', color: '#2f3e30' }}>{formatMoney(order.total_amount)}</td>
+                    <td style={{ padding: '16px', textAlign: 'right' }}>
+                      {delivered ? (
+                        <button
+                          onClick={() => void startReview(order)}
+                          disabled={openingId === order.id}
+                          style={{
+                            padding: '8px 16px',
+                            backgroundColor: '#3b4d3c',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '10px',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            boxShadow: '0 4px 10px rgba(59,77,60,0.18)'
+                          }}
+                        >
+                          ⭐ Write Review
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: '13px', color: '#8a948a', fontStyle: 'italic' }}>
+                          {order.status === 'CANCELLED' ? 'Cancelled' : 'In progress'}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

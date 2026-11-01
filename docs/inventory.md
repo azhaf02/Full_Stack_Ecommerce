@@ -1,135 +1,320 @@
-# Inventory Management
+﻿# Inventory Management
 
-## Overview
+## 1. Overview
 
-The Inventory module provides the database foundation for stock management and future stock validation across Cart, Checkout, and Order processing.
+The Inventory module manages product and variant stock, validates stock availability, records stock changes, and supports customer-facing and admin inventory features.
 
-## Inventory
+Inventory is integrated with Product, Cart, Order, Payment, and Admin workflows.
+
+Main implementation:
+- `backend/app/services/inventory_service.py`
+- `backend/app/services/order_service.py`
+- `backend/app/api/routes/inventory.py`
+- `frontend/src/pages/admin/InventoryPage.tsx`
+- `frontend/src/services/adminService.ts`
+
+## 2. Inventory Data Model
 
 The `inventory` table stores current stock information.
 
-Fields:
+Main fields:
 - `id` - Primary key
 - `product_id` - Product reference
-- `variant_id` - Optional variant reference
-- `quantity` - Current stock quantity
-- `low_stock_threshold` - Threshold for low-stock status
+- `variant_id` - Optional product variant reference
+- `quantity` - Current available stock
+- `low_stock_threshold` - Threshold used for low-stock status
 - `location` - Optional stock location
-- `status` - `IN_STOCK`, `LOW_STOCK`, or `OUT_OF_STOCK`
+- `status` - Stock status
 - `created_at`
 - `updated_at`
 
-A database check constraint prevents `quantity` from becoming negative.
+A database check constraint is intended to prevent negative inventory quantities.
 
-## Inventory History
+## 3. Inventory History
 
-The `inventory_history` table records stock changes.
+The `inventory_history` table records stock changes for auditing.
 
-Required fields:
+Main fields include:
 - `id`
-- `product_id`
-- `change_amount`
-- `reason`
-- `changed_by`
-- `timestamp`
-
-Additional audit fields:
 - `inventory_id`
-- `change_type`
+- `product_id`
+- `order_id`
+- `change_amount`
 - `quantity_changed`
 - `previous_quantity`
 - `new_quantity`
+- `change_type`
+- `reason`
+- `changed_by`
 - `location`
 - `created_at`
 
-## Product and Variant Relationship
+History records are created for operations such as:
+- Order stock deduction
+- Cancellation restocking
+- Return restocking
+- Admin stock adjustments
 
-Inventory supports a product reference and an optional variant reference.
+The service records the previous and new quantities so that stock changes can be traced.
 
-Current sample data uses product-level inventory because no product variants are currently available in the shared database.
+## 4. Product and Variant Relationship
 
-Product and Variant ownership must remain coordinated with the respective Product and Variant modules.
+Inventory supports both product-level and variant-level stock through:
+- `product_id`
+- Optional `variant_id`
 
-## Stock Status
+When a variant is supplied, inventory operations use the matching product and variant record. When no variant is supplied, the product-level inventory record is used.
 
-- `quantity <= 0` → `OUT_OF_STOCK`
-- `quantity <= low_stock_threshold` → `LOW_STOCK`
-- otherwise → `IN_STOCK`
+Product and variant references must remain consistent with the Product and Variant modules.
 
-## Verification
+## 5. Stock Status
 
-Sample inventory records were verified:
+The centralized function `get_stock_status()` in `inventory_service.py` calculates stock status.
 
-- Product 2: quantity 10 → `IN_STOCK`
-- Product 3: quantity 3 → `LOW_STOCK`
-- Product 4: quantity 0 → `OUT_OF_STOCK`
+| Condition | Internal status |
+|---|---|
+| Quantity is zero or below | `out_of_stock` |
+| Quantity is at or below the low-stock threshold | `low_stock` |
+| Quantity is above the threshold | `in_stock` |
 
-Three inventory history records were created and verified.
+A missing inventory record is treated as out of stock by the stock-status service.
 
-A negative quantity insertion (`-1`) was rejected by PostgreSQL using:
+The admin inventory API presents status values in uppercase:
+- `IN_STOCK`
+- `LOW_STOCK`
+- `OUT_OF_STOCK`
 
-`check_inventory_quantity_non_negative`
+Customer-facing product APIs use lowercase status values.
 
-## Alembic
+## 6. INV-03: Stock Display and Out-of-Stock Handling
 
-Migration:
-
-`bd80f21972e0_create_inventory_and_inventory_history.py`
-
-This migration creates the Inventory and Inventory History tables with the required fields and non-negative quantity constraint.
-
-## Integration
-
-Cart, Checkout, and Order modules should use Inventory as the source for stock validation before stock-changing operations.
-## INV-03 Stock Display & Out-of-Stock Handling
-
-The customer-facing Product Listing and Product Detail APIs use centralized Inventory data to calculate the current stock status.
-
-### Stock Status Service
-
-`backend/app/services/inventory_service.py` provides reusable stock-status logic:
-
-- `quantity <= 0` ? `out_of_stock`
-- `quantity <= low_stock_threshold` ? `low_stock`
-- otherwise ? `in_stock`
-- Missing inventory record ? `out_of_stock`
-
-The React frontend does not duplicate this stock-state calculation.
+The customer-facing Product Listing and Product Detail APIs use centralized inventory data to calculate stock status.
 
 ### Product APIs
-
-The following APIs include `stock_status`:
 
 - `GET /api/products/`
 - `GET /api/products/{product_id}`
 
-The `stock_status` value is calculated using the Inventory table and its configured `low_stock_threshold`.
+The API responses include `stock_status`.
 
-### Customer-Facing Behaviour
+### Customer-facing behaviour
 
-- `in_stock` ? Product can be added to cart.
-- `low_stock` ? Low Stock badge is displayed.
-- `out_of_stock` ? Add to Cart button is disabled.
-- Product Detail displays the current stock availability.
+- `in_stock` - Product can be added to cart.
+- `low_stock` - Low Stock status can be displayed.
+- `out_of_stock` - Add to Cart is disabled.
+- Missing inventory - Treated as out of stock.
 
-### INV-03 Verification
+The frontend uses the API stock status rather than duplicating the stock calculation.
 
-Three stock conditions were tested using the customer-facing Product Detail API:
+## 7. INV-04: Stock Validation
 
-- Product 2 ? `in_stock`
-- Product 3 ? `low_stock`
-- Product 4 ? `out_of_stock`
+`inventory_service.py` provides:
 
-The Product Detail API was verified to return `stock_status` from centralized Inventory data.
+`validate_stock(db, product_id, requested_quantity, variant_id=None)`
 
-Frontend production build completed successfully after integrating the Product Detail page and stock-state rendering.
+The function:
+- Checks the requested quantity.
+- Rejects zero or negative requested quantities.
+- Finds the matching product or variant inventory record.
+- Rejects requests when inventory is missing.
+- Rejects requests when available stock is insufficient.
+- Returns the matching inventory record when sufficient stock is available.
 
-### Coordination
+Insufficient stock is represented by `InsufficientStockError`.
 
-INV-03 integrates with:
+Validation checks availability; it does not itself deduct stock.
 
-- Chandani � Product Catalog / Product Listing
-- Gazala � Product Detail / Product Variants
-- Zubiya � Cart integration
+## 8. INV-05: Stock Deduction on Order Confirmation
 
-Inventory remains the centralized source for customer-facing stock status.
+The `deduct_stock()` function handles stock deduction when an order is confirmed.
+
+Process:
+1. Validate the stock required by all order items.
+2. Stop if any item has insufficient stock.
+3. Deduct the required quantities.
+4. Create inventory history records for the deductions.
+
+Order deductions use:
+- `change_type`: `DEDUCTION`
+- `reason`: `order`
+- `order_id`: The related order ID
+
+The order service uses status hooks to call inventory logic when the order status changes to `CONFIRMED`.
+
+The inventory service does not commit independently. The order workflow controls the transaction so that order status and stock changes can be committed or rolled back together.
+
+## 9. INV-06: Cancellation and Return Restocking
+
+The `restock()` function adds stock back to inventory.
+
+### Cancellation
+
+When an order changes to `CANCELLED`, stock is restored only if the order's stock was previously deducted.
+
+The history reason is `cancel`.
+
+### Return
+
+When an order changes to `RETURNED`, the service uses the returned items and their quantities to restore stock.
+
+The history reason is `return`.
+
+Restocking creates history records with:
+- `change_type`: `RESTOCK`
+- Previous quantity
+- New quantity
+- Quantity restored
+- Related order and inventory references
+
+The order status hook invokes the restocking logic as part of the order status workflow.
+
+## 10. INV-07: Admin Inventory Management
+
+The admin inventory router is protected by:
+
+`require_role("admin")`
+
+### Backend endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/admin/inventory` | List inventory records |
+| PUT | `/api/admin/inventory/{inventory_id}` | Adjust stock quantity |
+| GET | `/api/admin/inventory/low-stock` | List low-stock and out-of-stock records |
+
+### Stock adjustment
+
+The adjustment request contains:
+- `quantity_change`
+- `reason`
+
+A positive quantity adds stock. A negative quantity removes stock.
+
+The reason is required and must contain 1 to 500 characters after trimming whitespace.
+
+The backend rejects:
+- Unknown inventory IDs
+- Adjustments that would make stock negative
+- Blank adjustment reasons
+
+Successful adjustments create an `ADMIN_ADJUSTMENT` history record containing the previous quantity, new quantity, reason, and admin ID.
+
+### Frontend
+
+The admin page is:
+
+`frontend/src/pages/admin/InventoryPage.tsx`
+
+It is registered at:
+
+`/admin/inventory`
+
+The page is included in `frontend/src/config/adminNav.ts`.
+
+The page provides:
+- Inventory record listing
+- Product and variant information
+- Quantity, threshold, status, and location
+- Manual stock adjustment
+- Required adjustment reason
+- Low-stock report
+- Low-stock and out-of-stock summary counts
+- Refresh action
+- Success and error messages
+
+The frontend API functions are in `frontend/src/services/adminService.ts`:
+- `getInventory()`
+- `getLowStockInventory()`
+- `adjustInventory()`
+
+### Known admin UI limitation
+
+The backend records inventory history, but the current `InventoryPage.tsx` does not display a history table or history list.
+
+Therefore, history recording is implemented in the backend, but history viewing is not currently provided by this page.
+
+## 11. INV-08: Payment and Inventory Integration
+
+Successful payment verification updates the payment/order workflow.
+
+When payment succeeds for a placed order:
+1. The payment result is applied.
+2. The order is moved to `CONFIRMED`.
+3. The order status hook runs.
+4. Inventory stock is deducted.
+5. Inventory history is recorded.
+
+Failed or cancelled payment results do not confirm the order and therefore do not trigger confirmation-based stock deduction.
+
+The automated payment integration test verifies the successful mock-payment path:
+- Initial inventory quantity: 10
+- Ordered quantity: 5
+- Final inventory quantity: 5
+- History change amount: -5
+- History change type: `DEDUCTION`
+
+This verifies the mock payment workflow in the automated test environment. It does not establish that a real payment gateway transaction has been tested.
+
+## 12. Alembic Migration
+
+The inventory migration documented for this module is:
+
+`bd80f21972e0_create_inventory_and_inventory_history.py`
+
+It creates the Inventory and Inventory History database structures, including the non-negative quantity constraint.
+
+The existence of a migration file does not by itself confirm that the migration has been applied to a particular database.
+
+The current target database's migration revision and schema compatibility must be verified separately before any database upgrade is performed.
+
+## 13. Verification Results
+
+### Backend automated tests
+
+Latest recorded full backend test run:
+
+- **251 passed**
+- 56 warnings
+- No test failures
+
+Additional focused test results:
+- Inventory validation and order inventory integration: 15 passed.
+- Payment integration tests: 18 passed.
+- Mock payment success and inventory deduction test: 1 passed.
+
+These test results are from the automated test environment using SQLite test databases. They do not prove that the shared Supabase database or a live payment gateway has been tested.
+
+### Frontend checks
+
+The frontend production build completed successfully.
+
+The frontend lint check also completed successfully after the reported cleanup.
+
+A non-blocking large-chunk warning was observed during the production build.
+
+### Scope of verification
+
+The automated checks cover application behaviour in the test environment. The following must not be treated as verified solely from these test results:
+- Live shared Supabase migration compatibility
+- Live payment gateway processing
+- Production database stock deduction and restocking
+- Admin inventory history display, which is not implemented in the current page
+
+## 14. Known Limitations and Follow-up
+
+1. The admin inventory page does not currently display inventory history.
+2. Some visible text in `InventoryPage.tsx` contains incorrectly encoded dash and separator characters and should be corrected.
+3. The target database migration revision and schema compatibility require separate verification.
+4. Live payment gateway and shared database workflows require separate environment-level testing.
+
+## 15. Main Implementation Files
+
+| File | Responsibility |
+|---|---|
+| `backend/app/services/inventory_service.py` | Stock status, validation, deduction, restocking, and history |
+| `backend/app/services/order_service.py` | Order status changes and inventory status hooks |
+| `backend/app/api/routes/inventory.py` | Admin inventory endpoints |
+| `frontend/src/pages/admin/InventoryPage.tsx` | Admin inventory interface |
+| `frontend/src/services/adminService.ts` | Frontend inventory API functions |
+| `frontend/src/config/adminNav.ts` | Admin navigation entry |
+| `frontend/src/AdminApp.tsx` | Admin inventory route |

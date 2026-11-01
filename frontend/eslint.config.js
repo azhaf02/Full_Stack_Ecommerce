@@ -1,3 +1,4 @@
+import react from 'eslint-plugin-react'
 import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
@@ -16,6 +17,12 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
+    },
+    plugins: {
+     react,
+    },
+    rules: {
+   'react/jsx-uses-vars': 'error',
     },
   },
 ])

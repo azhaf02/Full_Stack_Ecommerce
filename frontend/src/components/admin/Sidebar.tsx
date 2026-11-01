@@ -38,7 +38,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-64 h-screen sticky top-0 bg-primary-800 text-primary-100 flex flex-col">
+    <aside className="admin-sidebar w-64 h-screen sticky top-0 bg-primary-800 text-primary-100 flex flex-col">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 pt-6 pb-5">
         <span className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center shadow-inner">

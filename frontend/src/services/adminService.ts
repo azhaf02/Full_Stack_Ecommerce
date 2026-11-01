@@ -586,3 +586,68 @@ export async function uploadProductImage(
 
   return response.data;
 }
+
+// =========================================================
+// INVENTORY
+// =========================================================
+
+export interface InventoryItem {
+  id: number;
+  product_id: number;
+  product_name: string;
+  variant_id: number | null;
+  quantity: number;
+  low_stock_threshold: number;
+  status: string;
+  location: string | null;
+}
+
+export interface InventoryAdjustmentData {
+  quantity_change: number;
+  reason: string;
+}
+
+export async function getInventory(): Promise<InventoryItem[]> {
+  const response = await api.get("/api/admin/inventory");
+  return response.data;
+}
+
+export async function getLowStockInventory(): Promise<InventoryItem[]> {
+  const response = await api.get("/api/admin/inventory/low-stock");
+  return response.data;
+}
+
+export async function adjustInventory(
+  inventoryId: number,
+  data: InventoryAdjustmentData
+): Promise<InventoryItem> {
+  const response = await api.put(
+    `/api/admin/inventory/${inventoryId}`,
+    data
+  );
+  return response.data;
+}
+
+
+export interface InventoryHistoryItem {
+  id: number;
+  inventory_id: number;
+  product_id: number;
+  order_id: number | null;
+  change_amount: number;
+  changed_by: number;
+  changed_by_name: string | null;
+  change_type: string;
+  quantity_changed: number;
+  previous_quantity: number;
+  new_quantity: number;
+  reason: string | null;
+  location: string | null;
+  timestamp: string;
+  created_at: string;
+}
+
+export async function getInventoryHistory(): Promise<InventoryHistoryItem[]> {
+  const response = await api.get("/api/admin/inventory/history");
+  return response.data;
+}

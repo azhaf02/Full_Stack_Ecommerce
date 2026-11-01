@@ -22,6 +22,7 @@ export const adminNav = [
   { label: "Categories", path: "/admin/categories", icon: Tags },
   { label: "Reviews", path: "/admin/reviews", icon: Star },
   { label: "Products", path: "/admin/products", icon: Package },
+  { label: "Inventory", path: "/admin/inventory", icon: ClipboardList },
   { label: "Analytics", path: "/admin/analytics", icon: BarChart3 },
   { label: "Audit Logs", path: "/admin/audit-logs", icon: ClipboardList },
 ];

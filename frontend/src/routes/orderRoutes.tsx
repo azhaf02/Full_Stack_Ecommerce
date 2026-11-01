@@ -20,7 +20,7 @@ function Shell({ children }: { children: ReactNode }) {
     // The app's global stylesheet centres text; these pages read left to right.
     <main style={{ minHeight: '100vh', backgroundColor: '#f4f1ea', padding: '24px 16px', textAlign: 'left' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto 16px' }}>
-        <Link to="/" style={{ fontSize: '14px' }}>← Back to dashboard</Link>
+        <Link to="/" className="order-link" style={{ fontSize: '14px' }}>← Back to dashboard</Link>
       </div>
       {children}
     </main>
@@ -35,7 +35,7 @@ export function parseOrderId(raw: string | undefined): number | null {
 function OrderNotFound() {
   return (
     <div role="alert" className="alert alert-warning" style={{ maxWidth: '800px', margin: '0 auto' }}>
-      We could not find that order. <Link to="/orders">See all your orders</Link>.
+      We could not find that order. <Link to="/orders" className="order-link">See all your orders</Link>.
     </div>
   );
 }
