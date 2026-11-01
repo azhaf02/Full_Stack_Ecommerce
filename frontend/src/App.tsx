@@ -1,6 +1,5 @@
-
 import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout';
 import ProductDetailPage from './ProductDetailPage';
 import { AuthProvider } from './context/AuthContext';
@@ -45,10 +44,10 @@ export default function App() {
             </Route>
 
             {/* Customer Dashboard */}
-            <Route path="/dashboard" element={<DashboardLayout />} />
+            <Route path="/dashboard/*" element={<DashboardLayout />} />
 
-            {/* Fallback */}
-            <Route path="*" element={<DashboardLayout />} />
+            {/* Fallback: redirect unmatched routes to Home instead of Dashboard */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
       </AuthProvider>
