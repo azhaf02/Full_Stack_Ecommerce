@@ -1,3 +1,4 @@
+import { addToCart } from './services/cartService';
 
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -951,26 +952,8 @@ function ProductDetailPage() {
                   }
                   onClick={async () => {
                     try {
-                      const response = await fetch(
-                        "http://127.0.0.1:8000/api/cart/items",
-                        {
-                          method: "POST",
-                          headers: {
-                            "Content-Type": "application/json",
-                          },
-                          body: JSON.stringify({
-                            product_id: product.id,
-                            quantity: quantity,
-                            variant_id: selectedVariant?.id ?? null,
-                          }),
-                        }
-                      );
-
-                      if (!response.ok) {
-                        throw new Error("Failed to add item to cart");
-                      }
-
-                      alert("Product added to cart!");
+                      await addToCart(product.id, quantity, selectedVariant?.id ?? null);
+      alert("Product added to cart!");
                     } catch (error) {
                       console.error(error);
                       alert("Unable to add product to cart.");
