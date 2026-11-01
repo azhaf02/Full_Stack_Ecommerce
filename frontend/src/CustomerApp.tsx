@@ -9,7 +9,7 @@ export default function CustomerApp() {
   return (
     <Routes>
       {orderRoutes}
-      <Route path="*" element={<DashboardLayout />} />
+    <Route path="/dashboard" element={<DashboardLayout />} />
     </Routes>
   );
 }
