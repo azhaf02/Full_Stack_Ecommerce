@@ -16,8 +16,9 @@ interface WishlistItem {
 }
 
 interface DashboardData {
-  user: {
+  user?: {
     id: number;
+    name?: string;
     email: string;
     role: string;
   };
@@ -32,7 +33,6 @@ interface DashboardData {
     items: WishlistItem[];
   };
 }
-
 export const DashboardPage: React.FC = () => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -62,19 +62,22 @@ export const DashboardPage: React.FC = () => {
     return <div style={{ padding: "2rem", color: "red" }}>Error: {error}</div>;
   }
 
-  const { summary, recent_orders, wishlist } = data || {
-    summary: { recent_orders_count: 0, wishlist_count: 0, unread_notifications: 0 },
-    recent_orders: [],
-    wishlist: { count: 0, items: [] }
-  };
+ const { user, summary, recent_orders, wishlist } = data || {
+  summary: { recent_orders_count: 0, wishlist_count: 0, unread_notifications: 0 },
+  recent_orders: [],
+  wishlist: { count: 0, items: [] }
+};
+
+// Customer name with clean fallback
+const customerName = user?.name?.trim() || user?.email?.split("@")[0] || "Customer";
 
   return (
     <div style={{ padding: "2rem", maxWidth: "1100px", margin: "0 auto", fontFamily: "sans-serif" }}>
       <header style={{ marginBottom: "2rem" }}>
         <h1 style={{ margin: 0, fontSize: "1.8rem" }}>Customer Dashboard Overview</h1>
-        <p style={{ color: "#666", marginTop: "0.25rem" }}>
-          Welcome back! Here is an aggregated summary of your account activity.
-        </p>
+       <p style={{ color: "#666", marginTop: "0.25rem" }}>
+  Welcome back, <strong>{customerName}</strong>! Here is an aggregated summary of your account activity.
+</p>
       </header>
 
       {/* Summary Cards Grid */}

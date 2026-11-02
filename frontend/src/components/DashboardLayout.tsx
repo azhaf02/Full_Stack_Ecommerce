@@ -1,5 +1,4 @@
-
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import OrdersListView from './OrdersListView';
 import NotificationCenter from './NotificationCenter';
 import { ReviewsList } from './ReviewsList';
@@ -303,6 +302,41 @@ export default function DashboardLayout() {
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'wishlist' | 'notifications' | 'reviews' | 'support-form'>('overview');
   const [unreadCount, setUnreadCount] = useState<number>(1);
   const [reviewsVersion, setReviewsVersion] = useState<number>(0);
+  const [customerName, setCustomerName] = useState<string>('Customer');
+  const [customerInitial, setCustomerInitial] = useState<string>('C');
+
+  useEffect(() => {
+    // 1. Pehle localStorage se check karein agar auth user stored hai
+    try {
+      const storedUser = localStorage.getItem('user') || localStorage.getItem('currentUser') || localStorage.getItem('auth');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        const name = parsed.name || parsed.user?.name || parsed.full_name;
+        if (name && name.trim()) {
+          setCustomerName(name.trim());
+          setCustomerInitial(name.trim().charAt(0).toUpperCase());
+          return;
+        }
+      }
+    } catch {
+      // Ignore json parse error
+    }
+
+    // 2. Fallback: Backend /profile ya /dashboard endpoint se logged-in user details fetch karein
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+    fetch('http://localhost:8000/api/account/profile', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) {
+          const name = data.name || data.full_name || (data.email ? data.email.split('@')[0] : 'Customer');
+          setCustomerName(name);
+          setCustomerInitial(name.charAt(0).toUpperCase());
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleReviewSubmitted = () => {
     setReviewsVersion((prev) => prev + 1);
@@ -419,22 +453,27 @@ export default function DashboardLayout() {
             borderLeft: '1px solid rgba(255,255,255,0.18)',
             paddingLeft: '22px'
           }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              backgroundColor: '#8E9E86',
-              color: '#1B241C',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: '13px'
-            }}>
-              A
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                backgroundColor: '#8FA89B',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 600,
+                fontSize: '13px',
+                color: '#1A211B',
+                letterSpacing: 0,
+              }}
+            >
+              {customerInitial}
             </div>
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#FAF8F5' }}>Aliza Fayyaz Khan</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#FAF8F5' }}>
+                {customerName}
+              </div>
               <div style={{ fontSize: '9px', letterSpacing: '1.2px', color: '#9EB09A', textTransform: 'uppercase' }}>
                 Private Member
               </div>

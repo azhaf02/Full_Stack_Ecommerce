@@ -1,4 +1,3 @@
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -31,6 +30,7 @@ from app.services.inventory_service import on_order_status_change
 # Other application routers.
 from app.routers import (
     notifications,
+    cart,
     reviews,
     admin,
     category,
@@ -46,10 +46,13 @@ from app.routers import (
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
 
-# Enable CORS for the React frontend.
+# Enable CORS for the React frontend running on port 5174.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5174",
+        
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,6 +62,7 @@ app.add_middleware(
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Notifications use their own /api paths.
+app.include_router(cart.router)
 app.include_router(notifications.router)
 
 # Reviews.
