@@ -1,7 +1,7 @@
 """create support tables
 
 Revision ID: 0010
-Revises: 
+Revises:
 Create Date: 2026-09-30 23:10:00.000000
 
 """
@@ -29,8 +29,8 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(), nullable=False)
     )
 
-    
-    
+
+
     op.create_table(
         'support_messages',
         sa.Column('id', sa.Integer(), primary_key=True, nullable=False),

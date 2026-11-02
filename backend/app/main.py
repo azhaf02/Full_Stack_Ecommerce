@@ -1,4 +1,4 @@
-from dotenv import load_dotenv
+﻿from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -41,12 +41,13 @@ from app.routers import (
     orders,
     payment,
     checkout_sessions,
+    shipping_methods,
     invoice,
 )
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
 
-# Enable CORS for Vite frontend running on port 5173 / 5174
+# Allow the frontend on ports 5173 and 5174.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -63,11 +64,9 @@ app.add_middleware(
 # Serve uploaded product images.
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# Notifications use their own /api paths.
+# Cart and customer-facing routes.
 app.include_router(cart.router)
 app.include_router(notifications.router)
-
-# Reviews.
 app.include_router(reviews.router, prefix="/api")
 
 # Admin and category routes.
@@ -81,8 +80,6 @@ app.include_router(inventory.router)
 app.include_router(product_router)
 app.include_router(public_router)
 app.include_router(catalog_router)
-
-# Product variants and Wishlist.
 app.include_router(variant_router)
 app.include_router(wishlist_router)
 
@@ -91,10 +88,8 @@ app.include_router(account.router)
 app.include_router(auth.router)
 app.include_router(audit_logs.router)
 
-# Analytics.
+# Analytics and orders.
 app.include_router(analytics.router)
-
-# Orders.
 app.include_router(orders.router)
 
 # Inventory order-status integration.
@@ -103,6 +98,8 @@ order_service.register_status_hook(on_order_status_change)
 # Payments and checkout.
 app.include_router(payment.router)
 app.include_router(checkout_sessions.router)
+app.include_router(checkout_sessions.address_router)
+app.include_router(shipping_methods.router)
 
 # Support and invoices.
 app.include_router(support_router)
