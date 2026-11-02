@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 from decimal import Decimal
 from typing import List, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
@@ -58,6 +58,7 @@ class OrderActions(BaseModel):
     can_cancel: bool
     can_request_return: bool
     return_deadline: Optional[datetime] = None
+    allowed_next_statuses: Optional[List[str]] = None
 
 
 class OrderDetailOut(OrderSummaryOut):
@@ -92,6 +93,7 @@ class OrderCreate(BaseModel):
     shipping_method_id: int
     payment_method: Literal["ONLINE", "COD"]
     items: List[OrderLineIn] = Field(min_length=1, max_length=50)
+    coupon_code: Optional[str] = Field(default=None, max_length=50)
 
 
 class CancelRequest(BaseModel):
@@ -116,3 +118,29 @@ class StatusUpdate(BaseModel):
 class ReturnReview(BaseModel):
     action: Literal["approve", "reject", "mark_returned", "complete_refund"]
     remarks: Optional[str] = Field(default=None, max_length=500)
+
+
+
+# ---------------------------------------------------------------- admin responses
+
+class AddressBrief(_Out):
+    full_name: str
+    phone: str
+    line1: str
+    line2: Optional[str] = None
+    city: str
+    state: str
+    postal_code: str
+    country: str
+
+
+class CustomerBrief(_Out):
+    id: int
+    name: str
+    email: str
+
+
+class AdminOrderDetailOut(OrderDetailOut):
+    user_id: int
+    customer: Optional[CustomerBrief] = None
+    address: Optional[AddressBrief] = None

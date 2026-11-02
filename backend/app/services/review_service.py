@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
+from fastapi import HTTPException, status
 from app.models.review import ReviewStatus
 
 class MockReview:
@@ -59,10 +60,42 @@ class ReviewService:
         product_reviews = [r for r in _reviews_db if r.product_id == product_id]
         if not product_reviews:
             return {"product_id": product_id, "average_rating": 0.0, "total_reviews": 0}
-        
+
         avg = sum(r.rating for r in product_reviews) / len(product_reviews)
         return {
             "product_id": product_id,
             "average_rating": round(avg, 1),
             "total_reviews": len(product_reviews)
         }
+
+    # ================= ADMIN REVIEW METHODS =================
+
+    @staticmethod
+    def get_all_reviews_admin(db, status_filter: Optional[str] = None) -> List[MockReview]:
+        """Fetch all reviews for admin panel with optional status filter."""
+        if not status_filter:
+            return _reviews_db
+        return [
+            r for r in _reviews_db
+            if str(r.status).lower() == status_filter.lower() or (hasattr(r.status, "value") and r.status.value.lower() == status_filter.lower())
+        ]
+
+    @staticmethod
+    def update_review_status_admin(db, review_id: int, new_status: str) -> MockReview:
+        """Update review status (Approved/Hidden/Pending) by admin."""
+        review = next((r for r in _reviews_db if r.id == review_id), None)
+        if not review:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Review with id {review_id} not found"
+            )
+
+        # Match case-insensitively with ReviewStatus enum
+        matched_status = None
+        for s in ReviewStatus:
+            if s.value.lower() == new_status.lower() or s.name.lower() == new_status.lower():
+                matched_status = s
+                break
+
+        review.status = matched_status if matched_status is not None else new_status
+        return review

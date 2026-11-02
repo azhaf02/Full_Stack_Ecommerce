@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import AddressStep from "../components/AddressStep";
 import "../checkout.css";
-
+const API_BASE="http://127.0.0.1:8000";
 const initialAddress = {
   fullName: "",
   mobile: "",
@@ -38,25 +38,25 @@ function CheckoutPage() {
   const [step, setStep] = useState(1);
 
   const [address, setAddress] = useState(initialAddress);
-  const [billingAddress, setBillingAddress] =
-    useState(initialAddress);
+  const [billingAddress, setBillingAddress] = useState(initialAddress);
 
   // Selected shipping address ID for order creation
-  const [shippingAddressId, setShippingAddressId] =
-    useState(null);
+  const [shippingAddressId, setShippingAddressId] = useState(null);
 
   // Shipping methods loaded from backend
   const [shippingMethods, setShippingMethods] = useState([]);
   const [shipping, setShipping] = useState(null);
-  const [shippingLoading, setShippingLoading] =
-    useState(true);
+  const [shippingLoading, setShippingLoading] = useState(true);
 
   const [message, setMessage] = useState("");
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [placedOrder, setPlacedOrder] = useState(null);
 
   // Current demo/test product until shared cart module is connected
-  const subtotal = 499;
-  const discount = 0;
-
+  const [cart, setCart] = useState(null);
+const [, setCartLoading] = useState(true);
+const subtotal = Number(cart?.summary?.subtotal ?? 0);
+const discount = Number(cart?.summary?.discount ?? 0);
   // =========================
   // LOAD SHIPPING METHODS
   // =========================
@@ -67,24 +67,17 @@ function CheckoutPage() {
         setMessage("");
 
         const response = await fetch(
-          "http://127.0.0.1:8001/api/shipping-methods"
+         "http://127.0.0.1:8000/api/shipping-methods"
         );
 
         if (!response.ok) {
-          throw new Error(
-            "Failed to load shipping methods."
-          );
+          throw new Error("Failed to load shipping methods.");
         }
 
         const methods = await response.json();
 
-        if (
-          !Array.isArray(methods) ||
-          methods.length === 0
-        ) {
-          throw new Error(
-            "No shipping methods are available."
-          );
+        if (!Array.isArray(methods) || methods.length === 0) {
+          throw new Error("No shipping methods are available.");
         }
 
         setShippingMethods(methods);
@@ -92,10 +85,7 @@ function CheckoutPage() {
         // Select first active method by default
         setShipping(methods[0].id);
       } catch (error) {
-        console.error(
-          "Shipping methods error:",
-          error
-        );
+        console.error("Shipping methods error:", error);
 
         setShippingMethods([]);
         setShipping(null);
@@ -110,21 +100,57 @@ function CheckoutPage() {
 
     loadShippingMethods();
   }, []);
+useEffect(() => {
+  const loadCart = async () => {
+    try {
+      setCartLoading(true);
+      const token =
+        localStorage.getItem("viora_token") ||
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("token") ||
+        localStorage.getItem("authToken");
+      if (!token) {
+        throw new Error("Please login before loading your cart.");
+      }
+      const headers = { Authorization: `Bearer ${token}` };
 
+      const [cartResponse, summaryResponse] = await Promise.all([
+        fetch(`${API_BASE}/api/cart`, { headers }),
+        fetch(`${API_BASE}/api/cart/summary${localStorage.getItem("viora_coupon_code") ? `?coupon_code=${encodeURIComponent(localStorage.getItem("viora_coupon_code"))}` : ""}`, { headers }),
+      ]);
+
+      if (!cartResponse.ok || !summaryResponse.ok) {
+        throw new Error("Failed to load cart.");
+      }
+
+      const cartData = await cartResponse.json();
+      let summaryData = await summaryResponse.json();
+
+      setCart({
+        ...cartData,
+        summary: summaryData,
+      });
+    } catch (error) {
+      console.error("Cart loading error:", error);
+      setMessage("Unable to load your cart.");
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
+  loadCart();
+}, []);
   // =========================
   // SELECTED SHIPPING
   // =========================
   const selectedShipping = shippingMethods.find(
-    (method) =>
-      Number(method.id) === Number(shipping)
+    (method) => Number(method.id) === Number(shipping)
   );
 
-  const shippingCharge = Number(
-    selectedShipping?.cost ?? 0
-  );
+  const shippingCharge = Number(selectedShipping?.cost ?? 0);
 
-  const total =
-    subtotal - discount + shippingCharge;
+  const tax = Number(cart?.summary?.tax ?? cart?.summary?.tax_amount ?? 0);
+  const total = Number(cart?.summary?.total ?? (subtotal - discount + tax)) + shippingCharge;
 
   // =========================
   // CONTINUE TO REVIEW
@@ -133,9 +159,7 @@ function CheckoutPage() {
     setMessage("");
 
     if (!selectedShipping) {
-      setMessage(
-        "Please select a shipping method."
-      );
+      setMessage("Please select a shipping method.");
       return;
     }
 
@@ -146,35 +170,34 @@ function CheckoutPage() {
   // PLACE ORDER
   // =========================
   const placeOrder = async () => {
+    if (placingOrder || placedOrder) return;
     setMessage("");
 
     if (!shippingAddressId) {
-      setMessage(
-        "Shipping address is missing."
-      );
+      setMessage("Shipping address is missing.");
       return;
     }
 
     if (!selectedShipping) {
-      setMessage(
-        "Please select a shipping method."
-      );
+      setMessage("Please select a shipping method.");
       return;
     }
-
+if (!cart?.items?.length) {
+  setMessage("Your cart is empty.");
+  return;
+}
     try {
-      const token =
-        localStorage.getItem("viora_token");
+      setPlacingOrder(true);
+      const token = localStorage.getItem("viora_token") || localStorage.getItem("access_token") || localStorage.getItem("token");
+      const couponCode = localStorage.getItem("viora_coupon_code");
 
       if (!token) {
-        setMessage(
-          "Please login before placing the order."
-        );
+        setMessage("Please login before placing the order.");
         return;
       }
 
       const response = await fetch(
-        "http://127.0.0.1:8001/api/orders",
+        "http://127.0.0.1:8000/api/orders",
         {
           method: "POST",
           headers: {
@@ -184,17 +207,14 @@ function CheckoutPage() {
           },
           body: JSON.stringify({
             address_id: shippingAddressId,
-            shipping_method_id: Number(
-              selectedShipping.id
-            ),
+            shipping_method_id: Number(selectedShipping.id),
             payment_method: "COD",
-            items: [
-              {
-                product_id: 2,
-                variant_id: 1,
-                quantity: 1,
-              },
-            ],
+            coupon_code: couponCode || null,
+            items: (cart?.items || []).map((item) => ({
+              product_id: item.product_id,
+              variant_id: item.variant_id ?? null,
+              quantity: item.quantity,
+            })),
           }),
         }
       );
@@ -203,42 +223,35 @@ function CheckoutPage() {
 
       if (!response.ok) {
         throw new Error(
-          data?.detail ||
-            "Failed to create order."
+          data?.detail || "Failed to create order."
         );
       }
 
+      setPlacedOrder(data);
+      localStorage.removeItem("viora_coupon_code");
       setMessage(
         `Order placed successfully! Order #${data.order_number}`
       );
     } catch (error) {
-      console.error(
-        "Order creation error:",
-        error
-      );
+      console.error("Order creation error:", error);
 
       setMessage(
         error instanceof Error
           ? error.message
           : "Unable to place order. Please try again."
       );
+    } finally {
+      setPlacingOrder(false);
     }
   };
 
-  const steps = [
-    "Address",
-    "Shipping",
-    "Review",
-  ];
+  const steps = ["Address", "Shipping", "Review"];
 
   return (
     <div className="checkout-shell">
       {/* Navbar */}
       <header className="checkout-navbar">
-        <a
-          className="checkout-brand"
-          href="/"
-        >
+        <a className="checkout-brand" href="/">
           VIORA
         </a>
 
@@ -253,8 +266,7 @@ function CheckoutPage() {
           <h1>Checkout</h1>
 
           <p>
-            Complete your delivery details and
-            review your order.
+            Complete your delivery details and review your order.
           </p>
         </div>
 
@@ -281,9 +293,7 @@ function CheckoutPage() {
                 key={label}
               >
                 <span className="step-number">
-                  {step > number
-                    ? "✓"
-                    : number}
+                  {step > number ? "Ã¢Å“â€œ" : number}
                 </span>
 
                 <span>{label}</span>
@@ -307,47 +317,30 @@ function CheckoutPage() {
                   selectedBillingAddress
                 ) => {
                   // Save address ID for order creation
-                  setShippingAddressId(
-                    selectedAddress.id
-                  );
+                  setShippingAddressId(selectedAddress.id);
 
                   setAddress({
-                    fullName:
-                      selectedAddress.full_name,
-                    mobile:
-                      selectedAddress.phone,
-                    addressLine1:
-                      selectedAddress.line1,
-                    addressLine2:
-                      selectedAddress.line2 || "",
-                    city:
-                      selectedAddress.city,
-                    state:
-                      selectedAddress.state,
-                    pincode:
-                      selectedAddress.postal_code,
-                    country:
-                      selectedAddress.country,
+                    fullName: selectedAddress.full_name,
+                    mobile: selectedAddress.phone,
+                    addressLine1: selectedAddress.line1,
+                    addressLine2: selectedAddress.line2 || "",
+                    city: selectedAddress.city,
+                    state: selectedAddress.state,
+                    pincode: selectedAddress.postal_code,
+                    country: selectedAddress.country,
                   });
 
                   setBillingAddress({
-                    fullName:
-                      selectedBillingAddress.full_name,
-                    mobile:
-                      selectedBillingAddress.phone,
-                    addressLine1:
-                      selectedBillingAddress.line1,
+                    fullName: selectedBillingAddress.full_name,
+                    mobile: selectedBillingAddress.phone,
+                    addressLine1: selectedBillingAddress.line1,
                     addressLine2:
-                      selectedBillingAddress.line2 ||
-                      "",
-                    city:
-                      selectedBillingAddress.city,
-                    state:
-                      selectedBillingAddress.state,
+                      selectedBillingAddress.line2 || "",
+                    city: selectedBillingAddress.city,
+                    state: selectedBillingAddress.state,
                     pincode:
                       selectedBillingAddress.postal_code,
-                    country:
-                      selectedBillingAddress.country,
+                    country: selectedBillingAddress.country,
                   });
 
                   setMessage("");
@@ -361,96 +354,74 @@ function CheckoutPage() {
             ========================== */}
             {step === 2 && (
               <>
-                <h2>
-                  Choose shipping method
-                </h2>
+                <h2>Choose shipping method</h2>
 
                 <p className="checkout-hint">
-                  Select a delivery option for
-                  your address.
+                  Select a delivery option for your address.
                 </p>
 
                 {/* Loading */}
                 {shippingLoading && (
                   <div className="checkout-hint">
-                    Loading available shipping
-                    methods...
+                    Loading available shipping methods...
                   </div>
                 )}
 
                 {/* Shipping Options */}
                 {!shippingLoading &&
-                  shippingMethods.length >
-                    0 && (
+                  shippingMethods.length > 0 && (
                     <div className="shipping-options">
-                      {shippingMethods.map(
-                        (method) => (
-                          <label
-                            className={`shipping-option ${
-                              Number(
-                                shipping
-                              ) ===
-                              Number(
-                                method.id
-                              )
-                                ? "selected"
-                                : ""
-                            }`}
-                            key={method.id}
-                          >
-                            <input
-                              type="radio"
-                              name="shipping"
-                              value={method.id}
-                              checked={
-                                Number(
-                                  shipping
-                                ) ===
-                                Number(
-                                  method.id
-                                )
-                              }
-                              onChange={() => {
-                                setShipping(
-                                  method.id
-                                );
-                                setMessage("");
-                              }}
-                            />
+                      {shippingMethods.map((method) => (
+                        <label
+                          className={`shipping-option ${
+                            Number(shipping) === Number(method.id)
+                              ? "selected"
+                              : ""
+                          }`}
+                          key={method.id}
+                        >
+                          <input
+                            type="radio"
+                            name="shipping"
+                            value={method.id}
+                            checked={
+                              Number(shipping) ===
+                              Number(method.id)
+                            }
+                            onChange={() => {
+                              setShipping(method.id);
+                              setMessage("");
+                            }}
+                          />
 
-                            <span className="shipping-option-content">
-                              <span className="shipping-option-title">
-                                {method.name}
-                              </span>
-
-                              <span className="shipping-option-description">
-                                {getDeliveryText(
-                                  method.estimated_days
-                                )}
-                              </span>
+                          <span className="shipping-option-content">
+                            <span className="shipping-option-title">
+                              {method.name}
                             </span>
 
-                            <span className="shipping-option-price">
-                              {money(
-                                method.cost
+                            <span className="shipping-option-description">
+                              {getDeliveryText(
+                                method.estimated_days
                               )}
                             </span>
-                          </label>
-                        )
-                      )}
+                          </span>
+
+                          <span className="shipping-option-price">
+                            {money(method.cost)}
+                          </span>
+                        </label>
+                      ))}
                     </div>
                   )}
 
                 {/* No methods */}
                 {!shippingLoading &&
-                  shippingMethods.length ===
-                    0 && (
+                  shippingMethods.length === 0 && (
                     <div
                       className="checkout-alert error"
                       role="alert"
                     >
-                      No shipping methods are
-                      currently available.
+                      No shipping methods are currently available.
                     </div>
                   )}
 
@@ -480,12 +451,9 @@ function CheckoutPage() {
                   <button
                     className="checkout-btn primary"
                     type="button"
-                    onClick={
-                      continueToReview
-                    }
+                    onClick={continueToReview}
                     disabled={
-                      shippingLoading ||
-                      !selectedShipping
+                      shippingLoading || !selectedShipping
                     }
                   >
                     Continue to review
@@ -499,26 +467,19 @@ function CheckoutPage() {
             ========================== */}
             {step === 3 && (
               <>
-                <h2>
-                  Review your order
-                </h2>
+                <h2>Review your order</h2>
 
                 <p className="checkout-hint">
-                  Check your address, shipping
-                  method, items and total before
-                  placing the order.
+                  Check your address and selected shipping method
+                  before placing the order.
                 </p>
 
                 {/* Shipping Address */}
                 <div className="review-section">
-                  <h3>
-                    Shipping address
-                  </h3>
+                  <h3>Shipping address</h3>
 
                   <p>
-                    <strong>
-                      {address.fullName}
-                    </strong>
+                    <strong>{address.fullName}</strong>
                   </p>
 
                   <p>{address.mobile}</p>
@@ -531,38 +492,25 @@ function CheckoutPage() {
                   </p>
 
                   <p>
-                    {address.city},{" "}
-                    {address.state} -{" "}
+                    {address.city}, {address.state} -{" "}
                     {address.pincode}
                   </p>
 
-                  <p>
-                    {address.country}
-                  </p>
+                  <p>{address.country}</p>
                 </div>
 
                 {/* Billing Address */}
                 <div className="review-section">
-                  <h3>
-                    Billing address
-                  </h3>
+                  <h3>Billing address</h3>
 
                   <p>
-                    <strong>
-                      {
-                        billingAddress.fullName
-                      }
-                    </strong>
+                    <strong>{billingAddress.fullName}</strong>
                   </p>
 
-                  <p>
-                    {billingAddress.mobile}
-                  </p>
+                  <p>{billingAddress.mobile}</p>
 
                   <p>
-                    {
-                      billingAddress.addressLine1
-                    }
+                    {billingAddress.addressLine1}
                     {billingAddress.addressLine2
                       ? `, ${billingAddress.addressLine2}`
                       : ""}
@@ -574,24 +522,18 @@ function CheckoutPage() {
                     {billingAddress.pincode}
                   </p>
 
-                  <p>
-                    {billingAddress.country}
-                  </p>
+                  <p>{billingAddress.country}</p>
                 </div>
 
                 {/* Selected Shipping */}
                 <div className="review-section">
-                  <h3>
-                    Shipping method
-                  </h3>
+                  <h3>Shipping method</h3>
 
                   {selectedShipping ? (
                     <>
                       <p>
                         <strong>
-                          {
-                            selectedShipping.name
-                          }
+                          {selectedShipping.name}
                         </strong>
                       </p>
 
@@ -604,95 +546,37 @@ function CheckoutPage() {
                       <p>
                         Shipping charge:{" "}
                         <strong>
-                          {money(
-                            selectedShipping.cost
-                          )}
+                          {money(selectedShipping.cost)}
                         </strong>
                       </p>
                     </>
                   ) : (
-                    <p>
-                      No shipping method
-                      selected.
-                    </p>
+                    <p>No shipping method selected.</p>
                   )}
                 </div>
 
                 {/* Order Items */}
                 <div className="review-section">
-                  <h3>
-                    Order items
-                  </h3>
+                  <h3>Order items</h3>
 
-                  <div className="review-item">
-                    <strong>
-                      Test T-Shirt
-                    </strong>
-
-                    <p>Size: S</p>
-
-                    <p>
-                      Quantity: 1
-                    </p>
-
-                    <p>
-                      Price:{" "}
-                      <strong>
-                        {money(499)}
-                      </strong>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Price Breakdown */}
-                <div className="review-section">
-                  <h3>
-                    Price breakdown
-                  </h3>
-
-                  <div className="summary-row">
-                    <span>
-                      Subtotal
-                    </span>
-
-                    <span>
-                      {money(subtotal)}
-                    </span>
-                  </div>
-
-                  <div className="summary-row">
-                    <span>
-                      Discount
-                    </span>
-
-                    <span>
-                      {money(discount)}
-                    </span>
-                  </div>
-
-                  <div className="summary-row">
-                    <span>
-                      Shipping
-                    </span>
-
-                    <span>
-                      {money(
-                        shippingCharge
-                      )}
-                    </span>
-                  </div>
-
-                  <div className="summary-divider" />
-
-                  <div className="summary-row total">
-                    <span>
-                      Total
-                    </span>
-
-                    <span>
-                      {money(total)}
-                    </span>
-                  </div>
+                  {cart?.items?.length ? (
+                    <ul className="checkout-items">
+                      {cart.items.map((item, index) => (
+                        <li key={item.id ?? `${item.product_id}-${item.variant_id ?? "default"}-${index}`}>
+                          <span>
+                            {item.product_name ?? item.name ?? item.title ?? `Product #${item.product_id}`}
+                            {item.variant_name ? ` ? ${item.variant_name}` : ""}
+                            {" "}? {item.quantity}
+                          </span>
+                          <strong>
+                            {money(Number(item.line_total ?? item.total_price ?? ((item.unit_price ?? item.price ?? 0) * item.quantity)))}
+                          </strong>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="checkout-hint">Your cart is empty.</p>
+                  )}
                 </div>
 
                 {/* Review Message */}
@@ -722,9 +606,7 @@ function CheckoutPage() {
                     className="checkout-btn primary"
                     type="button"
                     onClick={placeOrder}
-                    disabled={
-                      !selectedShipping
-                    }
+                    disabled={!selectedShipping}
                   >
                     Place order
                   </button>
@@ -737,28 +619,16 @@ function CheckoutPage() {
               ORDER SUMMARY
           ========================== */}
           <aside className="checkout-summary">
-            <h2>
-              Order summary
-            </h2>
+            <h2>Order summary</h2>
 
             <div className="summary-row">
-              <span>
-                Subtotal
-              </span>
-
-              <span>
-                {money(subtotal)}
-              </span>
+              <span>Subtotal</span>
+              <span>{money(subtotal)}</span>
             </div>
 
             <div className="summary-row">
-              <span>
-                Discount
-              </span>
-
-              <span>
-                {money(discount)}
-              </span>
+              <span>Discount</span>
+              <span>{money(discount)}</span>
             </div>
 
             <div className="summary-row">
@@ -771,23 +641,16 @@ function CheckoutPage() {
 
               <span>
                 {selectedShipping
-                  ? money(
-                      shippingCharge
-                    )
-                  : "—"}
+                  ? money(shippingCharge)
+                  : "Ã¢â‚¬â€"}
               </span>
             </div>
 
             <div className="summary-divider" />
 
             <div className="summary-row total">
-              <span>
-                Total
-              </span>
-
-              <span>
-                {money(total)}
-              </span>
+              <span>Total</span>
+              <span>{money(total)}</span>
             </div>
 
             {selectedShipping && (
@@ -805,3 +668,5 @@ function CheckoutPage() {
 }
 
 export default CheckoutPage;
+
+

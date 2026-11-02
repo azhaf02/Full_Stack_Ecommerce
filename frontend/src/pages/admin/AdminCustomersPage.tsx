@@ -4,7 +4,9 @@ import { Search } from "lucide-react";
 import DataTable from "../../components/admin/DataTable";
 import type { Column } from "../../components/admin/DataTable";
 import StatusBadge from "../../components/admin/StatusBadge";
+import LoadingRows from "../../components/admin/LoadingRows";
 import Modal from "../../components/admin/Modal";
+import Pagination from "../../components/admin/Pagination";
 import { getCustomer, getCustomers, updateCustomerStatus } from "../../services/adminService";
 import type { Customer, CustomerDetail } from "../../services/adminService";
 import { formatINR } from "../../utils/format";
@@ -14,6 +16,8 @@ const formatDate = (value: string | null) =>
     ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
     : "-";
 
+const PAGE_SIZE = 10;
+
 export default function AdminCustomersPage() {
   const [list, setList] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +26,7 @@ export default function AdminCustomersPage() {
 
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Customer | null>(null);     // detail popup
   const [confirming, setConfirming] = useState<Customer | null>(null); // confirm popup
   const [saving, setSaving] = useState(false);
@@ -78,6 +83,11 @@ export default function AdminCustomersPage() {
 
   const filtered = list.filter((c) => statusFilter === "ALL" || c.status === statusFilter);
 
+  // The API returns every customer, so pages are cut here
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   // Calls PUT /api/admin/customers/{id}/status
   const toggleStatus = async (c: Customer) => {
     setSaving(true);
@@ -126,21 +136,27 @@ export default function AdminCustomersPage() {
   ];
 
   return (
-    <div className="bg-cream-50 rounded-xl border shadow-sm p-6">
+    <div className="admin-card p-6">
       {/* Filter bar */}
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="relative flex-1 min-w-52">
           <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
           <input
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPage(1);
+            }}
             placeholder="Search name or email"
             className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPage(1);
+          }}
           className="border rounded-lg px-3 py-2 text-sm"
         >
           <option value="ALL">All customers</option>
@@ -149,7 +165,7 @@ export default function AdminCustomersPage() {
         </select>
       </div>
 
-      {loading && <p className="text-sm text-slate-500 py-8 text-center">Loading customers...</p>}
+      {loading && <LoadingRows />}
 
       {!loading && error && (
         <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-5 flex flex-wrap items-center justify-between gap-3">
@@ -166,7 +182,8 @@ export default function AdminCustomersPage() {
       {!loading && !error && (
         <>
           <p className="text-sm text-slate-500 mb-2">{filtered.length} customers</p>
-          <DataTable columns={columns} rows={filtered} rowKey={(c) => c.id} onRowClick={setSelected} />
+          <DataTable columns={columns} rows={pageRows} rowKey={(c) => c.id} onRowClick={setSelected} />
+          {totalPages > 1 && <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />}
         </>
       )}
 

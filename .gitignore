@@ -1,15 +1,21 @@
 # Python cache files
 __pycache__/
 *.pyc
+*.py[cod]
 
 # Environment files
 .env
 .env.*
-<<<<<<< HEAD
 !.env.example
+backend/.env
 frontend/.env
-=======
-__pycache__/
-*.py[cod]
+
+# Databases & local builds
+*.db
+*.sqlite3
+sql_app.db
+*.tsbuildinfo
+frontend/tsconfig.tsbuildinfo
+
+# Build output
 dist/
->>>>>>> origin/main

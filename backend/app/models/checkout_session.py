@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import Column, DateTime, String
+from sqlalchemy import Column, DateTime, String, JSON
 from app.database import Base
 
 
@@ -15,6 +15,7 @@ class CheckoutSession(Base):
     )
     customer_id = Column(String(100), nullable=False, index=True)
     status = Column(String(20), nullable=False, default="active")
+    checkout_snapshot = Column(JSON, nullable=True)
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
