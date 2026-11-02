@@ -4,7 +4,7 @@ import Breadcrumb from "../components/Breadcrumb";
 import ProductFilter, {
   type ProductFilters,
 } from "../components/ProductFilter";
-
+import SearchBar from "../components/SearchBar.tsx";
 type Product = {
   id: number;
   name: string;
@@ -210,7 +210,10 @@ export default function ProductListingPage() {
             </button>
           ))}
         </div>
-
+{/* Product Search */}
+<div className="mb-6 rounded-xl bg-white p-5 shadow-sm">
+  <SearchBar />
+</div>
         {/* Product Filters and Sorting */}
         <div className="mb-8 rounded-xl bg-white p-5 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold text-gray-900">
