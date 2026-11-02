@@ -1,5 +1,6 @@
-﻿from pydantic import BaseModel, ConfigDict
-from decimal import Decimal
+﻿from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict
 
 
 class ShippingMethodOut(BaseModel):
