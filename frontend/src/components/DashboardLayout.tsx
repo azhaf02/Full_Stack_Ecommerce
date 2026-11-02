@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import OrdersListView from './OrdersListView';
 import NotificationCenter from './NotificationCenter';
 import { ReviewsList } from './ReviewsList';
@@ -47,7 +48,6 @@ function WishlistContent() {
       setError('');
 
       const response = await apiClient.get('/api/wishlist');
-
       setItems(response.data.items || []);
     } catch (err) {
       setError(getErrorMessage(err, 'Unable to load your wishlist.'));
@@ -63,13 +63,9 @@ function WishlistContent() {
   const handleRemove = async (productId: number) => {
     try {
       setRemovingId(productId);
-
       await apiClient.delete(`/api/wishlist/items/${productId}`);
-
       setItems((currentItems) =>
-        currentItems.filter(
-          (item) => item.product_id !== productId
-        )
+        currentItems.filter((item) => item.product_id !== productId)
       );
     } catch (err) {
       alert(getErrorMessage(err, 'Unable to remove this product.'));
@@ -200,7 +196,6 @@ function WishlistContent() {
       }}>
         {items.map((item) => {
           const product = item.product;
-
           const primaryImage =
             product.images?.find((image) => image.is_primary) ||
             product.images?.[0];
@@ -280,15 +275,11 @@ function WishlistContent() {
                   letterSpacing: '1px',
                   textTransform: 'uppercase',
                   fontWeight: 600,
-                  cursor: removingId === item.product_id
-                    ? 'not-allowed'
-                    : 'pointer',
+                  cursor: removingId === item.product_id ? 'not-allowed' : 'pointer',
                   opacity: removingId === item.product_id ? 0.6 : 1
                 }}
               >
-                {removingId === item.product_id
-                  ? 'Removing...'
-                  : 'Remove from Wishlist'}
+                {removingId === item.product_id ? 'Removing...' : 'Remove from Wishlist'}
               </button>
             </div>
           );
@@ -299,18 +290,26 @@ function WishlistContent() {
 }
 
 export default function DashboardLayout() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'wishlist' | 'notifications' | 'reviews' | 'support-form'>('overview');
-  const [unreadCount, setUnreadCount] = useState<number>(1);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [ordersCount, setOrdersCount] = useState<number>(0);
   const [reviewsVersion, setReviewsVersion] = useState<number>(0);
   const [customerName, setCustomerName] = useState<string>('Customer');
   const [customerInitial, setCustomerInitial] = useState<string>('C');
 
+  // Dynamic User identification
   useEffect(() => {
-    // 1. Pehle localStorage se check karein agar auth user stored hai
+    if (user?.name) {
+      setCustomerName(user.name.trim());
+      setCustomerInitial(user.name.trim().charAt(0).toUpperCase());
+      return;
+    }
+
     try {
-      const storedUser = localStorage.getItem('user') || localStorage.getItem('currentUser') || localStorage.getItem('auth');
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
+      const stored = localStorage.getItem('user') || localStorage.getItem('currentUser') || localStorage.getItem('auth');
+      if (stored) {
+        const parsed = JSON.parse(stored);
         const name = parsed.name || parsed.user?.name || parsed.full_name;
         if (name && name.trim()) {
           setCustomerName(name.trim());
@@ -319,24 +318,30 @@ export default function DashboardLayout() {
         }
       }
     } catch {
-      // Ignore json parse error
+      // parse fail
     }
 
-    // 2. Fallback: Backend /profile ya /dashboard endpoint se logged-in user details fetch karein
-    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
-    fetch('http://localhost:8000/api/account/profile', {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) {
-          const name = data.name || data.full_name || (data.email ? data.email.split('@')[0] : 'Customer');
+    // Fallback: check profile endpoint
+    apiClient.get('/api/account/profile')
+      .then((res) => {
+        if (res.data) {
+          const name = res.data.name || res.data.full_name || (res.data.email ? res.data.email.split('@')[0] : 'Customer');
           setCustomerName(name);
           setCustomerInitial(name.charAt(0).toUpperCase());
         }
       })
       .catch(() => {});
-  }, []);
+  }, [user]);
+
+  // Live Orders Count fetch for overview stat
+  useEffect(() => {
+    apiClient.get('/api/orders')
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : (res.data?.items || res.data?.orders || []);
+        setOrdersCount(list.length);
+      })
+      .catch(() => {});
+  }, [activeTab]);
 
   const handleReviewSubmitted = () => {
     setReviewsVersion((prev) => prev + 1);
@@ -558,9 +563,24 @@ export default function DashboardLayout() {
                 marginBottom: '36px'
               }}>
                 {[
-                  { tag: 'Acquisitions', title: 'Orders Placed', value: '02', note: '1 in transit, 1 delivered' },
-                  { tag: 'Activity', title: 'Unread Alerts', value: String(unreadCount).padStart(2, '0'), note: 'Order & payment alerts' },
-                  { tag: 'Privilege', title: 'Viora Rewards', value: '₹450', note: 'Usable at checkout' },
+                  {
+                    tag: 'Acquisitions',
+                    title: 'Orders Placed',
+                    value: String(ordersCount).padStart(2, '0'),
+                    note: ordersCount > 0 ? `${ordersCount} active order(s)` : 'No active orders'
+                  },
+                  {
+                    tag: 'Activity',
+                    title: 'Unread Alerts',
+                    value: String(unreadCount).padStart(2, '0'),
+                    note: 'Order & payment alerts'
+                  },
+                  {
+                    tag: 'Privilege',
+                    title: 'Viora Rewards',
+                    value: '₹450',
+                    note: 'Usable at checkout'
+                  },
                 ].map((stat, i) => (
                   <div
                     key={i}
