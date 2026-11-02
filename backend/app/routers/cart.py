@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.cart import Cart, CartItem
+from app.models.product import Product
 from app.models.coupon import Coupon
 from app.services.pricing_engine import calculate_pricing
 from app.services.coupon_service import validate_coupon, calculate_coupon_discount
@@ -221,6 +222,17 @@ def get_cart(
     items = []
 
     for item in cart.items:
+        product = db.query(Product).filter(
+            Product.id == item.product_id
+        ).first()
+
+        primary_image = None
+        if product and product.images:
+            primary_image = next(
+                (img for img in product.images if img.is_primary),
+                product.images[0]
+            )
+
         items.append({
             "id": item.id,
             "product_id": item.product_id,
@@ -229,7 +241,10 @@ def get_cart(
             "unit_price": item.unit_price,
             "line_total": (
                 Decimal(str(item.unit_price)) * item.quantity
-            )
+            ),
+            "name": product.name if product else None,
+            "category": product.category.name if product and product.category else None,
+            "image_url": primary_image.image_url if primary_image else None
         })
 
     return {
