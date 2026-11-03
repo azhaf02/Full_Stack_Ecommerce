@@ -60,7 +60,7 @@ class ReviewService:
         product_reviews = [r for r in _reviews_db if r.product_id == product_id]
         if not product_reviews:
             return {"product_id": product_id, "average_rating": 0.0, "total_reviews": 0}
-        
+
         avg = sum(r.rating for r in product_reviews) / len(product_reviews)
         return {
             "product_id": product_id,
@@ -76,7 +76,7 @@ class ReviewService:
         if not status_filter:
             return _reviews_db
         return [
-            r for r in _reviews_db 
+            r for r in _reviews_db
             if str(r.status).lower() == status_filter.lower() or (hasattr(r.status, "value") and r.status.value.lower() == status_filter.lower())
         ]
 
@@ -89,13 +89,13 @@ class ReviewService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Review with id {review_id} not found"
             )
-        
+
         # Match case-insensitively with ReviewStatus enum
         matched_status = None
         for s in ReviewStatus:
             if s.value.lower() == new_status.lower() or s.name.lower() == new_status.lower():
                 matched_status = s
                 break
-        
+
         review.status = matched_status if matched_status is not None else new_status
         return review

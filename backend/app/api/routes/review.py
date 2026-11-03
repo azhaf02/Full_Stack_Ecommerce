@@ -33,9 +33,9 @@ def submit_review(payload: ReviewCreateRequest, db: Session = Depends(get_db)):
     # Verification query across orders / order_items table
     order_check = db.execute(
         """
-        SELECT o.status 
-        FROM orders o 
-        JOIN order_items oi ON o.id = oi.order_id 
+        SELECT o.status
+        FROM orders o
+        JOIN order_items oi ON o.id = oi.order_id
         WHERE o.id = :oid AND o.user_id = :uid AND oi.product_id = :pid
         """,
         {"oid": payload.order_id, "uid": payload.user_id, "pid": payload.product_id}

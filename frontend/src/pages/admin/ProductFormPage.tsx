@@ -60,7 +60,6 @@ export default function ProductFormPage() {
       setName(product.name);
       setDescription(product.description || "");
       setPrice(product.price);
-      setStockQuantity(String(product.stock_quantity));
       setCategoryId(String(product.category_id));
       setStatus(product.status);
 
@@ -145,8 +144,12 @@ export default function ProductFormPage() {
         name: name.trim(),
         description: description.trim() || null,
         price: Number(price),
-        stock_quantity: Number(stockQuantity),
         status,
+      };
+
+      const createProductData = {
+        ...productData,
+        stock_quantity: Number(stockQuantity),
       };
 
       let productId: number;
@@ -159,7 +162,7 @@ export default function ProductFormPage() {
 
         productId = updatedProduct.id;
       } else {
-        const createdProduct = await createAdminProduct(productData);
+        const createdProduct = await createAdminProduct(createProductData);
 
         productId = createdProduct.id;
       }
@@ -286,19 +289,21 @@ export default function ProductFormPage() {
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Stock Quantity
-            </label>
+          {!isEditMode && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Initial Stock Quantity
+              </label>
 
-            <input
-              type="number"
-              min="0"
-              value={stockQuantity}
-              onChange={(e) => setStockQuantity(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
-            />
-          </div>
+              <input
+                type="number"
+                min="0"
+                value={stockQuantity}
+                onChange={(e) => setStockQuantity(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+              />
+            </div>
+          )}
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">

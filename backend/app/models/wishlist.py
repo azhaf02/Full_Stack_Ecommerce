@@ -13,7 +13,7 @@ class Wishlist(Base):
 
     user_id = Column(
         Integer,
-        
+
         nullable=False,
         index=True
     )

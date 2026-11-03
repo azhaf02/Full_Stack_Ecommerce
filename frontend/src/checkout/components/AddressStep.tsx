@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 type Address = {
   id: number;
@@ -21,10 +21,9 @@ type AddressStepProps = {
 
 // Updated API base URL
 const API_BASE = "http://127.0.0.1:8000";
-const TOKEN_KEY = "access_token";
 
 function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = localStorage.getItem("viora_token") || localStorage.getItem("access_token") || localStorage.getItem("token");
 
   return token
     ? {
@@ -335,7 +334,7 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
                   </p>
 
                   <p>{address.country}</p>
-                  <p>ðŸ“± {address.phone}</p>
+                  <p>Mobile: {address.phone}</p>
                 </div>
               </label>
             ))}
@@ -397,7 +396,7 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
                     </p>
 
                     <p>{address.country}</p>
-                    <p>ðŸ“± {address.phone}</p>
+                    <p>Mobile: {address.phone}</p>
                   </div>
                 </label>
               ))}
@@ -551,5 +550,6 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
     </div>
   );
 }
+
 
 

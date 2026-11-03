@@ -6,6 +6,7 @@ from app.database import get_db
 from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
 from app.services import product_service
+from app.services.inventory_service import get_inventory_stock_status
 
 router = APIRouter(
     prefix="/api/products",
@@ -81,17 +82,21 @@ def search_products(
         .all()
     )
 
-    return [
-        {
+    results = []
+
+    for product in products:
+        stock_data = get_inventory_stock_status(db, product.id)
+
+        results.append({
             "id": product.id,
             "name": product.name,
             "description": product.description,
             "price": product.price,
-            "stock_quantity": product.stock_quantity,
+            "stock_quantity": stock_data["quantity"],
             "status": product.status,
-        }
-        for product in products
-    ]
+        })
+
+    return results
 @router.get("/{product_id}", response_model=ProductResponse)
 def get_product(
     product_id: int,
@@ -126,7 +131,7 @@ def update_product(
             detail="Product not found",
         )
 
-    return updated
+    return product_service.get_product_detail(db, product_id)
 
 
 @router.delete("/{product_id}", response_model=ProductResponse)

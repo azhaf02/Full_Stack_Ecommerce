@@ -1,12 +1,21 @@
+
 // @ts-ignore - JavaScript checkout component
 import CheckoutPage from "./checkout/pages/CheckoutPage";
 import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useParams,
+  useNavigate
+} from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout';
 import ProductDetailPage from './ProductDetailPage';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import SearchResultsPage from './SearchResultsPage';
+import OrderConfirmationPage from './pages/OrderConfirmationPage';
 
 // VIORA storefront + auth pages
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -20,47 +29,79 @@ const AdminApp = lazy(() => import('./AdminApp'));
 // Storefront layout
 const StorefrontLayout = lazy(() => import('./StorefrontLayout'));
 
+function OrderConfirmationRoute() {
+  const { orderId } = useParams();
+  const navigate = useNavigate();
+  const numericOrderId = Number(orderId);
+
+  if (!Number.isInteger(numericOrderId) || numericOrderId <= 0) {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <OrderConfirmationPage
+      orderId={numericOrderId}
+      onViewOrders={() => navigate('/dashboard/orders')}
+      onContinueShopping={() => navigate('/products')}
+    />
+  );
+}
+
 export default function App() {
-return (
-<Router>
-<AuthProvider>
-<Suspense fallback={null}>
-<Routes>
+  return (
+    <Router>
+      <AuthProvider>
+        <Suspense fallback={null}>
+          <Routes>
 
-        {/* Admin Dashboard */}
-        <Route path="/admin/*" element={<AdminApp />} />
+            {/* Admin Dashboard */}
+            <Route path="/admin/*" element={<AdminApp />} />
 
-        {/* Storefront pages */}
-        <Route element={<StorefrontLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/products" element={<ProductListingPage />} />
-          <Route path="/product/:id" element={<ProductDetailPage />} />
-          <Route path="/search" element={<SearchResultsPage />} />
+            {/* Storefront pages */}
+            <Route element={<StorefrontLayout />}>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/products" element={<ProductListingPage />} />
+              <Route path="/product/:id" element={<ProductDetailPage />} />
+              <Route path="/search" element={<SearchResultsPage />} />
 
-          {/* Cart Page */}
-          <Route path="/cart" element={<CartPage onCheckout={() => { window.location.href = "/checkout"; }} />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
+              {/* Cart Page */}
+              <Route
+                path="/cart"
+                element={
+                  <CartPage
+                    onCheckout={() => {
+                      window.location.href = "/checkout";
+                    }}
+                  />
+                }
+              />
+              <Route path="/checkout" element={<CheckoutPage />} />
 
-          {/* Authentication pages */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-        </Route>
+              {/* Order Confirmation */}
+              <Route
+                path="/order-confirmation/:orderId"
+                element={<OrderConfirmationRoute />}
+              />
 
-        {/* Protected customer pages */}
-        <Route element={<ProtectedRoute role="customer" />}>
-          <Route path="/profile" element={<ProfilePage />} />
-        </Route>
+              {/* Authentication pages */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+            </Route>
 
-        {/* Customer Dashboard */}
-        <Route path="/dashboard/*" element={<DashboardLayout />} />
+            {/* Protected customer pages */}
+            <Route element={<ProtectedRoute role="customer" />}>
+              <Route path="/profile" element={<ProfilePage />} />
+            </Route>
 
-        {/* Fallback: redirect unmatched routes to Home instead of Dashboard */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+            {/* Customer Dashboard */}
+            <Route path="/dashboard/*" element={<DashboardLayout />} />
 
-      </Routes>
-    </Suspense>
-  </AuthProvider>
-</Router>
+            {/* Fallback: redirect unmatched routes to Home instead of Dashboard */}
+            <Route path="*" element={<Navigate to="/" replace />} />
 
-);
+          </Routes>
+        </Suspense>
+      </AuthProvider>
+    </Router>
+  );
 }

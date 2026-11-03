@@ -34,7 +34,7 @@ def upgrade() -> None:
 
     op.create_index("ix_categories_id", "categories", ["id"], unique=False)
     op.create_index("ix_categories_is_active", "categories", ["is_active"], unique=False)
-    
+
 
     op.create_table(
         "products",

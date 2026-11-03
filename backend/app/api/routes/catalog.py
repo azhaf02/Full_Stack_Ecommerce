@@ -14,6 +14,10 @@ from app.models.product_image import ProductImage
 from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
 from app.schemas.product_image import ProductImageResponse
 from app.models.category import Category
+from app.services.inventory_service import (
+    ensure_inventory_record,
+    get_inventory_stock_status,
+)
 public_router = APIRouter(
     prefix="/api/catalog",
     tags=["Public Catalog"],
@@ -24,6 +28,23 @@ router = APIRouter(
     tags=["Admin Products"],
     dependencies=[Depends(require_role("admin"))],
 )
+
+
+def _product_response_with_inventory(db: Session, product: Product):
+    """Return the existing product response with live inventory stock."""
+    response = ProductResponse.model_validate(product)
+    stock = get_inventory_stock_status(db, product.id)
+
+    status_map = {
+        "in_stock": "IN_STOCK",
+        "low_stock": "LOW_STOCK",
+        "out_of_stock": "OUT_OF_STOCK",
+    }
+
+    return response.model_copy(update={
+        "stock_quantity": stock["quantity"],
+        "stock_status": status_map[stock["stock_status"]],
+    })
 
 
 # Upload configuration
@@ -65,7 +86,12 @@ def get_admin_products(
 
         query = query.filter(Product.status == status)
 
-    return query.order_by(Product.id.desc()).all()
+    products = query.order_by(Product.id.desc()).all()
+
+    return [
+        _product_response_with_inventory(db, product)
+        for product in products
+    ]
 
 
 
@@ -93,10 +119,18 @@ def create_admin_product(
     db_product = Product(**product.model_dump())
 
     db.add(db_product)
+    db.flush()
+
+    ensure_inventory_record(
+        db,
+        product_id=db_product.id,
+        quantity=db_product.stock_quantity,
+    )
+
     db.commit()
     db.refresh(db_product)
 
-    return db_product
+    return _product_response_with_inventory(db, db_product)
 
 
 
@@ -117,7 +151,7 @@ def get_admin_product(
             detail="Product not found"
         )
 
-    return product
+    return _product_response_with_inventory(db, product)
 
 
 @router.put("/{product_id}", response_model=ProductResponse)
@@ -170,7 +204,7 @@ def update_admin_product(
     db.commit()
     db.refresh(db_product)
 
-    return db_product
+    return _product_response_with_inventory(db, db_product)
 
 
 
@@ -321,6 +355,7 @@ def get_public_products(
 
     for product in products:
         image = product.images[0] if product.images else None
+        stock_response = _product_response_with_inventory(db, product)
 
         result.append({
             "id": product.id,
@@ -329,12 +364,8 @@ def get_public_products(
             "name": product.name,
             "description": product.description,
             "price": product.price,
-            "stock_quantity": product.stock_quantity,
-            "stock_status": (
-                "OUT_OF_STOCK"
-                if product.stock_quantity <= 0
-                else "IN_STOCK"
-            ),
+            "stock_quantity": stock_response.stock_quantity,
+            "stock_status": stock_response.stock_status,
             "status": product.status,
             "image_url": image.image_url if image else None,
         })
