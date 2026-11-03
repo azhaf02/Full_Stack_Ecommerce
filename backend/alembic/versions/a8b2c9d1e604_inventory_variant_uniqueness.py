@@ -2,7 +2,7 @@
 
 from typing import Sequence, Union
 
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 
 revision: str = "a8b2c9d1e604"
@@ -12,22 +12,23 @@ depends_on = None
 
 
 def upgrade() -> None:
-    bind = op.get_bind()
-    duplicate_groups = bind.execute(sa.text("""
-        SELECT COUNT(*)
-        FROM (
-            SELECT product_id, variant_id
-            FROM inventory
-            GROUP BY product_id, variant_id
-            HAVING COUNT(*) > 1
-        ) AS duplicate_groups
-    """)).scalar_one()
+    if not context.is_offline_mode():
+        bind = op.get_bind()
+        duplicate_groups = bind.execute(sa.text("""
+            SELECT COUNT(*)
+            FROM (
+                SELECT product_id, variant_id
+                FROM inventory
+                GROUP BY product_id, variant_id
+                HAVING COUNT(*) > 1
+            ) AS duplicate_groups
+        """)).scalar_one()
 
-    if duplicate_groups:
-        raise RuntimeError(
-            "Duplicate inventory records exist. Reconcile and back up the "
-            "records before applying inventory uniqueness indexes."
-        )
+        if duplicate_groups:
+            raise RuntimeError(
+                "Duplicate inventory records exist. Reconcile and back up the "
+                "records before applying inventory uniqueness indexes."
+            )
 
     op.create_index(
         "uq_inventory_product_variant",

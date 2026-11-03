@@ -2,7 +2,10 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductUpdate
-from app.services.inventory_service import get_inventory_stock_status
+from app.services.inventory_service import (
+    get_inventory_stock_status,
+    ensure_inventory_record,
+)
 from sqlalchemy import func
 from app.models.inventory import Inventory
 
@@ -10,6 +13,14 @@ def create_product(db: Session, product: ProductCreate):
     db_product = Product(**product.model_dump())
 
     db.add(db_product)
+    db.flush()
+
+    ensure_inventory_record(
+        db,
+        product_id=db_product.id,
+        quantity=db_product.stock_quantity,
+    )
+
     db.commit()
     db.refresh(db_product)
 
@@ -97,7 +108,7 @@ def get_products(
             "name": product.name,
             "description": product.description,
             "price": product.price,
-            "stock_quantity": product.stock_quantity,
+            "stock_quantity": stock_data["quantity"],
             "stock_status": stock_data["stock_status"],
             "status": product.status,
             "image_url": image.image_url if image else None,
@@ -149,7 +160,7 @@ def get_product_detail(db: Session, product_id: int):
         "name": product.name,
         "description": product.description,
         "price": product.price,
-        "stock_quantity": product.stock_quantity,
+        "stock_quantity": stock_data["quantity"],
         "stock_status": stock_data["stock_status"],
         "status": product.status,
         "category_id": product.category_id,

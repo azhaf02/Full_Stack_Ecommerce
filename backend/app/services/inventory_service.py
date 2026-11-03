@@ -139,6 +139,50 @@ def _get_inventory(
     return query.first()
 
 
+def ensure_inventory_record(
+    db: Session,
+    product_id: int,
+    quantity: int,
+    variant_id: int | None = None,
+    low_stock_threshold: int = 10,
+    location: str | None = None,
+):
+    """Create an initial inventory row only when the matching row is absent.
+
+    Existing inventory quantities are never overwritten.
+    The caller controls the transaction and commit.
+    """
+    if quantity < 0:
+        raise ValueError("Inventory quantity cannot be negative.")
+
+    if low_stock_threshold < 0:
+        raise ValueError("Low-stock threshold cannot be negative.")
+
+    existing = _get_inventory(db, product_id, variant_id)
+    if existing is not None:
+        return existing
+
+    stock_status = get_stock_status(quantity, low_stock_threshold)
+    status_map = {
+        "in_stock": "IN_STOCK",
+        "low_stock": "LOW_STOCK",
+        "out_of_stock": "OUT_OF_STOCK",
+    }
+
+    inventory = Inventory(
+        product_id=product_id,
+        variant_id=variant_id,
+        quantity=quantity,
+        low_stock_threshold=low_stock_threshold,
+        location=location,
+        status=status_map[stock_status],
+    )
+    db.add(inventory)
+    db.flush()
+
+    return inventory
+
+
 def _add_history(
     db: Session,
     inventory: Inventory,

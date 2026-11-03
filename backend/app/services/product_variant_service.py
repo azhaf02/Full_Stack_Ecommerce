@@ -4,12 +4,22 @@ from sqlalchemy.orm import Session
 from app.models.inventory import Inventory
 from app.models.product_variant import ProductVariant
 from app.schemas.product_variant import ProductVariantCreate
+from app.services.inventory_service import ensure_inventory_record
 
 
 def create_variant(db: Session, variant: ProductVariantCreate):
     db_variant = ProductVariant(**variant.model_dump())
 
     db.add(db_variant)
+    db.flush()
+
+    ensure_inventory_record(
+        db,
+        product_id=db_variant.product_id,
+        variant_id=db_variant.id,
+        quantity=db_variant.stock,
+    )
+
     db.commit()
     db.refresh(db_variant)
 

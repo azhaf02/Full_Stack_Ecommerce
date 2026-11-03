@@ -514,7 +514,6 @@ export interface ProductUpdateData {
   name?: string;
   description?: string | null;
   price?: number;
-  stock_quantity?: number;
   status?: "ACTIVE" | "INACTIVE";
 }
 
