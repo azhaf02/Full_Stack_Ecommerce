@@ -11,6 +11,8 @@ import AdminRolesPage from "./pages/admin/AdminRolesPage";
 import AdminOrderDetailPage from "./pages/admin/AdminOrderDetailPage";
 import AdminReturnsPage from "./pages/admin/AdminReturnsPage";
 import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
+import AdminSupportPage from "./pages/admin/AdminSupportPage";
+import AdminFaqPage from "./pages/admin/AdminFaqPage";
 import AdminCategoriesPage from "./pages/admin/AdminCategoriesPage";
 import AnalyticsPage from "./pages/admin/AnalyticsPage";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
@@ -38,6 +40,8 @@ export default function AdminApp() {
         <Route path="orders/:id" element={<AdminOrderDetailPage />} />
         <Route path="returns" element={<AdminReturnsPage />} />
         <Route path="reviews" element={<AdminReviewsPage />} />
+        <Route path="support" element={<AdminSupportPage />} />
+        <Route path="faq" element={<AdminFaqPage />} />
         <Route path="payments" element={<AdminPaymentsPage />} />
         <Route path="roles" element={<AdminRolesPage />} />
         <Route path="categories" element={<AdminCategoriesPage />} />

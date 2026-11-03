@@ -146,6 +146,27 @@ const fetchCategories = async () => {
   }
 };
 
+  // Turns a deactivated category back on (PUT with is_active: true)
+  const handleActivate = async (category: Category) => {
+  const confirmed = window.confirm(
+    `Activate "${category.name}" again? It will be shown to customers.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    setError("");
+
+    await updateCategory(category.id, { is_active: true });
+
+    await fetchCategories();
+  } catch (err) {
+    setError(
+      err instanceof Error ? err.message : "Something went wrong"
+    );
+  }
+};
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -332,6 +353,16 @@ const fetchCategories = async () => {
                             className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
                           >
                             Deactivate
+                          </button>
+                        )}
+
+                        {!category.is_active && (
+                          <button
+                            type="button"
+                            onClick={() => handleActivate(category)}
+                            className="rounded-lg border border-green-200 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50"
+                          >
+                            Activate
                           </button>
                         )}
                       </div>

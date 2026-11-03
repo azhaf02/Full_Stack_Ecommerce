@@ -108,6 +108,7 @@ export interface CategoryCreateData {
 export interface CategoryUpdateData {
   name?: string;
   description?: string | null;
+  is_active?: boolean; // true re-activates a deactivated category
 }
 
 export async function getCategories(
@@ -328,6 +329,79 @@ export async function updateReviewStatus(id: number, status: ReviewStatus): Prom
 // Permanently deletes one review
 export async function deleteReview(id: number): Promise<void> {
   await api.delete(`/api/admin/reviews/${id}`);
+}
+
+// =========================================================
+// SUPPORT TICKETS + FAQ (APIs from the support module)
+// =========================================================
+
+// One ticket as returned by GET /api/support/admin/tickets
+export interface SupportTicket {
+  id: number;
+  customer_id: number;
+  order_id: number | null;
+  category: string;
+  subject: string;
+  description: string;
+  status: string; // Open, In Progress, Resolved, Closed
+  created_at: string | null;
+}
+
+export interface SupportMessage {
+  id: number;
+  ticket_id: number;
+  sender_type: string; // "Customer" or "Support"
+  message: string;
+  timestamp: string | null;
+}
+
+export const TICKET_STATUSES = ["Open", "In Progress", "Resolved", "Closed"];
+
+export async function getSupportTickets(): Promise<SupportTicket[]> {
+  const response = await api.get("/api/support/admin/tickets");
+  return response.data;
+}
+
+// One ticket with its conversation
+export async function getSupportTicket(id: number): Promise<{ ticket: SupportTicket; messages: SupportMessage[] }> {
+  const response = await api.get(`/api/support/admin/tickets/${id}`);
+  return response.data;
+}
+
+export async function replyToSupportTicket(id: number, message: string): Promise<void> {
+  await api.post(`/api/support/admin/tickets/${id}/reply`, { message: message.trim() });
+}
+
+export async function updateSupportTicketStatus(id: number, status: string): Promise<void> {
+  await api.put(`/api/support/admin/tickets/${id}/status`, { status });
+}
+
+export interface Faq {
+  id: number;
+  question: string;
+  answer: string;
+  sort_order: number;
+}
+
+export type FaqData = Omit<Faq, "id">;
+
+export async function getFaqs(): Promise<Faq[]> {
+  const response = await api.get("/api/support/admin/faq");
+  return response.data;
+}
+
+export async function createFaq(data: FaqData): Promise<Faq> {
+  const response = await api.post("/api/support/admin/faq", data);
+  return response.data;
+}
+
+export async function updateFaq(id: number, data: FaqData): Promise<Faq> {
+  const response = await api.put(`/api/support/admin/faq/${id}`, data);
+  return response.data;
+}
+
+export async function deleteFaq(id: number): Promise<void> {
+  await api.delete(`/api/support/admin/faq/${id}`);
 }
 
 // =========================================================

@@ -19,6 +19,10 @@ const styles: Record<string, string> = {
   FAILED: "bg-red-100 text-red-700",
   APPROVED: "bg-green-100 text-green-700",
   REJECTED: "bg-red-100 text-red-700",
+  OPEN: "bg-sky-100 text-sky-700",
+  IN_PROGRESS: "bg-amber-100 text-amber-700",
+  RESOLVED: "bg-green-100 text-green-700",
+  CLOSED: "bg-slate-200 text-slate-600",
 
 };
 
