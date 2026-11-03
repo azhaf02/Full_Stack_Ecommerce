@@ -46,7 +46,7 @@ export default function AuthLayout({ title, subtitle, children }: AuthLayoutProp
           </ul>
         </div>
 
-        <p className="relative z-10 mt-10 hidden text-xs text-viora-sage-soft/80 lg:block">© {new Date().getFullYear()} VIORA</p>
+        <p className="relative z-10 mt-10 hidden text-xs text-viora-sage-soft/80 lg:block">© {new Date().getFullYear()} GRABBY</p>
 
         <BagLeafIcon className="pointer-events-none absolute -bottom-16 -right-16 h-60 w-60 text-viora-cream opacity-[0.07] lg:h-[28rem] lg:w-[28rem]" />
       </aside>

@@ -4,6 +4,7 @@ import { Search } from "lucide-react";
 import DataTable from "../../components/admin/DataTable";
 import type { Column } from "../../components/admin/DataTable";
 import StatusBadge from "../../components/admin/StatusBadge";
+import LoadingRows from "../../components/admin/LoadingRows";
 import Pagination from "../../components/admin/Pagination";
 import { getOrders } from "../../services/adminService";
 import type { AdminOrder } from "../../services/adminService";
@@ -100,7 +101,7 @@ export default function AdminOrdersPage() {
   }, [q, status, from, to, page, badDateRange, reloadKey]);
 
   return (
-    <div className="bg-cream-50 rounded-xl border shadow-sm p-6">
+    <div className="admin-card p-6">
       {/* Filter bar */}
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="relative flex-1 min-w-52">
@@ -158,7 +159,7 @@ export default function AdminOrdersPage() {
       )}
 
       {!badDateRange && loading && (
-        <p className="text-sm text-slate-500 py-8 text-center">Loading orders...</p>
+        <LoadingRows />
       )}
 
       {!badDateRange && !loading && error && (

@@ -1,17 +1,36 @@
-
-from dotenv import load_dotenv
+﻿from dotenv import load_dotenv
 
 load_dotenv()
 
+import importlib
+import pkgutil
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
+# Load all SQLAlchemy models so relationships resolve correctly.
+import app.models as _models_pkg
+
+for _module in pkgutil.iter_modules(_models_pkg.__path__):
+    importlib.import_module(f"app.models.{_module.name}")
+
+# Product and related API routes.
+from app.api.routes.wishlist import router as wishlist_router
+from app.api.routes.catalog import router as catalog_router, public_router
+from app.api.routes.product import router as product_router
+from app.api.routes.variant import router as variant_router
+from app.api.routes.support import router as support_router
+from app.api.routes import inventory
+
+# Inventory and order integration.
 from app.services import order_service
 from app.services.inventory_service import on_order_status_change
-from app.services.cod_payment_hook import on_cod_order_change
-from app.services.order_notification_hook import on_order_notification
+
+# Other application routers.
 from app.routers import (
     notifications,
+    cart,
     reviews,
     admin,
     category,
@@ -20,20 +39,15 @@ from app.routers import (
     audit_logs,
     analytics,
     orders,
-    cart,
     payment,
     checkout_sessions,
     shipping_methods,
+    invoice,
 )
-from app.api.routes import product, checkout, inventory
 
 app = FastAPI(title="Customer Dashboard & Reviews API")
 
-# Inventory stock deduction/restocking and COD payment hooks.
-order_service.register_status_hook(on_order_status_change)
-order_service.register_status_hook(on_cod_order_change)
-order_service.register_status_hook(on_order_notification)
-
+# Allow the frontend on ports 5173 and 5174.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -47,28 +61,51 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Serve uploaded product images.
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# Cart and customer-facing routes.
+app.include_router(cart.router)
 app.include_router(notifications.router)
-app.include_router(reviews.router)
+app.include_router(reviews.router, prefix="/api")
+
+# Admin and category routes.
 app.include_router(admin.router)
 app.include_router(category.router)
+
+# Inventory.
+app.include_router(inventory.router)
+
+# Product APIs.
+app.include_router(product_router)
+app.include_router(public_router)
+app.include_router(catalog_router)
+app.include_router(variant_router)
+app.include_router(wishlist_router)
+
+# Authentication, accounts, and audit logs.
 app.include_router(account.router)
 app.include_router(auth.router)
 app.include_router(audit_logs.router)
+
+# Analytics and orders.
 app.include_router(analytics.router)
 app.include_router(orders.router)
+
+# Inventory order-status integration.
+order_service.register_status_hook(on_order_status_change)
+
+# Payments and checkout.
 app.include_router(payment.router)
-from app.routers import invoice
-app.include_router(invoice.router)
 app.include_router(checkout_sessions.router)
 app.include_router(checkout_sessions.address_router)
-app.include_router(product.router)
-app.include_router(checkout.router)
-app.include_router(cart.router)
 app.include_router(shipping_methods.router)
 
+# Support and invoices.
+app.include_router(support_router)
+app.include_router(invoice.router)
 
-app.include_router(inventory.router)
 
 @app.get("/")
 def root():
-    return {"message": "Customer Dashboard Backend API is running"}
+    return {"message": "VIORA API is running"}

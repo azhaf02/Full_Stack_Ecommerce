@@ -1,18 +1,18 @@
 from decimal import Decimal
 
-from app.services.inventory_service import validate_stock, InsufficientStockError
-
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy import text
 from app.models.order import Order
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.cart import Cart, CartItem
+from app.models.product import Product
 from app.models.coupon import Coupon
 from app.services.pricing_engine import calculate_pricing
 from app.services.coupon_service import validate_coupon, calculate_coupon_discount
+from app.services.inventory_service import InsufficientStockError, validate_stock
 
 from datetime import datetime
 from pydantic import BaseModel, Field
@@ -101,7 +101,7 @@ def add_to_cart(
     # Get product from the confirmed Product table.
     product = db.execute(
         text("""
-            SELECT id, price, stock_quantity, status
+            SELECT id, price, status
             FROM products
             WHERE id = :product_id
         """),
@@ -114,20 +114,20 @@ def add_to_cart(
             detail="Product not found"
         )
 
-    if product["status"] != "ACTIVE":
+    if str(product["status"]).upper() != "ACTIVE":
         raise HTTPException(
             status_code=400,
             detail="Product is not available"
         )
 
-   # Default product price
+    # Default product price and stock
     unit_price = Decimal(str(product["price"]))
 
     # If a variant is selected, use variant stock and price delta.
     if request.variant_id is not None:
         variant = db.execute(
             text("""
-                SELECT id, product_id, price_delta, stock
+                SELECT id, product_id, price_delta
                 FROM product_variants
                 WHERE id = :variant_id
             """),
@@ -147,7 +147,6 @@ def add_to_cart(
             )
 
         unit_price += Decimal(str(variant["price_delta"]))
-        # Stock availability is validated using inventory.quantity below.
 
     # Find current cart.
     cart = get_current_cart(db, current_user)
@@ -168,16 +167,16 @@ def add_to_cart(
     if item:
         new_quantity = item.quantity + request.quantity
 
-   # Validate requested quantity against the shared inventory records.
+    # Validate against the shared inventory source of truth.
     try:
-      validate_stock(
-        db,
-        request.product_id,
-        new_quantity,
-        request.variant_id,
-    )
+        validate_stock(
+            db,
+            product_id=request.product_id,
+            requested_quantity=new_quantity,
+            variant_id=request.variant_id,
+        )
     except InsufficientStockError as exc:
-       raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if item:
         item.quantity = new_quantity
@@ -226,6 +225,17 @@ def get_cart(
     items = []
 
     for item in cart.items:
+        product = db.query(Product).filter(
+            Product.id == item.product_id
+        ).first()
+
+        primary_image = None
+        if product and product.images:
+            primary_image = next(
+                (img for img in product.images if img.is_primary),
+                product.images[0]
+            )
+
         items.append({
             "id": item.id,
             "product_id": item.product_id,
@@ -234,7 +244,10 @@ def get_cart(
             "unit_price": item.unit_price,
             "line_total": (
                 Decimal(str(item.unit_price)) * item.quantity
-            )
+            ),
+            "name": product.name if product else None,
+            "category": product.category.name if product and product.category else None,
+            "image_url": primary_image.image_url if primary_image else None
         })
 
     return {
@@ -273,16 +286,16 @@ def update_cart_item(
             detail="Cart item not found"
         )
 
-       # Validate requested quantity against shared inventory records.
+    # Validate against inventory.quantity for both products and variants.
     try:
         validate_stock(
             db,
-            item.product_id,
-            request.quantity,
-            item.variant_id,
+            product_id=item.product_id,
+            requested_quantity=request.quantity,
+            variant_id=item.variant_id,
         )
     except InsufficientStockError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     item.quantity = request.quantity
 

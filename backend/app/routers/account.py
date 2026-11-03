@@ -4,8 +4,6 @@ from sqlalchemy.orm import Session
 from app.core.security import get_current_user, require_role
 from app.database import get_db
 from app.models.user import User
-from app.models.order import Order
-from app.models.payment import Payment
 from app.schemas.account import AddressCreate, AddressOut, AddressUpdate, PasswordChange, ProfileUpdate
 from app.schemas.auth import UserOut
 from app.services import account_service, auth_service
@@ -68,31 +66,45 @@ def delete_address(address_id: int, user: User = Depends(customer_only), db: Ses
 @router.put("/addresses/{address_id}/default", response_model=AddressOut)
 def set_default_address(address_id: int, user: User = Depends(customer_only), db: Session = Depends(get_db)):
     return account_service.set_default_address(db, user, address_id)
-# ---------- PAY-07: customer payment history ----------
-@router.get("/payments")
-def customer_payment_history(
+    # ============================================================
+# CUSTOMER DASHBOARD OVERVIEW
+# ============================================================
+
+@router.get("/dashboard")
+def get_customer_dashboard(
     user: User = Depends(customer_only),
     db: Session = Depends(get_db),
 ):
-    """Return payment history belonging to the current customer."""
-    payments = (
-        db.query(Payment)
-        .join(Order, Payment.order_id == Order.id)
-        .filter(Order.user_id == user.id)
-        .order_by(Payment.created_at.desc(), Payment.id.desc())
-        .all()
-    )
+    recent_orders_count = db.execute(
+        text("SELECT COUNT(*) FROM orders WHERE user_id = :uid"),
+        {"uid": user.id},
+    ).scalar() or 0
 
-    return [
-        {
-            "payment_id": payment.id,
-            "order_id": payment.order_id,
-            "method": payment.method.value,
-            "status": payment.status.value,
-            "transaction_id": payment.transaction_id,
-            "amount": payment.amount,
-            "created_at": payment.created_at,
-            "updated_at": payment.updated_at,
-        }
-        for payment in payments
-    ]
+    wishlist_count = db.execute(
+        text("SELECT COUNT(*) FROM wishlist WHERE user_id = :uid"),
+        {"uid": user.id},
+    ).scalar() or 0
+
+    unread_notifications = db.execute(
+        text("SELECT COUNT(*) FROM notifications WHERE user_id = :uid AND is_read = false"),
+        {"uid": user.id},
+    ).scalar() or 0
+
+    return {
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role.name if hasattr(user.role, "name") else str(user.role),
+        },
+        "summary": {
+            "recent_orders_count": recent_orders_count,
+            "wishlist_count": wishlist_count,
+            "unread_notifications": unread_notifications,
+        },
+        "recent_orders": [],
+        "wishlist": {
+            "count": wishlist_count,
+            "items": [],
+        },
+    }

@@ -1,6 +1,6 @@
-@layer theme, utilities;
-@import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/utilities.css" layer(utilities) important;
+﻿@import "tailwindcss";
+@import "bootstrap/dist/css/bootstrap.min.css";
+@import "bootstrap-icons/font/bootstrap-icons.css";
 
 @theme {
   --color-viora-olive: #556b2f;
@@ -25,6 +25,17 @@
 @media (prefers-reduced-motion: reduce) {
   .viora-fade, .viora-rise, .viora-leaf { animation: none; }
 }
+
+:root {
+  --viora-primary: #5F6B3A;
+  --viora-hover: #4D572F;
+  --viora-navbar: #343A20;
+  --viora-bg: #F8F7F2;
+  --viora-card: #FFFFFF;
+  --viora-border: #E5E2D8;
+  --viora-text: #252A20;
+}
+
 
 :root {
   font-family: Inter, "Segoe UI", Arial, sans-serif;
@@ -372,3 +383,17 @@ a { color: inherit; }
   .checkout-actions { align-items: stretch; }
   .checkout-btn { padding: 10px 12px; }
 }
+.viora-navbar { background-color: var(--viora-navbar) !important; }
+.viora-btn-primary { background-color: var(--viora-primary) !important; border-color: var(--viora-primary) !important; color: #ffffff !important; }
+.viora-btn-primary:hover { background-color: var(--viora-hover) !important; }
+.viora-card { background-color: var(--viora-card) !important; border: 1px solid var(--viora-border) !important; border-radius: 8px; }
+.badge-success-custom { color: #198754 !important; background-color: #D1E7DD !important; }
+.badge-warning-custom { color: #664d03 !important; background-color: #FFF3CD !important; }
+
+.order-link,
+.order-link:hover,
+.order-link:focus {
+  color: var(--bs-success, #198754);
+}
+.order-link { text-decoration: none; }
+.order-link:hover { text-decoration: underline; }

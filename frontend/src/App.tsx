@@ -1,54 +1,107 @@
+
+// @ts-ignore - JavaScript checkout component
+import CheckoutPage from "./checkout/pages/CheckoutPage";
 import { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useParams,
+  useNavigate
+} from 'react-router-dom';
+import DashboardLayout from './components/DashboardLayout';
 import ProductDetailPage from './ProductDetailPage';
-import CheckoutPage from './checkout/pages/CheckoutPage';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import SearchResultsPage from './SearchResultsPage';
+import OrderConfirmationPage from './pages/OrderConfirmationPage';
 
-// Loaded separately so each area's styles stay on its own pages:
-// admin (Tailwind), customer dashboard (Bootstrap), VIORA pages (home + auth).
-const AdminApp = lazy(() => import('./AdminApp'));
-const CustomerApp = lazy(() => import('./CustomerApp'));
+// GRABBY storefront + auth pages
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const ProductListingPage = lazy(() => import('./pages/ProductListingPage'));
+const CartPage = lazy(() => import('./pages/CartPage'));
+const AdminApp = lazy(() => import('./AdminApp'));
 
-function App() {
+// Storefront layout
+const StorefrontLayout = lazy(() => import('./StorefrontLayout'));
+
+function OrderConfirmationRoute() {
+  const { orderId } = useParams();
+  const navigate = useNavigate();
+  const numericOrderId = Number(orderId);
+
+  if (!Number.isInteger(numericOrderId) || numericOrderId <= 0) {
+    return <Navigate to="/" replace />;
+  }
+
   return (
-    <AuthProvider>
-      <Suspense fallback={null}>
-        <Routes>
-          {/* Storefront home (Madeeha) */}
-          <Route path="/" element={<HomePage />} />
-
-          {/* Until the product listing page exists, /products opens the Home page product section */}
-          <Route path="/products" element={<HomePage />} />
-
-          {/* Admin Dashboard */}
-          <Route path="/admin/*" element={<AdminApp />} />
-
-          {/* Product Details */}
-          <Route path="/product/:id" element={<ProductDetailPage />} />
-
-          {/* Checkout (Safiya) */}
-          <Route path="/checkout" element={<CheckoutPage />} />
-
-          {/* Auth pages (Madeeha) */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-
-          {/* Customer-only pages (Madeeha) */}
-          <Route element={<ProtectedRoute role="customer" />}>
-            <Route path="/profile" element={<ProfilePage />} />
-          </Route>
-
-          {/* Customer Dashboard: keep this LAST, it catches all other paths */}
-          <Route path="*" element={<CustomerApp />} />
-        </Routes>
-      </Suspense>
-    </AuthProvider>
+    <OrderConfirmationPage
+      orderId={numericOrderId}
+      onViewOrders={() => navigate('/dashboard/orders')}
+      onContinueShopping={() => navigate('/products')}
+    />
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <Suspense fallback={null}>
+          <Routes>
+
+            {/* Admin Dashboard */}
+            <Route path="/admin/*" element={<AdminApp />} />
+
+            {/* Storefront pages */}
+            <Route element={<StorefrontLayout />}>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/products" element={<ProductListingPage />} />
+              <Route path="/product/:id" element={<ProductDetailPage />} />
+              <Route path="/search" element={<SearchResultsPage />} />
+
+              {/* Cart Page */}
+              <Route
+                path="/cart"
+                element={
+                  <CartPage
+                    onCheckout={() => {
+                      window.location.href = "/checkout";
+                    }}
+                  />
+                }
+              />
+              <Route path="/checkout" element={<CheckoutPage />} />
+
+              {/* Order Confirmation */}
+              <Route
+                path="/order-confirmation/:orderId"
+                element={<OrderConfirmationRoute />}
+              />
+
+              {/* Authentication pages */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+            </Route>
+
+            {/* Protected customer pages */}
+            <Route element={<ProtectedRoute role="customer" />}>
+              <Route path="/profile" element={<ProfilePage />} />
+            </Route>
+
+            {/* Customer Dashboard */}
+            <Route path="/dashboard/*" element={<DashboardLayout />} />
+
+            {/* Fallback: redirect unmatched routes to Home instead of Dashboard */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+
+          </Routes>
+        </Suspense>
+      </AuthProvider>
+    </Router>
+  );
+}

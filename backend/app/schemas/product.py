@@ -2,7 +2,7 @@ from decimal import Decimal
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
-
+from app.schemas.product_image import ProductImageResponse
 
 class ProductBase(BaseModel):
     category_id: int
@@ -22,15 +22,15 @@ class ProductUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=2, max_length=200)
     description: Optional[str] = None
     price: Optional[Decimal] = Field(default=None, gt=0)
-    stock_quantity: Optional[int] = Field(default=None, ge=0)
     status: Optional[Literal["ACTIVE", "INACTIVE"]] = None
 
 
 class ProductResponse(ProductBase):
     id: int
-    stock_status: str = "out_of_stock"
-    category_name: Optional[str] = None
-    images: list[dict] = []
-    related_products: list[dict] = []
+    image_url: str | None = None
+    category_name: str | None = None
+    stock_status: str | None = None
+    images: list[ProductImageResponse] = Field(default_factory=list)
+    related_products: list[dict] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)

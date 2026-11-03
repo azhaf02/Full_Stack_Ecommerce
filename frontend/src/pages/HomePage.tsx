@@ -39,7 +39,7 @@ function Hero() {
 
       {/* giant brand word across the bottom */}
       <h1 className="viora-wordmark select-none px-3 pb-2 text-center font-display font-semibold leading-[0.8] tracking-[0.06em] text-viora-cream">
-        VIORA
+        GRABBY
       </h1>
     </section>
   );
@@ -73,7 +73,7 @@ function Statement() {
   return (
     <section className="mx-auto max-w-5xl px-5 py-20 text-center md:py-32">
       <Reveal>
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-viora-olive">The VIORA way</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-viora-olive">The GRABBY way</p>
         <p className="mt-6 font-display text-3xl leading-snug text-viora-ink md:text-5xl md:leading-tight">
           Fewer, better things. Chosen for how they feel, how long they last, and how easily they fit into your day.
         </p>
@@ -193,7 +193,7 @@ function VideoBand() {
       <div className="absolute inset-0 -z-10 bg-viora-olive-dark/60" />
       <BagLeafIcon className="viora-float pointer-events-none absolute -left-10 bottom-0 -z-10 h-64 w-64 opacity-10 md:h-96 md:w-96" />
       <Reveal className="mx-auto w-full max-w-7xl px-5 py-20 text-left">
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-viora-sage">The VIORA edit</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-viora-sage">The GRABBY edit</p>
         <h2 className="mt-4 max-w-2xl font-display text-4xl font-semibold leading-tight md:text-6xl">
           One place for the things you reach for every day
         </h2>
@@ -215,7 +215,7 @@ function AccountInvite() {
   return (
     <section className="mx-auto max-w-7xl px-5 py-24 text-center md:py-32">
       <Reveal>
-        <h2 className="mx-auto max-w-2xl font-display text-3xl font-semibold text-viora-ink md:text-5xl">Join VIORA</h2>
+        <h2 className="mx-auto max-w-2xl font-display text-3xl font-semibold text-viora-ink md:text-5xl">Join GRABBY</h2>
         <p className="mx-auto mt-4 max-w-md text-viora-muted">Save addresses, track orders and check out in a few taps.</p>
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <Link to="/register" className="rounded-full bg-viora-olive px-8 py-4 text-sm font-semibold uppercase tracking-[0.2em] text-white no-underline transition hover:bg-viora-olive-dark">

@@ -70,6 +70,8 @@ export interface Order {
   status_history: StatusHistoryEntry[];
   returns: OrderReturn[];
   actions: OrderActions | null;
+  customer?: { id: number; name: string; email: string } | null;
+  address?: { full_name: string; phone: string; line1: string; line2: string | null; city: string; state: string; postal_code: string; country: string } | null;
 }
 
 export interface ReturnRequestInput {
@@ -85,6 +87,7 @@ export interface OrderLineInput {
 }
 
 export interface PlaceOrderInput {
+  coupon_code?: string | null;
   address_id: number;
   shipping_method_id: number;
   payment_method: PaymentMethod;
