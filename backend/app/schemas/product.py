@@ -22,7 +22,6 @@ class ProductUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=2, max_length=200)
     description: Optional[str] = None
     price: Optional[Decimal] = Field(default=None, gt=0)
-    stock_quantity: Optional[int] = Field(default=None, ge=0)
     status: Optional[Literal["ACTIVE", "INACTIVE"]] = None
 
 

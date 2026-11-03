@@ -4,7 +4,11 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
 from app.models.inventory import Inventory
-from app.services.inventory_service import validate_stock, InsufficientStockError
+from app.services.inventory_service import (
+    validate_stock,
+    InsufficientStockError,
+    ensure_inventory_record,
+)
 
 
 @pytest.fixture()
@@ -124,4 +128,63 @@ def test_stock_change_between_cart_and_checkout_is_rejected(db):
             db,
             product_id=6,
             requested_quantity=5
+        )
+
+
+def test_ensure_inventory_record_creates_missing_default_inventory(db):
+    inventory = ensure_inventory_record(
+        db,
+        product_id=20,
+        quantity=8,
+    )
+    db.commit()
+
+    assert inventory.product_id == 20
+    assert inventory.variant_id is None
+    assert inventory.quantity == 8
+    assert inventory.status == "LOW_STOCK"
+
+
+def test_ensure_inventory_record_preserves_existing_quantity(db):
+    existing = add_inventory(db, product_id=21, quantity=6)
+
+    result = ensure_inventory_record(
+        db,
+        product_id=21,
+        quantity=99,
+    )
+
+    assert result.id == existing.id
+    assert result.quantity == 6
+    assert db.query(Inventory).filter(
+        Inventory.product_id == 21
+    ).count() == 1
+
+
+def test_ensure_inventory_record_creates_variant_inventory_separately(db):
+    default_inventory = ensure_inventory_record(
+        db,
+        product_id=22,
+        quantity=10,
+    )
+    variant_inventory = ensure_inventory_record(
+        db,
+        product_id=22,
+        variant_id=5,
+        quantity=4,
+    )
+    db.commit()
+
+    assert default_inventory.variant_id is None
+    assert default_inventory.quantity == 10
+    assert variant_inventory.variant_id == 5
+    assert variant_inventory.quantity == 4
+
+
+def test_ensure_inventory_record_rejects_negative_quantity(db):
+    with pytest.raises(ValueError, match="cannot be negative"):
+        ensure_inventory_record(
+            db,
+            product_id=23,
+            quantity=-1,
         )

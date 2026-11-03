@@ -2,7 +2,7 @@
 
 from typing import Sequence, Union
 
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 
 revision: str = "b71c4e9f2a06"
@@ -12,22 +12,23 @@ depends_on = None
 
 
 def upgrade() -> None:
-    bind = op.get_bind()
+    if not context.is_offline_mode():
+        bind = op.get_bind()
 
-    missing_count = bind.execute(sa.text("""
-        SELECT COUNT(*)
-        FROM inventory_history
-        WHERE product_id IS NULL
-           OR change_amount IS NULL
-           OR changed_by IS NULL
-           OR timestamp IS NULL
-    """)).scalar_one()
+        missing_count = bind.execute(sa.text("""
+            SELECT COUNT(*)
+            FROM inventory_history
+            WHERE product_id IS NULL
+               OR change_amount IS NULL
+               OR changed_by IS NULL
+               OR timestamp IS NULL
+        """)).scalar_one()
 
-    if missing_count:
-        raise RuntimeError(
-            f"Cannot enforce required inventory history fields: "
-            f"{missing_count} rows contain NULL values."
-        )
+        if missing_count:
+            raise RuntimeError(
+                f"Cannot enforce required inventory history fields: "
+                f"{missing_count} rows contain NULL values."
+            )
 
     op.alter_column(
         "inventory_history", "product_id",
