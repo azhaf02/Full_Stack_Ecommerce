@@ -1,3 +1,4 @@
+
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -12,14 +13,22 @@ from app.models.user import User
 from app.schemas.account import AddressCreate, AddressOut
 from app.services import account_service
 
-router = APIRouter(prefix="/api/checkout/sessions", tags=["Checkout Sessions"])
-address_router = APIRouter(prefix="/api/checkout", tags=["Checkout Address"])
+router = APIRouter(
+    prefix="/api/checkout/sessions",
+    tags=["Checkout Sessions"],
+)
+
+address_router = APIRouter(
+    prefix="/api/checkout",
+    tags=["Checkout Address"],
+)
 
 customer_only = require_role("customer")
 
 
 class SessionCreate(BaseModel):
-    customer_id: str
+    # Reject all unexpected fields sent by the client.
+    model_config = ConfigDict(extra="forbid")
 
 
 class SessionResponse(BaseModel):
@@ -35,14 +44,11 @@ class SessionResponse(BaseModel):
 @router.post("", response_model=SessionResponse, status_code=201)
 def create_session(
     payload: SessionCreate,
+    user: User = Depends(customer_only),
     db: Session = Depends(get_db),
 ):
-    customer_id = payload.customer_id.strip()
-
-    if not customer_id:
-        raise HTTPException(status_code=422, detail="Customer ID is required")
-
-    session = CheckoutSession(customer_id=customer_id)
+    # The authenticated customer is always the session owner.
+    session = CheckoutSession(customer_id=str(user.id))
     db.add(session)
     db.commit()
     db.refresh(session)
@@ -53,10 +59,13 @@ def create_session(
 @router.get("/{session_id}", response_model=SessionResponse)
 def get_session(
     session_id: UUID,
+    user: User = Depends(customer_only),
     db: Session = Depends(get_db),
 ):
+    # Customers can access only their own checkout sessions.
     session = db.query(CheckoutSession).filter(
-        CheckoutSession.session_id == str(session_id)
+        CheckoutSession.session_id == str(session_id),
+        CheckoutSession.customer_id == str(user.id),
     ).first()
 
     if session is None:

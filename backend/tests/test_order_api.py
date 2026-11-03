@@ -12,14 +12,25 @@ from sqlalchemy.pool import StaticPool
 from app.core.security import get_current_user
 from app.database import Base, get_db
 from app.models.order import Order, OrderItem, OrderStatusHistory, Return, ReturnItem
+from app.models.inventory import Inventory
+from app.models.inventory_history import InventoryHistory
 from app.routers import orders as orders_router
 from app.services import order_service
+from app.services.inventory_service import on_order_status_change
 from app.services.order_service import (
     OrderInput, OrderItemInput, create_order, apply_payment_result, update_status, utcnow,
     clear_status_hooks, register_status_hook,
 )
 
-TABLES = [Order.__table__, OrderItem.__table__, OrderStatusHistory.__table__, Return.__table__, ReturnItem.__table__]
+TABLES = [
+    Order.__table__,
+    OrderItem.__table__,
+    OrderStatusHistory.__table__,
+    Return.__table__,
+    ReturnItem.__table__,
+    Inventory.__table__,
+    InventoryHistory.__table__,
+]
 CUSTOMER = SimpleNamespace(id=1, role=SimpleNamespace(name="customer"))
 OTHER_CUSTOMER = SimpleNamespace(id=2, role=SimpleNamespace(name="customer"))
 ADMIN = SimpleNamespace(id=9, role=SimpleNamespace(name="admin"))
@@ -27,12 +38,46 @@ ADMIN = SimpleNamespace(id=9, role=SimpleNamespace(name="admin"))
 
 @pytest.fixture()
 def env():
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool
+    )
+
     from app.models.address import Address
     from app.models.role import Role
     from app.models.user import User
-    Base.metadata.create_all(engine, tables=TABLES + [Role.__table__, User.__table__, Address.__table__])
+
+    Base.metadata.create_all(
+        engine,
+        tables=TABLES + [
+            Role.__table__,
+            User.__table__,
+            Address.__table__,
+        ]
+    )
+
     Session = sessionmaker(bind=engine)
+
+    with Session() as db:
+        db.add_all([
+            Inventory(
+                product_id=10,
+                variant_id=None,
+                quantity=100,
+                low_stock_threshold=10,
+                status="IN_STOCK",
+            ),
+            Inventory(
+                product_id=11,
+                variant_id=None,
+                quantity=100,
+                low_stock_threshold=10,
+                status="IN_STOCK",
+            ),
+        ])
+        db.commit()
+
     who = {"user": CUSTOMER}
 
     app = FastAPI()
@@ -47,9 +92,19 @@ def env():
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_current_user] = lambda: who["user"]
+
     clear_status_hooks()
+    register_status_hook(on_order_status_change)
+
     client = TestClient(app)
-    yield SimpleNamespace(client=client, Session=Session, who=who, app=app)
+
+    yield SimpleNamespace(
+        client=client,
+        Session=Session,
+        who=who,
+        app=app
+    )
+
     clear_status_hooks()
 
 

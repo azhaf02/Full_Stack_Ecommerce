@@ -1,3 +1,4 @@
+
 import axios from "axios";
 
 const TOKEN_KEY = "viora_token";
@@ -19,13 +20,31 @@ client.interceptors.request.use((config) => {
   return config;
 });
 
-
 export interface PaymentByOrder {
   payment_id: number;
   order_id: number;
   method: "ONLINE" | "COD";
   status: string;
   transaction_id: string | null;
+}
+
+export interface PaymentSelectionResponse {
+  payment_id: number;
+  order_id: number;
+  method: "ONLINE" | "COD";
+  status: string;
+  message: string;
+}
+
+export interface PaymentHistoryRecord {
+  payment_id: number;
+  order_id: number;
+  method: "ONLINE" | "COD";
+  status: string;
+  transaction_id: string | null;
+  amount: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface MockPaymentProcessResponse {
@@ -42,8 +61,20 @@ export interface MockPaymentVerifyResponse {
   message: string;
 }
 
-
 export const paymentService = {
+  selectMethod: (
+    checkoutSessionId: string,
+    orderId: number,
+    method: "ONLINE" | "COD"
+  ) =>
+    client
+      .post<PaymentSelectionResponse>("/api/payment/select-method", {
+        checkout_session_id: checkoutSessionId,
+        order_id: orderId,
+        method,
+      })
+      .then((response) => response.data),
+
   getByOrder: (orderId: number) =>
     client
       .get<PaymentByOrder>(`/api/payment/order/${orderId}`)
@@ -75,5 +106,10 @@ export const paymentService = {
           transaction_id: transactionId,
         }
       )
+      .then((response) => response.data),
+
+  getPaymentHistory: () =>
+    client
+      .get<PaymentHistoryRecord[]>("/api/account/payments")
       .then((response) => response.data),
 };
