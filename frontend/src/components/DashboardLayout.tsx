@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import OrdersListView from './OrdersListView';
 import NotificationCenter from './NotificationCenter';
@@ -6,6 +6,7 @@ import { ReviewsList } from './ReviewsList';
 import NewTicketPage from '../pages/support/NewTicketPage';
 import { SupportChatbot } from './SupportChatbot';
 import apiClient, { getErrorMessage } from '../services/apiClient';
+import { orderService } from '../services/orderService';
 
 interface WishlistProduct {
   id: number;
@@ -321,7 +322,7 @@ export default function DashboardLayout() {
       // parse fail
     }
 
-    // Fallback: check profile endpoint
+    // Fallback profile endpoint
     apiClient.get('/api/account/profile')
       .then((res) => {
         if (res.data) {
@@ -333,15 +334,44 @@ export default function DashboardLayout() {
       .catch(() => {});
   }, [user]);
 
-  // Live Orders Count fetch for overview stat
+  // Live orders count fetcher using orderService (matches OrdersListView)
+  const fetchOrdersCount = useCallback(async () => {
+    try {
+      const data = await orderService.list(1, 20);
+      if (Array.isArray(data)) {
+        setOrdersCount(data.length);
+        return;
+      }
+    } catch {
+      // try fallback endpoints
+    }
+
+    const fallbackEndpoints = ['/api/account/orders', '/api/orders'];
+    for (const url of fallbackEndpoints) {
+      try {
+        const res = await apiClient.get(url);
+        let list: any[] = [];
+        if (Array.isArray(res.data)) {
+          list = res.data;
+        } else if (Array.isArray(res.data?.items)) {
+          list = res.data.items;
+        } else if (Array.isArray(res.data?.orders)) {
+          list = res.data.orders;
+        }
+
+        if (list.length > 0) {
+          setOrdersCount(list.length);
+          return;
+        }
+      } catch {
+        // try next
+      }
+    }
+  }, []);
+
   useEffect(() => {
-    apiClient.get('/api/orders')
-      .then((res) => {
-        const list = Array.isArray(res.data) ? res.data : (res.data?.items || res.data?.orders || []);
-        setOrdersCount(list.length);
-      })
-      .catch(() => {});
-  }, [activeTab]);
+    fetchOrdersCount();
+  }, [fetchOrdersCount, activeTab]);
 
   const handleReviewSubmitted = () => {
     setReviewsVersion((prev) => prev + 1);
@@ -403,7 +433,7 @@ export default function DashboardLayout() {
               color: '#FAF8F5',
               lineHeight: 1
             }}>
-              VIORA
+              GRABBY
             </span>
             <span style={{
               fontSize: '9px',
@@ -577,7 +607,7 @@ export default function DashboardLayout() {
                   },
                   {
                     tag: 'Privilege',
-                    title: 'Viora Rewards',
+                    title: 'Grabby Rewards',
                     value: '₹450',
                     note: 'Usable at checkout'
                   },
@@ -653,7 +683,10 @@ export default function DashboardLayout() {
                     View All
                   </button>
                 </div>
-                <OrdersListView onReviewSubmitted={handleReviewSubmitted} />
+                <OrdersListView 
+                  onReviewSubmitted={handleReviewSubmitted} 
+                  onOrdersCount={setOrdersCount}
+                />
               </div>
             </div>
           )}
@@ -674,7 +707,10 @@ export default function DashboardLayout() {
                   Order History & Fulfillment
                 </h2>
               </div>
-              <OrdersListView onReviewSubmitted={handleReviewSubmitted} />
+              <OrdersListView 
+                onReviewSubmitted={handleReviewSubmitted} 
+                onOrdersCount={setOrdersCount}
+              />
             </div>
           )}
 

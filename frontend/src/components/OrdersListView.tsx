@@ -7,6 +7,7 @@ import { formatDateTime, formatMoney, statusLabel } from '../utils/orderOutcome'
 
 interface OrdersListViewProps {
   onReviewSubmitted?: () => void;
+  onOrdersCount?: (count: number) => void;
 }
 
 // What the review modal needs. The list endpoint has no product, so product_id comes from the order's
@@ -17,7 +18,7 @@ interface ReviewTarget {
   product_name: string;
 }
 
-export default function OrdersListView({ onReviewSubmitted }: OrdersListViewProps) {
+export default function OrdersListView({ onReviewSubmitted, onOrdersCount }: OrdersListViewProps) {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
@@ -30,14 +31,21 @@ export default function OrdersListView({ onReviewSubmitted }: OrdersListViewProp
     setError('');
     try {
       // GET /api/account/orders, sent with the viora_token JWT by orderService
-      setOrders(await orderService.list(1, 10));
+      const data = await orderService.list(1, 10);
+      setOrders(data);
+      if (onOrdersCount) {
+        onOrdersCount(data.length);
+      }
     } catch (err) {
       setOrders([]);
+      if (onOrdersCount) {
+        onOrdersCount(0);
+      }
       setError(getOrderErrorMessage(err, 'Could not load your orders.'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onOrdersCount]);
 
   useEffect(() => {
     void loadOrders();

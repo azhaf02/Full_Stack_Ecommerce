@@ -434,7 +434,7 @@ function CheckoutPage() {
 
       <header className="checkout-navbar">
         <a className="checkout-brand" href="/">
-          VIORA
+          GRABBY
         </a>
 
         <span className="checkout-nav-note">

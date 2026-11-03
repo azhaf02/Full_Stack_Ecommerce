@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 
 interface ChatMessage {
   id: number;
-  sender: 'VIORA' | 'USER'; // 🎯 Strictly locked to VIORA brand naming context
+  sender: 'GRABBY' | 'USER'; // 🎯 Strictly locked to GRABBY brand naming context
   text: string;
 }
 
 export const SupportChatbot: React.FC = () => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: 1, sender: 'VIORA', text: "WELCOME TO VIORA OPERATIONS PLATFORM HELPDESK. ASK ME ANYTHING ABOUT ACCOUNT SETTINGS, ORDERS, INVOICES, OR RETURN TRANSITS." }
+    { id: 1, sender: 'GRABBY', text: "WELCOME TO GRABBY OPERATIONS PLATFORM HELPDESK. ASK ME ANYTHING ABOUT ACCOUNT SETTINGS, ORDERS, INVOICES, OR RETURN TRANSITS." }
   ]);
   const [inputValue, setInputValue] = useState<string>('');
 
@@ -47,7 +47,7 @@ export const SupportChatbot: React.FC = () => {
         responseText = "HELLO! CHATBOT PARSING CHECKS ARE FULLY STABLE AND OPERATIONAL. HOW CAN I AID YOUR DIGITAL SHOPPING SPRINT JOURNEY TODAY?";
       }
 
-      setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'VIORA', text: responseText }]);
+      setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'GRABBY', text: responseText }]);
     }, 600);
   };
 
@@ -85,7 +85,7 @@ export const SupportChatbot: React.FC = () => {
           {/* Header Component Title Block Bar */}
           <div className="text-white p-3 d-flex justify-content-between align-items-center" style={{ backgroundColor: '#2f3e30' }}>
             <div className="d-flex align-items-center gap-2">
-              <span className="fw-bold text-uppercase" style={{ fontSize: '11px', letterSpacing: '1px' }}>VIORA CHATBOT</span>
+              <span className="fw-bold text-uppercase" style={{ fontSize: '11px', letterSpacing: '1px' }}>GRABBY CHATBOT</span>
             </div>
             <button onClick={() => setIsOpen(false)} className="btn btn-sm text-white p-0 border-0" style={{ fontSize: '12px', cursor: 'pointer' }}>✕</button>
           </div>
@@ -93,19 +93,19 @@ export const SupportChatbot: React.FC = () => {
           {/* Chronological Chat Message Scroller Stream View Layout */}
           <div className="p-3 flex-grow-1 overflow-auto bg-light d-flex flex-column gap-2" style={{ height: '280px', backgroundColor: '#fbfbfa' }}>
             {messages.map(m => (
-              <div key={m.id} className={`d-flex flex-column ${m.sender === 'VIORA' ? 'align-items-start' : 'align-items-end'}`}>
+              <div key={m.id} className={`d-flex flex-column ${m.sender === 'GRABBY' ? 'align-items-start' : 'align-items-end'}`}>
                 <span className="text-muted text-uppercase font-monospace mb-1 px-1" style={{ fontSize: '8px', letterSpacing: '0.5px' }}>
                   {m.sender}
                 </span>
                 <div 
                   className="p-3 border" 
                   style={{ 
-                    backgroundColor: m.sender === 'VIORA' ? '#FFFFFF' : '#3b4d3c', 
-                    color: m.sender === 'VIORA' ? '#1e241e' : '#FFFFFF', 
+                    backgroundColor: m.sender === 'GRABBY' ? '#FFFFFF' : '#3b4d3c', 
+                    color: m.sender === 'GRABBY' ? '#1e241e' : '#FFFFFF', 
                     fontSize: '11px', 
                     maxWidth: '85%',
-                    borderRadius: m.sender === 'VIORA' ? '0px 12px 12px 12px' : '12px 0px 12px 12px',
-                    borderColor: m.sender === 'VIORA' ? '#e8e5de' : '#3b4d3c',
+                    borderRadius: m.sender === 'GRABBY' ? '0px 12px 12px 12px' : '12px 0px 12px 12px',
+                    borderColor: m.sender === 'GRABBY' ? '#e8e5de' : '#3b4d3c',
                     boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
                     lineHeight: '1.4'
                   }}

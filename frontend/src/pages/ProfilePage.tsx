@@ -226,9 +226,9 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-viora-cream text-left font-body text-viora-ink">
       <header className="border-b border-viora-sage/60 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3">
-          <Link to="/" className="flex items-center gap-2 text-viora-olive" aria-label="VIORA home">
+          <Link to="/" className="flex items-center gap-2 text-viora-olive" aria-label="GRABBY home">
             <BagLeafIcon className="h-8 w-8 [--leaf-vein:#fff]" />
-            <span className="font-display text-xl font-semibold tracking-[0.14em]">VIORA</span>
+            <span className="font-display text-xl font-semibold tracking-[0.14em]">GRABBY</span>
           </Link>
           <Button variant="secondary" onClick={handleLogout}>
             Log out

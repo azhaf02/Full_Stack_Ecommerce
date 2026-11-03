@@ -142,7 +142,7 @@ const FaqPage: React.FC = () => {
 
         <div className="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4" style={{ borderColor: '#E5DFD5', borderBottomWidth: '1px' }}>
           <span className="fw-bold tracking-widest text-uppercase" style={{ fontSize: '12px', color: '#232F24' }}>
-            VIORA'S HELP CENTER // {activeView === 'hub' ? 'HOW CAN WE HELP?' : currentCategory?.id.toUpperCase() || 'SUPPORT'}
+            GRABBY'S HELP CENTER // {activeView === 'hub' ? 'HOW CAN WE HELP?' : currentCategory?.id.toUpperCase() || 'SUPPORT'}
           </span>
           {activeView !== 'hub' && (
             <button

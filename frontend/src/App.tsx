@@ -17,7 +17,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import SearchResultsPage from './SearchResultsPage';
 import OrderConfirmationPage from './pages/OrderConfirmationPage';
 
-// VIORA storefront + auth pages
+// GRABBY storefront + auth pages
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));

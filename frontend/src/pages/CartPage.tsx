@@ -317,7 +317,7 @@ export default function CartPage({
           </div>
 
           <div className="empty-eyebrow">
-            YOUR VIORA BAG
+            YOUR GRABBY BAG
           </div>
 
           <h1>
@@ -397,7 +397,7 @@ export default function CartPage({
           <div className="viora-cart-header-text">
 
             <span className="viora-label">
-              VIORA SHOPPING BAG
+              GRABBY SHOPPING BAG
             </span>
 
             <h1 className="viora-title">

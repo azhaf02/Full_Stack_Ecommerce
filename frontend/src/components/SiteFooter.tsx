@@ -8,7 +8,7 @@ export default function SiteFooter() {
         <div>
           <div className="flex items-center gap-2 text-viora-cream">
             <BagLeafIcon className="h-9 w-9 [--leaf-vein:#23291c]" />
-            <span className="font-display text-2xl font-semibold tracking-[0.14em]">VIORA</span>
+            <span className="font-display text-2xl font-semibold tracking-[0.14em]">GRABBY</span>
           </div>
           <p className="mt-3 max-w-xs text-sm">{TAGLINE}</p>
         </div>
@@ -29,7 +29,7 @@ export default function SiteFooter() {
           </ul>
         </div>
       </div>
-      <p className="border-t border-white/10 py-5 text-center text-xs text-viora-sage-soft/70">© {new Date().getFullYear()} VIORA</p>
+      <p className="border-t border-white/10 py-5 text-center text-xs text-viora-sage-soft/70">© {new Date().getFullYear()} GRABBY. All rights reserved.</p>
     </footer>
   );
 }

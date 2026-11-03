@@ -59,9 +59,9 @@ export default function SiteHeader({ overlay = false }: { overlay?: boolean }) {
       }`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-5">
-        <Link to="/" className="flex shrink-0 items-center gap-2 text-viora-olive no-underline" aria-label="VIORA home">
+        <Link to="/" className="flex shrink-0 items-center gap-2 text-viora-olive no-underline" aria-label="GRABBY home">
           <BagLeafIcon className="h-8 w-8 [--leaf-vein:#f4f4ee]" />
-          <span className="font-display text-xl font-semibold tracking-[0.14em]">VIORA</span>
+          <span className="font-display text-xl font-semibold tracking-[0.14em]">GRABBY</span>
         </Link>
 
         {/* Desktop navigation */}
@@ -69,7 +69,6 @@ export default function SiteHeader({ overlay = false }: { overlay?: boolean }) {
           <NavLink to="/" end className={navLink}>Home</NavLink>
           <NavLink to="/products" className={navLink}>Shop</NavLink>
           <a href="/#categories" className="text-sm font-medium text-viora-ink no-underline hover:text-viora-olive">Categories</a>
-          <NavLink to="/dashboard" className={navLink}>Dashboard</NavLink>
         </nav>
 
         {/* Desktop search */}
@@ -98,9 +97,6 @@ export default function SiteHeader({ overlay = false }: { overlay?: boolean }) {
               </>
             ) : (
               <>
-                <Link to="/dashboard" className="rounded-lg px-3 py-2 text-sm font-medium text-viora-ink no-underline hover:bg-viora-sage-soft">
-                  Dashboard
-                </Link>
                 <Link to="/login" className="rounded-lg px-3 py-2 text-sm font-medium text-viora-ink no-underline hover:bg-viora-sage-soft">Log in</Link>
                 <Link to="/register" className="rounded-lg bg-viora-olive px-4 py-2 text-sm font-semibold text-white no-underline hover:bg-viora-olive-dark">Sign up</Link>
               </>
@@ -130,7 +126,6 @@ export default function SiteHeader({ overlay = false }: { overlay?: boolean }) {
           <Link to="/" className={mobileLink}>Home</Link>
           <Link to="/products" className={mobileLink}>Shop</Link>
           <a href="/#categories" onClick={() => setOpen(false)} className={mobileLink}>Categories</a>
-          <Link to="/dashboard" className={mobileLink}>Customer Dashboard</Link>
           <div className="my-3 h-px bg-viora-sage/50" />
           {user ? (
             <>
