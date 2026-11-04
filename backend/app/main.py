@@ -26,6 +26,8 @@ from app.api.routes import inventory
 # Inventory and order integration.
 from app.services import order_service
 from app.services.inventory_service import on_order_status_change
+from app.services.cod_payment_hook import on_cod_order_change
+from app.services.order_notification_hook import on_order_notification
 
 # Other application routers.
 from app.routers import (
@@ -92,8 +94,11 @@ app.include_router(audit_logs.router)
 app.include_router(analytics.router)
 app.include_router(orders.router)
 
-# Inventory order-status integration.
+# Order-status hooks, all run inside order_service.update_status(): inventory stock, COD/refund payment rows,
+# and customer notifications.
 order_service.register_status_hook(on_order_status_change)
+order_service.register_status_hook(on_cod_order_change)
+order_service.register_status_hook(on_order_notification)
 
 # Payments and checkout.
 app.include_router(payment.router)
