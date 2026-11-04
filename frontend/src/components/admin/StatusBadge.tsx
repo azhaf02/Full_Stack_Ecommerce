@@ -17,12 +17,14 @@ const styles: Record<string, string> = {
   SUCCESS: "bg-green-100 text-green-700",
   PENDING: "bg-amber-100 text-amber-700",
   FAILED: "bg-red-100 text-red-700",
+  APPROVED: "bg-green-100 text-green-700",
+  REJECTED: "bg-red-100 text-red-700",
 
 };
 
 export default function StatusBadge({ status }: { status: string }) {
   const style = styles[status] ?? "bg-slate-100 text-slate-700";
-  const text = status.replaceAll("_", " ").toLowerCase();
+  const text = status.replace(/_/g, " ").toLowerCase();
 
   return (
     <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${style}`}>

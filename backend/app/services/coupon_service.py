@@ -1,4 +1,3 @@
-
 from datetime import datetime
 from decimal import Decimal
 
@@ -56,7 +55,9 @@ def calculate_coupon_discount(coupon, order_value):
     discount_value = Decimal(str(coupon.discount_value))
 
     if coupon.discount_type.lower() == "percentage":
-        discount = order_value * discount_value / Decimal("100")
+        discount = (
+            order_value * discount_value / Decimal("100")
+        )
 
         if coupon.max_discount is not None:
             max_discount = Decimal(str(coupon.max_discount))

@@ -1,18 +1,23 @@
+
 """create notifications and reviews tables
 
 Revision ID: 0001_notif_reviews
-Revises:
+Revises: 6658707a12a7
 Create Date: 2026-09-30 16:45:00.000000
 
 """
+
 from typing import Sequence, Union
+
 from alembic import op
 import sqlalchemy as sa
 
+
 revision: str = '0001_notif_reviews'
-down_revision: Union[str, None] = None
+down_revision: Union[str, None] = '6658707a12a7'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
+
 
 def upgrade() -> None:
     op.create_table(
@@ -26,8 +31,19 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_notifications_id'), 'notifications', ['id'], unique=False)
-    op.create_index(op.f('ix_notifications_user_id'), 'notifications', ['user_id'], unique=False)
+
+    op.create_index(
+        op.f('ix_notifications_id'),
+        'notifications',
+        ['id'],
+        unique=False
+    )
+    op.create_index(
+        op.f('ix_notifications_user_id'),
+        'notifications',
+        ['user_id'],
+        unique=False
+    )
 
     op.create_table(
         'reviews',
@@ -40,16 +56,21 @@ def upgrade() -> None:
         sa.Column('comment', sa.Text(), nullable=False),
         sa.Column('status', sa.String(length=20), nullable=False, server_default='Approved'),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.CheckConstraint('rating >= 1 AND rating <= 5', name='check_rating_range_1_to_5'),
+        sa.CheckConstraint(
+            'rating >= 1 AND rating <= 5',
+            name='check_rating_range_1_to_5'
+        ),
         sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['product_id'], ['products.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
+
     op.create_index(op.f('ix_reviews_id'), 'reviews', ['id'], unique=False)
     op.create_index(op.f('ix_reviews_product_id'), 'reviews', ['product_id'], unique=False)
     op.create_index(op.f('ix_reviews_user_id'), 'reviews', ['user_id'], unique=False)
     op.create_index(op.f('ix_reviews_order_id'), 'reviews', ['order_id'], unique=False)
+
 
 def downgrade() -> None:
     op.drop_table('reviews')

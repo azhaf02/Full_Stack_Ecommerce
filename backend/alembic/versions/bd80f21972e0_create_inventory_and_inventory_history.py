@@ -1,3 +1,4 @@
+
 """create inventory and inventory history
 
 Revision ID: bd80f21972e0
@@ -18,7 +19,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-
     op.create_table(
         "inventory",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -65,26 +65,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    op.create_index(
-        "ix_inventory_id",
-        "inventory",
-        ["id"],
-        unique=False,
-    )
-
-    op.create_index(
-        "ix_inventory_product_id",
-        "inventory",
-        ["product_id"],
-        unique=False,
-    )
-
-    op.create_index(
-        "ix_inventory_variant_id",
-        "inventory",
-        ["variant_id"],
-        unique=False,
-    )
+    op.create_index("ix_inventory_id", "inventory", ["id"], unique=False)
+    op.create_index("ix_inventory_product_id", "inventory", ["product_id"], unique=False)
+    op.create_index("ix_inventory_variant_id", "inventory", ["variant_id"], unique=False)
 
     op.create_table(
         "inventory_history",
@@ -116,7 +99,6 @@ def upgrade() -> None:
         ["id"],
         unique=False,
     )
-
     op.create_index(
         "ix_inventory_history_inventory_id",
         "inventory_history",
@@ -126,32 +108,18 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-
     op.drop_index(
         "ix_inventory_history_inventory_id",
         table_name="inventory_history",
     )
-
     op.drop_index(
         "ix_inventory_history_id",
         table_name="inventory_history",
     )
-
     op.drop_table("inventory_history")
 
-    op.drop_index(
-        "ix_inventory_variant_id",
-        table_name="inventory",
-    )
-
-    op.drop_index(
-        "ix_inventory_product_id",
-        table_name="inventory",
-    )
-
-    op.drop_index(
-        "ix_inventory_id",
-        table_name="inventory",
-    )
+    op.drop_index("ix_inventory_variant_id", table_name="inventory")
+    op.drop_index("ix_inventory_product_id", table_name="inventory")
+    op.drop_index("ix_inventory_id", table_name="inventory")
 
     op.drop_table("inventory")

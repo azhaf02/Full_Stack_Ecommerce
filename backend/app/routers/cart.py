@@ -1,26 +1,31 @@
 from decimal import Decimal
-
-from app.services.inventory_service import validate_stock, InsufficientStockError
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import text
-from app.models.order import Order
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.cart import Cart, CartItem
 from app.models.coupon import Coupon
-from app.services.pricing_engine import calculate_pricing
-from app.services.coupon_service import validate_coupon, calculate_coupon_discount
-
-from datetime import datetime
-from pydantic import BaseModel, Field
-from app.core.security import get_current_user, require_role
+from app.models.order import Order
 from app.models.user import User
+from app.core.security import get_current_user, require_role
+from app.services.coupon_service import (
+    validate_coupon,
+    calculate_coupon_discount,
+)
+from app.services.inventory_service import (
+    validate_stock,
+    InsufficientStockError,
+)
+from app.services.pricing_engine import calculate_pricing
+
+
 router = APIRouter(
     prefix="/api/cart",
-    tags=["Cart"]
+    tags=["Cart"],
 )
 
 
@@ -40,6 +45,8 @@ class UpdateCartItemRequest(BaseModel):
 
 class CouponRequest(BaseModel):
     code: str
+
+
 class CouponCreateRequest(BaseModel):
     code: str
     discount_type: str
@@ -65,13 +72,17 @@ class CouponUpdateRequest(BaseModel):
     per_user_limit: int | None = Field(default=None, gt=0)
     status: bool | None = None
 
+
 # ============================================================
 # HELPER - GET CURRENT CART
 # ============================================================
 
 def get_current_cart(db: Session, current_user: User):
     """Return only the authenticated user's cart, creating it if needed."""
-    cart = db.query(Cart).filter(Cart.user_id == current_user.id).first()
+
+    cart = db.query(Cart).filter(
+        Cart.user_id == current_user.id
+    ).first()
 
     if cart is None:
         cart = Cart(user_id=current_user.id)
@@ -95,7 +106,7 @@ def add_to_cart(
     if request.quantity <= 0:
         raise HTTPException(
             status_code=400,
-            detail="Quantity must be greater than 0"
+            detail="Quantity must be greater than 0",
         )
 
     # Get product from the confirmed Product table.
@@ -105,49 +116,49 @@ def add_to_cart(
             FROM products
             WHERE id = :product_id
         """),
-        {"product_id": request.product_id}
+        {"product_id": request.product_id},
     ).mappings().first()
 
     if not product:
         raise HTTPException(
             status_code=404,
-            detail="Product not found"
+            detail="Product not found",
         )
 
     if product["status"] != "ACTIVE":
         raise HTTPException(
             status_code=400,
-            detail="Product is not available"
+            detail="Product is not available",
         )
 
-   # Default product price
+    # Default product price.
+    # Stock is validated against shared inventory records.
     unit_price = Decimal(str(product["price"]))
 
-    # If a variant is selected, use variant stock and price delta.
+    # If a variant is selected, use variant price delta.
     if request.variant_id is not None:
         variant = db.execute(
             text("""
-                SELECT id, product_id, price_delta, stock
+                SELECT id, product_id, price_delta
                 FROM product_variants
                 WHERE id = :variant_id
             """),
-            {"variant_id": request.variant_id}
+            {"variant_id": request.variant_id},
         ).mappings().first()
 
         if not variant:
             raise HTTPException(
                 status_code=404,
-                detail="Product variant not found"
+                detail="Product variant not found",
             )
 
         if variant["product_id"] != request.product_id:
             raise HTTPException(
                 status_code=400,
-                detail="Variant does not belong to this product"
+                detail="Variant does not belong to this product",
             )
 
         unit_price += Decimal(str(variant["price_delta"]))
-        # Stock availability is validated using inventory.quantity below.
 
     # Find current cart.
     cart = get_current_cart(db, current_user)
@@ -158,7 +169,7 @@ def add_to_cart(
         .filter(
             CartItem.cart_id == cart.id,
             CartItem.product_id == request.product_id,
-            CartItem.variant_id == request.variant_id
+            CartItem.variant_id == request.variant_id,
         )
         .first()
     )
@@ -168,16 +179,19 @@ def add_to_cart(
     if item:
         new_quantity = item.quantity + request.quantity
 
-   # Validate requested quantity against the shared inventory records.
+    # Validate requested quantity against shared inventory records.
     try:
-      validate_stock(
-        db,
-        request.product_id,
-        new_quantity,
-        request.variant_id,
-    )
+        validate_stock(
+            db,
+            request.product_id,
+            new_quantity,
+            request.variant_id,
+        )
     except InsufficientStockError as exc:
-       raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
 
     if item:
         item.quantity = new_quantity
@@ -188,7 +202,7 @@ def add_to_cart(
             product_id=request.product_id,
             variant_id=request.variant_id,
             quantity=request.quantity,
-            unit_price=unit_price
+            unit_price=unit_price,
         )
         db.add(item)
 
@@ -201,7 +215,7 @@ def add_to_cart(
         "product_id": item.product_id,
         "variant_id": item.variant_id,
         "quantity": item.quantity,
-        "unit_price": item.unit_price
+        "unit_price": item.unit_price,
     }
 
 
@@ -220,7 +234,7 @@ def get_cart(
         return {
             "cart_id": None,
             "items": [],
-            "item_count": 0
+            "item_count": 0,
         }
 
     items = []
@@ -234,13 +248,15 @@ def get_cart(
             "unit_price": item.unit_price,
             "line_total": (
                 Decimal(str(item.unit_price)) * item.quantity
-            )
+            ),
         })
 
     return {
         "cart_id": cart.id,
         "items": items,
-        "item_count": sum(item.quantity for item in cart.items)
+        "item_count": sum(
+            item.quantity for item in cart.items
+        ),
     }
 
 
@@ -258,10 +274,11 @@ def update_cart_item(
     if request.quantity <= 0:
         raise HTTPException(
             status_code=400,
-            detail="Quantity must be greater than 0"
+            detail="Quantity must be greater than 0",
         )
 
     cart = get_current_cart(db, current_user)
+
     item = db.query(CartItem).filter(
         CartItem.id == item_id,
         CartItem.cart_id == cart.id,
@@ -270,10 +287,10 @@ def update_cart_item(
     if not item:
         raise HTTPException(
             status_code=404,
-            detail="Cart item not found"
+            detail="Cart item not found",
         )
 
-       # Validate requested quantity against shared inventory records.
+    # Validate requested quantity against shared inventory records.
     try:
         validate_stock(
             db,
@@ -282,7 +299,10 @@ def update_cart_item(
             item.variant_id,
         )
     except InsufficientStockError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
 
     item.quantity = request.quantity
 
@@ -292,7 +312,7 @@ def update_cart_item(
     return {
         "message": "Cart quantity updated",
         "cart_item_id": item.id,
-        "quantity": item.quantity
+        "quantity": item.quantity,
     }
 
 
@@ -307,6 +327,7 @@ def remove_cart_item(
     current_user: User = Depends(get_current_user),
 ):
     cart = get_current_cart(db, current_user)
+
     item = db.query(CartItem).filter(
         CartItem.id == item_id,
         CartItem.cart_id == cart.id,
@@ -315,21 +336,20 @@ def remove_cart_item(
     if not item:
         raise HTTPException(
             status_code=404,
-            detail="Cart item not found"
+            detail="Cart item not found",
         )
 
     db.delete(item)
     db.commit()
 
     return {
-        "message": "Item removed from cart"
+        "message": "Item removed from cart",
     }
 
 
 # ============================================================
 # CART-05 - PRICING SUMMARY
 # ============================================================
-
 
 @router.get("/summary")
 def get_cart_summary(
@@ -345,6 +365,7 @@ def get_cart_summary(
                 status_code=400,
                 detail="Cannot apply a coupon to an empty cart",
             )
+
         return {
             "subtotal": Decimal("0.00"),
             "discount": Decimal("0.00"),
@@ -353,17 +374,27 @@ def get_cart_summary(
         }
 
     discount = Decimal("0.00")
+
     if coupon_code and coupon_code.strip():
         code = coupon_code.strip().upper()
-        coupon = db.query(Coupon).filter(Coupon.code == code).first()
+
+        coupon = db.query(Coupon).filter(
+            Coupon.code == code
+        ).first()
+
         if coupon is None:
-            raise HTTPException(status_code=400, detail="Invalid coupon code")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid coupon code",
+            )
 
         usage = db.query(Order).filter(
             Order.coupon_id == coupon.id,
             Order.status != "CANCELLED",
         )
+
         total_usage_count = usage.count()
+
         user_usage_count = usage.filter(
             Order.user_id == current_user.id,
         ).count()
@@ -371,24 +402,38 @@ def get_cart_summary(
         valid, message = validate_coupon(
             coupon,
             sum(
-                (Decimal(str(item.unit_price)) * item.quantity for item in cart.items),
+                (
+                    Decimal(str(item.unit_price)) * item.quantity
+                    for item in cart.items
+                ),
                 Decimal("0.00"),
             ),
             user_usage_count=user_usage_count,
             total_usage_count=total_usage_count,
         )
+
         if not valid:
-            raise HTTPException(status_code=400, detail=message)
+            raise HTTPException(
+                status_code=400,
+                detail=message,
+            )
 
         discount = calculate_coupon_discount(
             coupon,
             sum(
-                (Decimal(str(item.unit_price)) * item.quantity for item in cart.items),
+                (
+                    Decimal(str(item.unit_price)) * item.quantity
+                    for item in cart.items
+                ),
                 Decimal("0.00"),
             ),
         )
 
-    pricing = calculate_pricing(cart.items, discount=discount)
+    pricing = calculate_pricing(
+        cart.items,
+        discount=discount,
+    )
+
     return {
         "subtotal": pricing["subtotal"],
         "discount": pricing["discount"],
@@ -412,7 +457,7 @@ def apply_coupon(
     if not coupon:
         raise HTTPException(
             status_code=404,
-            detail="Invalid coupon code"
+            detail="Invalid coupon code",
         )
 
     cart = get_current_cart(db, current_user)
@@ -431,7 +476,9 @@ def apply_coupon(
         Order.coupon_id == coupon.id,
         Order.status != "CANCELLED",
     )
+
     total_usage_count = usage_query.count()
+
     user_usage_count = usage_query.filter(
         Order.user_id == current_user.id,
     ).count()
@@ -446,11 +493,18 @@ def apply_coupon(
     if not valid:
         raise HTTPException(
             status_code=400,
-            detail=message
+            detail=message,
         )
 
-    discount = calculate_coupon_discount(coupon, order_value)
-    pricing = calculate_pricing(cart.items if cart else [], discount=discount)
+    discount = calculate_coupon_discount(
+        coupon,
+        order_value,
+    )
+
+    pricing = calculate_pricing(
+        cart.items if cart else [],
+        discount=discount,
+    )
 
     return {
         "message": "Coupon applied successfully",
@@ -462,6 +516,8 @@ def apply_coupon(
         "tax": pricing["tax"],
         "total_after_discount": pricing["total"],
     }
+
+
 # ============================================================
 # CART-07 - ADMIN COUPON MANAGEMENT
 # ============================================================
@@ -469,7 +525,7 @@ def apply_coupon(
 @router.get("/admin/coupons")
 def get_admin_coupons(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin"))
+    current_user: User = Depends(require_role("admin")),
 ):
     coupons = (
         db.query(Coupon)
@@ -499,26 +555,29 @@ def get_admin_coupons(
 def create_admin_coupon(
     request: CouponCreateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin"))
+    current_user: User = Depends(require_role("admin")),
 ):
     code = request.code.strip().upper()
 
     if request.start_date >= request.expiry_date:
         raise HTTPException(
             status_code=400,
-            detail="Expiry date must be after start date"
+            detail="Expiry date must be after start date",
         )
 
     if request.discount_type not in ["PERCENTAGE", "FIXED"]:
         raise HTTPException(
             status_code=400,
-            detail="Discount type must be PERCENTAGE or FIXED"
+            detail="Discount type must be PERCENTAGE or FIXED",
         )
 
-    if request.discount_type == "PERCENTAGE" and request.discount_value > 100:
+    if (
+        request.discount_type == "PERCENTAGE"
+        and request.discount_value > 100
+    ):
         raise HTTPException(
             status_code=400,
-            detail="Percentage discount cannot exceed 100"
+            detail="Percentage discount cannot exceed 100",
         )
 
     existing = (
@@ -530,7 +589,7 @@ def create_admin_coupon(
     if existing:
         raise HTTPException(
             status_code=400,
-            detail="Coupon code already exists"
+            detail="Coupon code already exists",
         )
 
     coupon = Coupon(
@@ -558,7 +617,7 @@ def create_admin_coupon(
             "discount_type": coupon.discount_type,
             "discount_value": coupon.discount_value,
             "status": coupon.status,
-        }
+        },
     }
 
 
@@ -567,7 +626,7 @@ def update_admin_coupon(
     coupon_id: int,
     request: CouponUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin"))
+    current_user: User = Depends(require_role("admin")),
 ):
     coupon = db.query(Coupon).filter(
         Coupon.id == coupon_id
@@ -576,7 +635,7 @@ def update_admin_coupon(
     if not coupon:
         raise HTTPException(
             status_code=404,
-            detail="Coupon not found"
+            detail="Coupon not found",
         )
 
     if request.code is not None:
@@ -586,7 +645,7 @@ def update_admin_coupon(
             db.query(Coupon)
             .filter(
                 Coupon.code == new_code,
-                Coupon.id != coupon_id
+                Coupon.id != coupon_id,
             )
             .first()
         )
@@ -594,7 +653,7 @@ def update_admin_coupon(
         if duplicate:
             raise HTTPException(
                 status_code=400,
-                detail="Coupon code already exists"
+                detail="Coupon code already exists",
             )
 
         coupon.code = new_code
@@ -603,7 +662,7 @@ def update_admin_coupon(
         if request.discount_type not in ["PERCENTAGE", "FIXED"]:
             raise HTTPException(
                 status_code=400,
-                detail="Discount type must be PERCENTAGE or FIXED"
+                detail="Discount type must be PERCENTAGE or FIXED",
             )
 
         coupon.discount_type = request.discount_type
@@ -626,13 +685,16 @@ def update_admin_coupon(
     if coupon.start_date >= coupon.expiry_date:
         raise HTTPException(
             status_code=400,
-            detail="Expiry date must be after start date"
+            detail="Expiry date must be after start date",
         )
 
-    if coupon.discount_type == "PERCENTAGE" and coupon.discount_value > 100:
+    if (
+        coupon.discount_type == "PERCENTAGE"
+        and coupon.discount_value > 100
+    ):
         raise HTTPException(
             status_code=400,
-            detail="Percentage discount cannot exceed 100"
+            detail="Percentage discount cannot exceed 100",
         )
 
     if request.usage_limit is not None:
@@ -655,7 +717,7 @@ def update_admin_coupon(
             "discount_type": coupon.discount_type,
             "discount_value": coupon.discount_value,
             "status": coupon.status,
-        }
+        },
     }
 
 
@@ -663,7 +725,7 @@ def update_admin_coupon(
 def deactivate_admin_coupon(
     coupon_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin"))
+    current_user: User = Depends(require_role("admin")),
 ):
     coupon = db.query(Coupon).filter(
         Coupon.id == coupon_id
@@ -672,7 +734,7 @@ def deactivate_admin_coupon(
     if not coupon:
         raise HTTPException(
             status_code=404,
-            detail="Coupon not found"
+            detail="Coupon not found",
         )
 
     coupon.status = False
@@ -683,5 +745,5 @@ def deactivate_admin_coupon(
     return {
         "message": "Coupon deactivated successfully",
         "coupon_id": coupon.id,
-        "status": coupon.status
+        "status": coupon.status,
     }

@@ -1,54 +1,86 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+
+import DashboardLayout from './components/DashboardLayout';
 import ProductDetailPage from './ProductDetailPage';
 import CheckoutPage from './checkout/pages/CheckoutPage';
+import MockPaymentForm from './components/payment/MockPaymentForm';
+
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
-// Loaded separately so each area's styles stay on its own pages:
-// admin (Tailwind), customer dashboard (Bootstrap), VIORA pages (home + auth).
+// Admin dashboard
 const AdminApp = lazy(() => import('./AdminApp'));
-const CustomerApp = lazy(() => import('./CustomerApp'));
+
+// VIORA storefront and customer pages
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const ProductListingPage = lazy(() => import('./pages/ProductListingPage'));
 
-function App() {
+// Storefront layout
+const StorefrontLayout = lazy(() => import('./StorefrontLayout'));
+
+export default function App() {
   return (
-    <AuthProvider>
-      <Suspense fallback={null}>
-        <Routes>
-          {/* Storefront home (Madeeha) */}
-          <Route path="/" element={<HomePage />} />
+    <Router>
+      <AuthProvider>
+        <Suspense fallback={<div>Loading VIORA...</div>}>
+          <Routes>
 
-          {/* Until the product listing page exists, /products opens the Home page product section */}
-          <Route path="/products" element={<HomePage />} />
+            {/* Admin Dashboard */}
+            <Route path="/admin/*" element={<AdminApp />} />
 
-          {/* Admin Dashboard */}
-          <Route path="/admin/*" element={<AdminApp />} />
+            {/* Storefront routes */}
+            <Route element={<StorefrontLayout />}>
+              <Route path="/" element={<HomePage />} />
 
-          {/* Product Details */}
-          <Route path="/product/:id" element={<ProductDetailPage />} />
+              {/* Product Catalog */}
+              <Route path="/products" element={<ProductListingPage />} />
+              <Route path="/product/:id" element={<ProductDetailPage />} />
 
-          {/* Checkout (Safiya) */}
-          <Route path="/checkout" element={<CheckoutPage />} />
+              {/* Checkout */}
+              <Route path="/checkout" element={<CheckoutPage />} />
 
-          {/* Auth pages (Madeeha) */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+              {/* Temporary Payment Preview */}
+              <Route
+                path="/payment-preview"
+                element={
+                  <div
+                    style={{
+                      minHeight: '100vh',
+                      background: '#f4f1ea',
+                      padding: '60px 20px',
+                    }}
+                  >
+                    <MockPaymentForm
+                      paymentId={123}
+                      previewOnly={true}
+                    />
+                  </div>
+                }
+              />
 
-          {/* Customer-only pages (Madeeha) */}
-          <Route element={<ProtectedRoute role="customer" />}>
-            <Route path="/profile" element={<ProfilePage />} />
-          </Route>
+              {/* Authentication */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
 
-          {/* Customer Dashboard: keep this LAST, it catches all other paths */}
-          <Route path="*" element={<CustomerApp />} />
-        </Routes>
-      </Suspense>
-    </AuthProvider>
+              {/* Protected customer pages */}
+              <Route element={<ProtectedRoute role="customer" />}>
+                <Route path="/profile" element={<ProfilePage />} />
+              </Route>
+
+              {/* Customer Dashboard */}
+              <Route path="/dashboard" element={<DashboardLayout />} />
+
+              {/* Fallback */}
+              <Route path="*" element={<DashboardLayout />} />
+            </Route>
+
+          </Routes>
+        </Suspense>
+      </AuthProvider>
+    </Router>
   );
 }
-
-export default App;

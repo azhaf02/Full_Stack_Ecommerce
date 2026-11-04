@@ -1,3 +1,4 @@
+
 """catalog
 
 Revision ID: f5ce733f01f2
@@ -5,6 +6,7 @@ Revises: 0001_users_roles_addresses
 Create Date: 2026-10-01 18:08:48.875183
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -34,7 +36,6 @@ def upgrade() -> None:
 
     op.create_index("ix_categories_id", "categories", ["id"], unique=False)
     op.create_index("ix_categories_is_active", "categories", ["is_active"], unique=False)
-
 
     op.create_table(
         "products",

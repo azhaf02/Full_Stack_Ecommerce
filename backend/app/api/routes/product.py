@@ -4,8 +4,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
 from app.services import product_service
-from app.schemas.product_variant import ProductVariantResponse
-from app.services import product_variant_service
+
 
 router = APIRouter(
     prefix="/api/products",
@@ -23,20 +22,17 @@ def create_product(
 
 @router.get("/", response_model=list[ProductResponse])
 def get_products(
-    db: Session = Depends(get_db)
+    page: int = 1,
+    page_size: int = 10,
+    category_id: int | None = None,
+    db: Session = Depends(get_db),
 ):
-    return product_service.get_products(db)
-
-@router.get("/{product_id}/variants", response_model=list[ProductVariantResponse])
-def get_product_variants(
-    product_id: int,
-    db: Session = Depends(get_db)
-):
-    product = product_service.get_product_detail(db, product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    return product_variant_service.get_variants_by_product(db, product_id)
+    return product_service.get_products(
+        db,
+        page=page,
+        page_size=page_size,
+        category_id=category_id,
+    )
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
@@ -93,4 +89,3 @@ def deactivate_product(
         )
 
     return product
-

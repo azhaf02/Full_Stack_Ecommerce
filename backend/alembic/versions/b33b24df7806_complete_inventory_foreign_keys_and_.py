@@ -1,3 +1,4 @@
+
 """complete inventory foreign keys and history fields
 
 Revision ID: b33b24df7806
