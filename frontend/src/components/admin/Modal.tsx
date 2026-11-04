@@ -16,7 +16,7 @@ export default function Modal({ title, onClose, children }: ModalProps) {
       <div
         role="dialog"
         aria-modal="true"
-        className="bg-cream-50 rounded-2xl shadow-2xl w-full max-w-md p-6 animate-pop-in"
+        className="bg-cream-50 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 animate-pop-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">
