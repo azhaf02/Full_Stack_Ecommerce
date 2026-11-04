@@ -6,7 +6,7 @@ interface BrandLogoProps {
 
 export const TAGLINE = 'Everything You Need, All in One Place';
 
-// VIORA mark: shopping bag with a leaf
+// GRABBY mark: shopping bag with a leaf
 export function BagLeafIcon({ className = '', animated = false }: { className?: string; animated?: boolean }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true" fill="none">
@@ -33,7 +33,7 @@ export default function BrandLogo({ tone = 'olive', showTagline = false, animate
     <div className={color}>
       <div className="flex items-center gap-3">
         <BagLeafIcon className="h-10 w-10" animated={animated} />
-        <span className="font-display text-3xl font-semibold tracking-[0.14em]">VIORA</span>
+        <span className="font-display text-3xl font-semibold tracking-[0.14em]">GRABBY</span>
       </div>
       {showTagline && (
         <p className={`mt-2 text-sm ${tone === 'olive' ? 'text-viora-muted' : 'text-viora-sage-soft'}`}>{TAGLINE}</p>

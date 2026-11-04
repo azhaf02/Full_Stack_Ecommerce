@@ -2,13 +2,25 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductUpdate
-from app.services.inventory_service import get_inventory_stock_status
-
+from app.services.inventory_service import (
+    get_inventory_stock_status,
+    ensure_inventory_record,
+)
+from sqlalchemy import func
+from app.models.inventory import Inventory
 
 def create_product(db: Session, product: ProductCreate):
     db_product = Product(**product.model_dump())
 
     db.add(db_product)
+    db.flush()
+
+    ensure_inventory_record(
+        db,
+        product_id=db_product.id,
+        quantity=db_product.stock_quantity,
+    )
+
     db.commit()
     db.refresh(db_product)
 
@@ -21,18 +33,59 @@ def get_products(
     page: int = 1,
     page_size: int = 10,
     category_id: int | None = None,
+    min_price: float | None = None,
+    max_price: float | None = None,
+    in_stock: bool | None = None,
+    sort: str = "newest",
 ):
     query = (
         db.query(Product)
         .options(
             joinedload(Product.images),
-            joinedload(Product.category)
+            joinedload(Product.category),
         )
         .filter(Product.status == "ACTIVE")
     )
 
     if category_id is not None:
         query = query.filter(Product.category_id == category_id)
+
+    if min_price is not None:
+        query = query.filter(Product.price >= min_price)
+
+    if max_price is not None:
+        query = query.filter(Product.price <= max_price)
+
+    if in_stock is not None:
+        stock_totals = (
+            db.query(
+                Inventory.product_id,
+                func.sum(Inventory.quantity).label("total_stock"),
+            )
+            .group_by(Inventory.product_id)
+            .subquery()
+        )
+
+        query = query.outerjoin(
+            stock_totals,
+            Product.id == stock_totals.c.product_id,
+        )
+
+        if in_stock:
+            query = query.filter(
+                func.coalesce(stock_totals.c.total_stock, 0) > 0
+            )
+        else:
+            query = query.filter(
+                func.coalesce(stock_totals.c.total_stock, 0) <= 0
+            )
+
+    if sort == "price_asc":
+        query = query.order_by(Product.price.asc())
+    elif sort == "price_desc":
+        query = query.order_by(Product.price.desc())
+    else:
+        query = query.order_by(Product.created_at.desc())
 
     products = (
         query
@@ -46,10 +99,7 @@ def get_products(
     for product in products:
         image = product.images[0] if product.images else None
 
-        stock_data = get_inventory_stock_status(
-            db,
-            product.id
-        )
+        stock_data = get_inventory_stock_status(db, product.id)
 
         result.append({
             "id": product.id,
@@ -58,7 +108,7 @@ def get_products(
             "name": product.name,
             "description": product.description,
             "price": product.price,
-            "stock_quantity": product.stock_quantity,
+            "stock_quantity": stock_data["quantity"],
             "stock_status": stock_data["stock_status"],
             "status": product.status,
             "image_url": image.image_url if image else None,
@@ -74,7 +124,6 @@ def get_products(
         })
 
     return result
-
 
 
 def get_product_detail(db: Session, product_id: int):
@@ -111,7 +160,7 @@ def get_product_detail(db: Session, product_id: int):
         "name": product.name,
         "description": product.description,
         "price": product.price,
-        "stock_quantity": product.stock_quantity,
+        "stock_quantity": stock_data["quantity"],
         "stock_status": stock_data["stock_status"],
         "status": product.status,
         "category_id": product.category_id,
@@ -119,8 +168,9 @@ def get_product_detail(db: Session, product_id: int):
         "images": [
             {
                 "id": image.id,
+                "product_id": image.product_id,
                 "image_url": image.image_url,
-                "is_primary": image.is_primary
+                "is_primary": image.is_primary,
             }
             for image in product.images
         ],
@@ -134,16 +184,12 @@ def get_product_detail(db: Session, product_id: int):
             for item in related_products
         ]
     }
-
-
 def get_product(db: Session, product_id: int):
     return (
         db.query(Product)
         .filter(Product.id == product_id)
         .first()
     )
-
-
 def update_product(
     db: Session,
     product_id: int,

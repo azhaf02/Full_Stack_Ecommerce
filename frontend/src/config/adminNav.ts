@@ -10,6 +10,8 @@ import {
   Package,
   RotateCcw,
   Star,
+  LifeBuoy,
+  CircleHelp,
 } from "lucide-react";
 
 export const adminNav = [
@@ -21,8 +23,10 @@ export const adminNav = [
   { label: "Roles", path: "/admin/roles", icon: ShieldCheck },
   { label: "Categories", path: "/admin/categories", icon: Tags },
   { label: "Reviews", path: "/admin/reviews", icon: Star },
+  { label: "Support", path: "/admin/support", icon: LifeBuoy },
+  { label: "FAQ", path: "/admin/faq", icon: CircleHelp },
   { label: "Products", path: "/admin/products", icon: Package },
+  { label: "Inventory", path: "/admin/inventory", icon: ClipboardList },
   { label: "Analytics", path: "/admin/analytics", icon: BarChart3 },
-  { label: "Inventory", path: "/admin/inventory", icon: Package },
   { label: "Audit Logs", path: "/admin/audit-logs", icon: ClipboardList },
 ];

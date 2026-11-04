@@ -1,15 +1,23 @@
-from pathlib import Path
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
+
+import cloudinary.uploader
+
+from app.core.cloudinary_config import cloudinary
 from app.core.security import require_role
 from app.database import get_db
+from app.models.category import Category
 from app.models.product import Product
 from app.models.product_image import ProductImage
 from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
 from app.schemas.product_image import ProductImageResponse
-from app.models.category import Category
+from app.services.inventory_service import (
+    ensure_inventory_record,
+    get_inventory_stock_status,
+)
+
+
 public_router = APIRouter(
     prefix="/api/catalog",
     tags=["Public Catalog"],
@@ -22,18 +30,50 @@ router = APIRouter(
 )
 
 
-# Upload configuration
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
 ALLOWED_IMAGE_TYPES = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "image/webp": ".webp",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
 }
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 
+
+def _product_response_with_inventory(
+    db: Session,
+    product: Product,
+):
+    """Return product details with live inventory stock information."""
+
+    response = ProductResponse.model_validate(product)
+
+    stock = get_inventory_stock_status(db, product.id)
+
+    status_map = {
+        "in_stock": "IN_STOCK",
+        "low_stock": "LOW_STOCK",
+        "out_of_stock": "OUT_OF_STOCK",
+    }
+
+    stock_status = stock["stock_status"]
+
+    if stock_status not in status_map:
+        raise HTTPException(
+            status_code=500,
+            detail="Invalid inventory stock status.",
+        )
+
+    return response.model_copy(
+        update={
+            "stock_quantity": stock["quantity"],
+            "stock_status": status_map[stock_status],
+        }
+    )
+
+
+# --------------------------------------------------
+# ADMIN: GET ALL PRODUCTS
+# --------------------------------------------------
 
 @router.get("/", response_model=list[ProductResponse])
 def get_admin_products(
@@ -45,10 +85,14 @@ def get_admin_products(
     query = db.query(Product)
 
     if search:
-        query = query.filter(Product.name.ilike(f"%{search}%"))
+        query = query.filter(
+            Product.name.ilike(f"%{search}%")
+        )
 
     if category_id is not None:
-        query = query.filter(Product.category_id == category_id)
+        query = query.filter(
+            Product.category_id == category_id
+        )
 
     if status:
         status = status.upper()
@@ -56,27 +100,73 @@ def get_admin_products(
         if status not in {"ACTIVE", "INACTIVE"}:
             raise HTTPException(
                 status_code=400,
-                detail="Status must be ACTIVE or INACTIVE"
+                detail="Status must be ACTIVE or INACTIVE",
             )
 
-        query = query.filter(Product.status == status)
+        query = query.filter(
+            Product.status == status
+        )
 
-    return query.order_by(Product.id.desc()).all()
+    products = query.order_by(Product.id.desc()).all()
 
+    return [
+        _product_response_with_inventory(db, product)
+        for product in products
+    ]
+
+
+# --------------------------------------------------
+# ADMIN: CREATE PRODUCT
+# --------------------------------------------------
 
 @router.post("/", response_model=ProductResponse)
 def create_admin_product(
     product: ProductCreate,
     db: Session = Depends(get_db),
 ):
+    category = (
+        db.query(Category)
+        .filter(Category.id == product.category_id)
+        .first()
+    )
+
+    if not category:
+        raise HTTPException(
+            status_code=400,
+            detail="Category not found.",
+        )
+
+    if not category.is_active:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot create a product in an inactive category.",
+        )
+
     db_product = Product(**product.model_dump())
 
-    db.add(db_product)
-    db.commit()
-    db.refresh(db_product)
+    try:
+        db.add(db_product)
+        db.flush()
 
-    return db_product
+        ensure_inventory_record(
+            db,
+            product_id=db_product.id,
+            quantity=db_product.stock_quantity,
+        )
 
+        db.commit()
+        db.refresh(db_product)
+
+    except Exception:
+        db.rollback()
+        raise
+
+    return _product_response_with_inventory(db, db_product)
+
+
+# --------------------------------------------------
+# ADMIN: GET SINGLE PRODUCT
+# --------------------------------------------------
 
 @router.get("/{product_id}", response_model=ProductResponse)
 def get_admin_product(
@@ -92,11 +182,15 @@ def get_admin_product(
     if not product:
         raise HTTPException(
             status_code=404,
-            detail="Product not found"
+            detail="Product not found",
         )
 
-    return product
+    return _product_response_with_inventory(db, product)
 
+
+# --------------------------------------------------
+# ADMIN: UPDATE PRODUCT
+# --------------------------------------------------
 
 @router.put("/{product_id}", response_model=ProductResponse)
 def update_admin_product(
@@ -113,19 +207,50 @@ def update_admin_product(
     if not db_product:
         raise HTTPException(
             status_code=404,
-            detail="Product not found"
+            detail="Product not found",
         )
 
     update_data = product.model_dump(exclude_unset=True)
 
-    for field, value in update_data.items():
-        setattr(db_product, field, value)
+    if (
+        "category_id" in update_data
+        and update_data["category_id"] != db_product.category_id
+    ):
+        category = (
+            db.query(Category)
+            .filter(Category.id == update_data["category_id"])
+            .first()
+        )
 
-    db.commit()
-    db.refresh(db_product)
+        if not category:
+            raise HTTPException(
+                status_code=400,
+                detail="Category not found",
+            )
 
-    return db_product
+        if not category.is_active:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot move product to an inactive category",
+            )
 
+    try:
+        for field, value in update_data.items():
+            setattr(db_product, field, value)
+
+        db.commit()
+        db.refresh(db_product)
+
+    except Exception:
+        db.rollback()
+        raise
+
+    return _product_response_with_inventory(db, db_product)
+
+
+# --------------------------------------------------
+# ADMIN: DEACTIVATE PRODUCT
+# --------------------------------------------------
 
 @router.delete("/{product_id}", response_model=ProductResponse)
 def deactivate_admin_product(
@@ -141,17 +266,20 @@ def deactivate_admin_product(
     if not db_product:
         raise HTTPException(
             status_code=404,
-            detail="Product not found"
+            detail="Product not found",
         )
 
-    # Soft delete/deactivation instead of physical deletion.
     db_product.status = "INACTIVE"
 
     db.commit()
     db.refresh(db_product)
 
-    return db_product
+    return _product_response_with_inventory(db, db_product)
 
+
+# --------------------------------------------------
+# ADMIN: UPLOAD PRODUCT IMAGE
+# --------------------------------------------------
 
 @router.post(
     "/{product_id}/images",
@@ -172,13 +300,13 @@ async def upload_product_image(
     if not product:
         raise HTTPException(
             status_code=404,
-            detail="Product not found"
+            detail="Product not found",
         )
 
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(
             status_code=400,
-            detail="Only JPG, PNG and WEBP images are allowed"
+            detail="Only JPG, PNG and WEBP images are allowed",
         )
 
     file_content = await file.read()
@@ -186,38 +314,66 @@ async def upload_product_image(
     if len(file_content) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=400,
-            detail="Image size must not exceed 5 MB"
+            detail="Image size must not exceed 5 MB",
         )
 
-    extension = ALLOWED_IMAGE_TYPES[file.content_type]
-    filename = f"{uuid4().hex}{extension}"
-    file_path = UPLOAD_DIR / filename
-
-    file_path.write_bytes(file_content)
-
-    # If this image is primary, remove primary status
-    # from all other images of this product.
-    if is_primary:
-        db.query(ProductImage).filter(
-            ProductImage.product_id == product_id
-        ).update(
-            {"is_primary": False},
-            synchronize_session=False,
+    if not file_content:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded image cannot be empty",
         )
 
-    image = ProductImage(
-        product_id=product_id,
-        image_url=f"/uploads/{filename}",
-        is_primary=is_primary,
-    )
+    try:
+        upload_result = cloudinary.uploader.upload(
+            file_content,
+            resource_type="image",
+            folder="ecommerce/products",
+        )
 
-    db.add(image)
-    db.commit()
-    db.refresh(image)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Image upload failed",
+        ) from exc
 
-    return image
+    try:
+        if is_primary:
+            db.query(ProductImage).filter(
+                ProductImage.product_id == product_id
+            ).update(
+                {"is_primary": False},
+                synchronize_session=False,
+            )
+
+        image = ProductImage(
+            product_id=product_id,
+            image_url=upload_result["secure_url"],
+            is_primary=is_primary,
+        )
+
+        db.add(image)
+        db.commit()
+        db.refresh(image)
+
+        return image
+
+    except Exception:
+        db.rollback()
+
+        try:
+            cloudinary.uploader.destroy(
+                upload_result["public_id"],
+                resource_type="image",
+            )
+        except Exception:
+            pass
+
+        raise
 
 
+# --------------------------------------------------
+# PUBLIC: GET CATEGORIES
+# --------------------------------------------------
 
 @public_router.get("/categories")
 def get_public_categories(
@@ -225,12 +381,20 @@ def get_public_categories(
 ):
     return (
         db.query(Category)
-        .filter(Category.is_active == True)
+        .filter(Category.is_active.is_(True))
         .order_by(Category.id)
         .all()
     )
 
-@public_router.get("/products", response_model=list[ProductResponse])
+
+# --------------------------------------------------
+# PUBLIC: GET PRODUCTS
+# --------------------------------------------------
+
+@public_router.get(
+    "/products",
+    response_model=list[ProductResponse],
+)
 def get_public_products(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=8, ge=1, le=50),
@@ -243,7 +407,9 @@ def get_public_products(
     )
 
     if category_id is not None:
-        query = query.filter(Product.category_id == category_id)
+        query = query.filter(
+            Product.category_id == category_id
+        )
 
     products = (
         query
@@ -258,19 +424,24 @@ def get_public_products(
     for product in products:
         image = product.images[0] if product.images else None
 
+        stock_response = _product_response_with_inventory(
+            db,
+            product,
+        )
+
         result.append({
             "id": product.id,
             "category_id": product.category_id,
-            "category_name": product.category.name if product.category else None,
+            "category_name": (
+                product.category.name
+                if product.category
+                else None
+            ),
             "name": product.name,
             "description": product.description,
             "price": product.price,
-            "stock_quantity": product.stock_quantity,
-            "stock_status": (
-                "OUT_OF_STOCK"
-                if product.stock_quantity <= 0
-                else "IN_STOCK"
-            ),
+            "stock_quantity": stock_response.stock_quantity,
+            "stock_status": stock_response.stock_status,
             "status": product.status,
             "image_url": image.image_url if image else None,
         })

@@ -1,11 +1,11 @@
 from datetime import date, datetime, time, timedelta, timezone
 from math import ceil
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
-from sqlalchemy import func, or_, text
+from sqlalchemy import func, or_, text, cast, String
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -65,8 +65,6 @@ def dashboard_summary(db: Session = Depends(get_db)):
         )
     ).scalar()
 
-    # Real stock is kept in the inventory module; each item has its own threshold.
-    # Out-of-stock items (quantity 0) count as low stock too. Same rule as the analytics API.
     low_stock_count = db.execute(
         text("SELECT COUNT(*) FROM inventory WHERE quantity <= low_stock_threshold")
     ).scalar()
@@ -324,8 +322,75 @@ def list_orders(
     }
 
 
-# The admin order detail (GET /api/admin/orders/{id}) and status change
-# (PUT /api/admin/orders/{id}/status) live in the orders module (routers/orders.py).
+# =====================================================================
+# Reviews Moderation Endpoints for Admin Panel
+# =====================================================================
+
+class AdminReviewStatusUpdate(BaseModel):
+    status: Literal[
+        "PENDING", "APPROVED", "REJECTED",
+        "pending", "approved", "rejected",
+        "Hidden", "hidden", "HIDDEN",
+        "Approved", "Pending", "Rejected"
+    ]
+
+
+class AdminReviewRow(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)
+
+    id: int
+    product_id: int
+    user_id: int
+    order_id: int
+    rating: int
+    title: Optional[str] = ""
+    comment: str
+    status: str
+    created_at: Optional[datetime] = None
+
+
+# 1. GET /api/admin/reviews (with status filter)
+@router.get("/reviews", response_model=list[AdminReviewRow])
+def list_admin_reviews(
+    status: Optional[str] = Query(None, description="Filter reviews by status (PENDING, APPROVED, REJECTED)"),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Review)
+    if status:
+        status_val = status.strip().upper()
+        if status_val == "HIDDEN":
+            status_val = "REJECTED"
+
+        query = query.filter(cast(Review.status, String) == status_val)
+
+    return query.order_by(Review.created_at.desc(), Review.id.desc()).all()
+
+
+# 2. PUT /api/admin/reviews/{review_id}/status
+@router.put("/reviews/{review_id}/status", response_model=AdminReviewRow)
+def update_admin_review_status(
+    review_id: int,
+    payload: AdminReviewStatusUpdate,
+    db: Session = Depends(get_db)
+):
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Review with id {review_id} not found"
+        )
+
+    status_upper = payload.status.strip().upper()
+    if status_upper == "HIDDEN":
+        status_upper = "REJECTED"
+
+    db.execute(
+        text("UPDATE reviews SET status = CAST(:val AS reviewstatus), updated_at = NOW() WHERE id = :id"),
+        {"val": status_upper, "id": review_id}
+    )
+    db.commit()
+    db.refresh(review)
+    return review
 
 
 # ============================================================
@@ -338,7 +403,7 @@ class PaymentListParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     q: str = Field("", max_length=100)
-    status: str | None = None
+    status: PaymentStatus | None = None
     method: PaymentMethod | None = None
     page: int = Field(1, ge=1)
     page_size: int = Field(10, ge=1, le=50)
@@ -376,9 +441,8 @@ def _enum_text(value) -> str:
     return getattr(value, "value", value)
 
 
-@router.get("/payments")
+@router.get("/payments", response_model=AdminPaymentList)
 def list_payments(
-    request: Request,
     params: Annotated[PaymentListParams, Query()],
     db: Session = Depends(get_db),
 ):
@@ -399,74 +463,16 @@ def list_payments(
             )
         )
 
-    payment_status = None
     if params.status:
-        try:
-            payment_status = PaymentStatus(params.status.strip().upper())
-        except ValueError:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid payment status: {params.status}",
-            )
-        query = query.filter(Payment.status == payment_status)
+        query = query.filter(Payment.status == params.status)
 
     if params.method:
         query = query.filter(Payment.method == params.method)
 
-    ordered_query = query.order_by(Payment.created_at.desc(), Payment.id.desc())
-
-    # Legacy PAY-07 callers omit pagination and receive a plain payment list.
-    # The current admin frontend sends page/page_size and receives the paginated ADM-06 payload.
-    if "page" not in request.query_params and "page_size" not in request.query_params:
-        payments = db.query(Payment)
-
-        if params.status:
-            payments = payments.filter(Payment.status == payment_status)
-
-        if params.method:
-            payments = payments.filter(Payment.method == params.method)
-
-        if search:
-            payments = (
-                db.query(Payment)
-                .join(Order, Order.id == Payment.order_id)
-                .outerjoin(User, User.id == Order.user_id)
-            )
-
-            if params.status:
-                payments = payments.filter(Payment.status == payment_status)
-
-            if params.method:
-                payments = payments.filter(Payment.method == params.method)
-
-            payments = payments.filter(
-                or_(
-                    Order.order_number.ilike(pattern, escape="\\"),
-                    User.name.ilike(pattern, escape="\\"),
-                    Payment.transaction_id.ilike(pattern, escape="\\"),
-                )
-            )
-
-        return [
-            {
-                "payment_id": payment.id,
-                "order_id": payment.order_id,
-                "method": _enum_text(payment.method),
-                "status": _enum_text(payment.status),
-                "transaction_id": payment.transaction_id,
-                "amount": float(payment.amount),
-                "created_at": payment.created_at,
-                "updated_at": payment.updated_at,
-            }
-            for payment in payments.order_by(
-                Payment.created_at.desc(), Payment.id.desc()
-            ).all()
-        ]
-
-    total = ordered_query.count()
+    total = query.count()
 
     rows = (
-        ordered_query
+        query.order_by(Payment.created_at.desc(), Payment.id.desc())
         .offset((params.page - 1) * params.page_size)
         .limit(params.page_size)
         .all()
@@ -500,31 +506,17 @@ def list_payments(
     )
 
     awaiting_rows = (
-        db.query(
-            Order.payment_method,
-            func.count(Order.id),
-            func.coalesce(func.sum(Order.total_amount), 0),
-        )
+        db.query(Order.payment_method, func.count(Order.id), func.coalesce(func.sum(Order.total_amount), 0))
         .filter(
             Order.payment_status == "PENDING",
-            Order.status.notin_(
-                ["CANCELLED", "RETURNED", "REFUND_PENDING", "REFUNDED"]
-            ),
+            Order.status.notin_(["CANCELLED", "RETURNED", "REFUND_PENDING", "REFUNDED"]),
         )
         .group_by(Order.payment_method)
         .all()
     )
-
-    awaiting = {
-        "COD": {"count": 0, "amount": 0.0},
-        "ONLINE": {"count": 0, "amount": 0.0},
-    }
-
+    awaiting = {"COD": {"count": 0, "amount": 0.0}, "ONLINE": {"count": 0, "amount": 0.0}}
     for method, count, amount in awaiting_rows:
-        awaiting[_enum_text(method)] = {
-            "count": count,
-            "amount": float(amount),
-        }
+        awaiting[_enum_text(method)] = {"count": count, "amount": float(amount)}
 
     return {
         "items": items,
@@ -546,8 +538,6 @@ def list_payments(
 # ============================================================
 
 class AdminRoleUserOut(BaseModel):
-    """User information returned to the admin roles screen."""
-
     id: int
     name: str
     email: str
@@ -556,13 +546,9 @@ class AdminRoleUserOut(BaseModel):
 
 
 class UserRoleUpdate(BaseModel):
-    """Only the two roles supported by this project's role system."""
-
     role: Literal["admin", "customer"]
 
 
-# GET /api/admin/users
-# List users and their current roles.
 @router.get("/users", response_model=list[AdminRoleUserOut])
 def list_users_for_role_management(db: Session = Depends(get_db)):
     users = (
@@ -584,8 +570,6 @@ def list_users_for_role_management(db: Session = Depends(get_db)):
     ]
 
 
-# PUT /api/admin/users/{user_id}/role
-# Promote a customer to admin or demote an admin to customer.
 @router.put("/users/{user_id}/role", response_model=AdminRoleUserOut)
 def update_user_role(
     user_id: int,
@@ -618,14 +602,12 @@ def update_user_role(
             detail="User already has this role",
         )
 
-    # Do not allow the logged-in admin to demote themselves.
     if user.id == current_admin.id and payload.role == "customer":
         raise HTTPException(
             status_code=409,
             detail="You cannot demote your own account",
         )
 
-    # Do not allow demotion of the last remaining admin.
     if old_role == "admin" and payload.role == "customer":
         admin_count = (
             db.query(User)
@@ -672,9 +654,6 @@ def update_user_role(
 # REVIEW DELETE — ADM-08
 # ============================================================
 
-# DELETE /api/admin/reviews/{review_id}
-# Permanently removes a review (e.g. spam or personal details).
-# Approve / reject come from the reviews module.
 @router.delete("/reviews/{review_id}", status_code=204)
 def delete_review(
     review_id: int,
@@ -699,7 +678,6 @@ def delete_review(
                 ),
             )
         )
-
         db.delete(review)
         db.commit()
 

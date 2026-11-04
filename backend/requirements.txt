@@ -9,3 +9,4 @@ bcrypt==4.0.1
 pyjwt>=2.15
 email-validator>=2.3
 python-multipart
+cloudinary==1.46.3

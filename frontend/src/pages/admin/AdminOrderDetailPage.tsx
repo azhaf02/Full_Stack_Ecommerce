@@ -79,8 +79,9 @@ export default function AdminOrderDetailPage() {
     order.payment_status === "PENDING" &&
     !["CANCELLED", "RETURNED", "REFUND_PENDING", "REFUNDED"].includes(order.status);
 
-  // Cash is collected at the door, so this only applies while the order is out for delivery
-  const cashCollectable = order !== null && order.status === "OUT_FOR_DELIVERY";
+  // Cash is collected at the door: allow it while out for delivery, and after delivery
+  // in case the payment was not marked paid automatically
+  const cashCollectable = order !== null && ["OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status);
 
   useEffect(() => {
     if (!order || !codUnpaid) {

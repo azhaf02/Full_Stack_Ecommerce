@@ -1,4 +1,4 @@
-/* VIORA auth pages (Madeeha): loaded only by Login, Register and Profile */
+/* GRABBY auth pages (Madeeha): loaded only by Login, Register and Profile */
 @layer theme, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities) important;

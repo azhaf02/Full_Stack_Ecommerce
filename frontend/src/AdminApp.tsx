@@ -1,4 +1,3 @@
-
 import { Routes, Route, Navigate } from "react-router-dom";
 import "./admin.css";
 import AdminLayout from "./layouts/AdminLayout";
@@ -12,12 +11,14 @@ import AdminRolesPage from "./pages/admin/AdminRolesPage";
 import AdminOrderDetailPage from "./pages/admin/AdminOrderDetailPage";
 import AdminReturnsPage from "./pages/admin/AdminReturnsPage";
 import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
+import AdminSupportPage from "./pages/admin/AdminSupportPage";
+import AdminFaqPage from "./pages/admin/AdminFaqPage";
 import AdminCategoriesPage from "./pages/admin/AdminCategoriesPage";
 import AnalyticsPage from "./pages/admin/AnalyticsPage";
-import InventoryPage from "./pages/admin/InventoryPage";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import ProductsPage from "./pages/admin/ProductsPage";
 import ProductFormPage from "./pages/admin/ProductFormPage";
+import InventoryPage from "./pages/admin/InventoryPage";
 
 // Mounted at /admin/* by App.tsx, so the paths here are relative to /admin
 export default function AdminApp() {
@@ -39,6 +40,8 @@ export default function AdminApp() {
         <Route path="orders/:id" element={<AdminOrderDetailPage />} />
         <Route path="returns" element={<AdminReturnsPage />} />
         <Route path="reviews" element={<AdminReviewsPage />} />
+        <Route path="support" element={<AdminSupportPage />} />
+        <Route path="faq" element={<AdminFaqPage />} />
         <Route path="payments" element={<AdminPaymentsPage />} />
         <Route path="roles" element={<AdminRolesPage />} />
         <Route path="categories" element={<AdminCategoriesPage />} />

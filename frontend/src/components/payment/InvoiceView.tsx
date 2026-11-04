@@ -256,7 +256,7 @@ export default function InvoiceView({ invoice }: Props) {
       <div className="viora-invoice-card">
         <div className="viora-invoice-header">
           <div>
-            <div className="viora-invoice-brand">VIORA</div>
+            <div className="viora-invoice-brand">GRABBY</div>
             <p>Thank you for shopping with us.</p>
           </div>
 
@@ -359,7 +359,7 @@ export default function InvoiceView({ invoice }: Props) {
         </div>
 
         <div className="viora-invoice-footer">
-          VIORA • Find Your Vibe
+          GRABBY • Find Your Vibe
           <p>Thank you for being part of our journey.</p>
         </div>
       </div>

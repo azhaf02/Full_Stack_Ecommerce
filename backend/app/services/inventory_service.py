@@ -1,4 +1,5 @@
-﻿from sqlalchemy.orm import Session
+﻿from collections import defaultdict
+from sqlalchemy.orm import Session
 from app.models.inventory import Inventory
 from app.models.inventory_history import InventoryHistory
 
@@ -29,6 +30,10 @@ def get_inventory_stock_status(
     if variant_id is not None:
         query = query.filter(
             Inventory.variant_id == variant_id
+        )
+    else:
+        query = query.filter(
+            Inventory.variant_id.is_(None)
         )
 
     inventory = query.first()
@@ -86,6 +91,10 @@ def validate_stock(
         query = query.filter(
             Inventory.variant_id == variant_id
         )
+    else:
+        query = query.filter(
+            Inventory.variant_id.is_(None)
+        )
 
     inventory = query.first()
 
@@ -104,11 +113,12 @@ def validate_stock(
 
     return inventory
 
-
 def _get_inventory(
     db: Session,
     product_id: int,
-    variant_id: int | None = None
+    variant_id: int | None = None,
+    *,
+    for_update: bool = False
 ):
     query = db.query(Inventory).filter(
         Inventory.product_id == product_id
@@ -118,8 +128,59 @@ def _get_inventory(
         query = query.filter(
             Inventory.variant_id == variant_id
         )
+    else:
+        query = query.filter(
+            Inventory.variant_id.is_(None)
+        )
+
+    if for_update:
+        query = query.with_for_update()
 
     return query.first()
+
+
+def ensure_inventory_record(
+    db: Session,
+    product_id: int,
+    quantity: int,
+    variant_id: int | None = None,
+    low_stock_threshold: int = 10,
+    location: str | None = None,
+):
+    """Create an initial inventory row only when the matching row is absent.
+
+    Existing inventory quantities are never overwritten.
+    The caller controls the transaction and commit.
+    """
+    if quantity < 0:
+        raise ValueError("Inventory quantity cannot be negative.")
+
+    if low_stock_threshold < 0:
+        raise ValueError("Low-stock threshold cannot be negative.")
+
+    existing = _get_inventory(db, product_id, variant_id)
+    if existing is not None:
+        return existing
+
+    stock_status = get_stock_status(quantity, low_stock_threshold)
+    status_map = {
+        "in_stock": "IN_STOCK",
+        "low_stock": "LOW_STOCK",
+        "out_of_stock": "OUT_OF_STOCK",
+    }
+
+    inventory = Inventory(
+        product_id=product_id,
+        variant_id=variant_id,
+        quantity=quantity,
+        low_stock_threshold=low_stock_threshold,
+        location=location,
+        status=status_map[stock_status],
+    )
+    db.add(inventory)
+    db.flush()
+
+    return inventory
 
 
 def _add_history(
@@ -155,47 +216,62 @@ def _add_history(
 
     db.add(history)
 
-
 def deduct_stock(db: Session, order):
     """
     Deduct stock for all items in a confirmed order.
 
-    Does not commit. The order service controls the transaction.
-    Raises order_service.OutOfStock when stock is insufficient.
+    Locks inventory rows, validates aggregated quantities, and then
+    records deductions. Does not commit; the order service controls
+    the transaction.
     """
-
-    # Import locally to avoid circular imports.
     from app.services import order_service
 
+    # Combine duplicate order lines for the same product and variant.
+    totals = defaultdict(int)
+
     for item in order.items:
+        key = (item.product_id, item.variant_id)
+        totals[key] += item.quantity
+
+    locked_inventory = {}
+
+    # Lock rows in a consistent order to reduce deadlock risk.
+    for product_id, variant_id in sorted(
+        totals,
+        key=lambda key: (
+            key[0],
+            key[1] is not None,
+            key[1] or 0
+        )
+    ):
+        requested_quantity = totals[(product_id, variant_id)]
+
         inventory = _get_inventory(
             db,
-            item.product_id,
-            item.variant_id
+            product_id,
+            variant_id,
+            for_update=True
         )
 
-        if inventory is None or inventory.quantity < item.quantity:
+        if inventory is None or inventory.quantity < requested_quantity:
             available = inventory.quantity if inventory else 0
 
             raise order_service.OutOfStock(
-                f"Insufficient stock for product {item.product_id}. "
+                f"Insufficient stock for product {product_id}. "
                 f"Available quantity: {available}, "
-                f"requested quantity: {item.quantity}."
+                f"requested quantity: {requested_quantity}."
             )
 
-    # Validate everything first.
-    # Only after all items have enough stock do we change quantities.
-    for item in order.items:
-        inventory = _get_inventory(
-            db,
-            item.product_id,
-            item.variant_id
-        )
+        locked_inventory[(product_id, variant_id)] = inventory
+
+    # All stock has been validated and locked. Now record deductions.
+    for key, requested_quantity in totals.items():
+        inventory = locked_inventory[key]
 
         _add_history(
             db=db,
             inventory=inventory,
-            change_amount=-item.quantity,
+            change_amount=-requested_quantity,
             changed_by=order.user_id,
             change_type="DEDUCTION",
             reason="order",
@@ -254,21 +330,32 @@ def restock(db: Session, order, items, reason: str = "cancel"):
             changed_by=order.user_id,
             change_type="RESTOCK",
             reason=reason,
+            order_id=order.id,
         )
 
-def on_order_status_change(db, order, previous_status, new_status):
-    from app.services import order_service
 
+def _has_order_deduction(db: Session, order_id: int) -> bool:
+    """Return True only when this order has an actual stock deduction."""
+    return (
+        db.query(InventoryHistory.id)
+        .filter(
+            InventoryHistory.order_id == order_id,
+            InventoryHistory.change_type == "DEDUCTION",
+        )
+        .first()
+        is not None
+    )
+
+
+def on_order_status_change(db, order, previous_status, new_status):
     if new_status == "CONFIRMED":
         deduct_stock(db, order)
 
     elif new_status == "CANCELLED":
-     if order_service.stock_was_deducted(order):
-        restock(db, order, order.items, reason="cancel")
+        if _has_order_deduction(db, order.id):
+            restock(db, order, order.items, reason="cancel")
 
     elif new_status == "RETURNED":
-     if order.returns:
-        returned_items = order.returns[-1].items
-        restock(db, order, returned_items, reason="return")
-
-
+        if order.returns and _has_order_deduction(db, order.id):
+            returned_items = order.returns[-1].items
+            restock(db, order, returned_items, reason="return")

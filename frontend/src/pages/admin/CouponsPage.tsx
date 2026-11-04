@@ -416,7 +416,7 @@ function CouponsPage() {
                 marginBottom: '7px',
               }}
             >
-              VIORA ADMIN
+              GRABBY ADMIN
             </div>
 
             <h1

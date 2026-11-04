@@ -1,82 +1,103 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
+// @ts-ignore - JavaScript checkout component
+import CheckoutPage from "./checkout/pages/CheckoutPage";
+import { lazy, Suspense } from 'react';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useParams,
+  useNavigate
+} from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout';
 import ProductDetailPage from './ProductDetailPage';
-import CheckoutPage from './checkout/pages/CheckoutPage';
-import MockPaymentForm from './components/payment/MockPaymentForm';
-
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import SearchResultsPage from './SearchResultsPage';
+import OrderConfirmationPage from './pages/OrderConfirmationPage';
 
-// Admin dashboard
-const AdminApp = lazy(() => import('./AdminApp'));
-
-// VIORA storefront and customer pages
+// GRABBY storefront + auth pages
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const ProductListingPage = lazy(() => import('./pages/ProductListingPage'));
+const CartPage = lazy(() => import('./pages/CartPage'));
+const AdminApp = lazy(() => import('./AdminApp'));
 
 // Storefront layout
 const StorefrontLayout = lazy(() => import('./StorefrontLayout'));
+
+function OrderConfirmationRoute() {
+  const { orderId } = useParams();
+  const navigate = useNavigate();
+  const numericOrderId = Number(orderId);
+
+  if (!Number.isInteger(numericOrderId) || numericOrderId <= 0) {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <OrderConfirmationPage
+      orderId={numericOrderId}
+      onViewOrders={() => navigate('/dashboard/orders')}
+      onContinueShopping={() => navigate('/products')}
+    />
+  );
+}
 
 export default function App() {
   return (
     <Router>
       <AuthProvider>
-        <Suspense fallback={<div>Loading VIORA...</div>}>
+        <Suspense fallback={null}>
           <Routes>
 
             {/* Admin Dashboard */}
             <Route path="/admin/*" element={<AdminApp />} />
 
-            {/* Storefront routes */}
+            {/* Storefront pages */}
             <Route element={<StorefrontLayout />}>
               <Route path="/" element={<HomePage />} />
-
-              {/* Product Catalog */}
               <Route path="/products" element={<ProductListingPage />} />
               <Route path="/product/:id" element={<ProductDetailPage />} />
+              <Route path="/search" element={<SearchResultsPage />} />
 
-              {/* Checkout */}
-              <Route path="/checkout" element={<CheckoutPage />} />
-
-              {/* Temporary Payment Preview */}
+              {/* Cart Page */}
               <Route
-                path="/payment-preview"
+                path="/cart"
                 element={
-                  <div
-                    style={{
-                      minHeight: '100vh',
-                      background: '#f4f1ea',
-                      padding: '60px 20px',
+                  <CartPage
+                    onCheckout={() => {
+                      window.location.href = "/checkout";
                     }}
-                  >
-                    <MockPaymentForm
-                      paymentId={123}
-                      previewOnly={true}
-                    />
-                  </div>
+                  />
                 }
               />
+              <Route path="/checkout" element={<CheckoutPage />} />
 
-              {/* Authentication */}
+              {/* Order Confirmation */}
+              <Route
+                path="/order-confirmation/:orderId"
+                element={<OrderConfirmationRoute />}
+              />
+
+              {/* Authentication pages */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
-
-              {/* Protected customer pages */}
-              <Route element={<ProtectedRoute role="customer" />}>
-                <Route path="/profile" element={<ProfilePage />} />
-              </Route>
-
-              {/* Customer Dashboard */}
-              <Route path="/dashboard" element={<DashboardLayout />} />
-
-              {/* Fallback */}
-              <Route path="*" element={<DashboardLayout />} />
             </Route>
+
+            {/* Protected customer pages */}
+            <Route element={<ProtectedRoute role="customer" />}>
+              <Route path="/profile" element={<ProfilePage />} />
+            </Route>
+
+            {/* Customer Dashboard */}
+            <Route path="/dashboard/*" element={<DashboardLayout />} />
+
+            {/* Fallback: redirect unmatched routes to Home instead of Dashboard */}
+            <Route path="*" element={<Navigate to="/" replace />} />
 
           </Routes>
         </Suspense>

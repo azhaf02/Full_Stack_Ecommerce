@@ -8,8 +8,10 @@ import { getSession, logout } from "../../services/authService";
 const SECTIONS: { title: string; labels: string[] }[] = [
   { title: "Overview", labels: ["Dashboard", "Analytics"] },
   { title: "Sales", labels: ["Orders", "Returns", "Payments"] },
-  { title: "Catalog", labels: ["Products", "Categories", "Reviews"] },
+  { title: "Catalog", labels: ["Products", "Categories", "Inventory", "Reviews"] },
   { title: "People", labels: ["Customers", "Roles"] },
+  { title: "Help", labels: ["Support", "FAQ"] },
+  { title: "System", labels: ["Audit Logs"] },
 ];
 
 type NavItem = (typeof adminNav)[number];
@@ -38,15 +40,15 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-64 h-screen sticky top-0 bg-primary-800 text-primary-100 flex flex-col">
+    <aside className="admin-sidebar w-64 h-screen sticky top-0 bg-primary-800 text-primary-100 flex flex-col">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 pt-6 pb-5">
         <span className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center shadow-inner">
           <ShoppingBag className="text-cream-100" size={20} />
         </span>
         <div className="leading-tight">
-          <p className="font-display text-lg font-semibold tracking-[0.14em] text-white">VIORA</p>
-          <p className="text-[11px] uppercase tracking-widest text-primary-300">Admin panel</p>
+          <p className="font-display text-lg font-semibold tracking-[0.14em] text-white">GRABBY</p>
+          <p className="text-[11px] tracking-wide text-primary-300">See It. Like It. Grab It.</p>
         </div>
       </div>
 

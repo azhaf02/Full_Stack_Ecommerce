@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 
 type Address = {
@@ -20,11 +19,11 @@ type AddressStepProps = {
   onContinue: (shippingAddress: Address, billingAddress: Address) => void;
 };
 
-const API_BASE = "http://localhost:8000";
-const TOKEN_KEY = "viora_token";
+// Updated API base URL
+const API_BASE = "http://127.0.0.1:8000";
 
 function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = localStorage.getItem("viora_token") || localStorage.getItem("access_token") || localStorage.getItem("token");
 
   return token
     ? {
@@ -330,11 +329,12 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
                   {address.line2 && <p>{address.line2}</p>}
 
                   <p>
-                    {address.city}, {address.state} - {address.postal_code}
+                    {address.city}, {address.state} -{" "}
+                    {address.postal_code}
                   </p>
 
                   <p>{address.country}</p>
-                  <p>Phone: {address.phone}</p>
+                  <p>Mobile: {address.phone}</p>
                 </div>
               </label>
             ))}
@@ -391,11 +391,12 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
                     {address.line2 && <p>{address.line2}</p>}
 
                     <p>
-                      {address.city}, {address.state} - {address.postal_code}
+                      {address.city}, {address.state} -{" "}
+                      {address.postal_code}
                     </p>
 
                     <p>{address.country}</p>
-                    <p>Phone: {address.phone}</p>
+                    <p>Mobile: {address.phone}</p>
                   </div>
                 </label>
               ))}
@@ -419,7 +420,9 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
               <input
                 type="text"
                 value={form.full_name}
-                onChange={(e) => updateField("full_name", e.target.value)}
+                onChange={(e) =>
+                  updateField("full_name", e.target.value)
+                }
                 placeholder="Enter full name"
               />
             </div>
@@ -432,7 +435,10 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
                 maxLength={10}
                 value={form.phone}
                 onChange={(e) =>
-                  updateField("phone", e.target.value.replace(/\D/g, ""))
+                  updateField(
+                    "phone",
+                    e.target.value.replace(/\D/g, "")
+                  )
                 }
                 placeholder="10-digit mobile number"
               />
@@ -444,7 +450,9 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
               <input
                 type="text"
                 value={form.line1}
-                onChange={(e) => updateField("line1", e.target.value)}
+                onChange={(e) =>
+                  updateField("line1", e.target.value)
+                }
                 placeholder="House no., building, street"
               />
             </div>
@@ -455,7 +463,9 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
               <input
                 type="text"
                 value={form.line2}
-                onChange={(e) => updateField("line2", e.target.value)}
+                onChange={(e) =>
+                  updateField("line2", e.target.value)
+                }
                 placeholder="Apartment, landmark, etc."
               />
             </div>
@@ -466,7 +476,9 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
               <input
                 type="text"
                 value={form.city}
-                onChange={(e) => updateField("city", e.target.value)}
+                onChange={(e) =>
+                  updateField("city", e.target.value)
+                }
                 placeholder="City"
               />
             </div>
@@ -477,7 +489,9 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
               <input
                 type="text"
                 value={form.state}
-                onChange={(e) => updateField("state", e.target.value)}
+                onChange={(e) =>
+                  updateField("state", e.target.value)
+                }
                 placeholder="State"
               />
             </div>
@@ -490,7 +504,10 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
                 maxLength={6}
                 value={form.postal_code}
                 onChange={(e) =>
-                  updateField("postal_code", e.target.value.replace(/\D/g, ""))
+                  updateField(
+                    "postal_code",
+                    e.target.value.replace(/\D/g, "")
+                  )
                 }
                 placeholder="6-digit PIN"
               />
@@ -522,7 +539,10 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
           type="button"
           className="checkout-primary-btn"
           onClick={handleContinue}
-          disabled={!shippingId || (!sameAsShipping && !billingId)}
+          disabled={
+            !shippingId ||
+            (!sameAsShipping && !billingId)
+          }
         >
           Continue to Shipping
         </button>
@@ -530,3 +550,6 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
     </div>
   );
 }
+
+
+

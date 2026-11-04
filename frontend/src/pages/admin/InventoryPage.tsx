@@ -1,10 +1,13 @@
 
+
 import { useCallback, useEffect, useState } from "react";
 import {
   adjustInventory,
   getInventory,
+  getInventoryHistory,
   getLowStockInventory,
   type InventoryItem,
+  type InventoryHistoryItem,
 } from "../../services/adminService";
 
 export default function InventoryPage() {
@@ -17,8 +20,10 @@ export default function InventoryPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [historyItems, setHistoryItems] = useState<InventoryHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
 
-  const loadInventory = useCallback(async () => {
+    const loadInventory = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -46,9 +51,27 @@ export default function InventoryPage() {
     }
   }, []);
 
+  const loadHistory = useCallback(async () => {
+    try {
+      setHistoryLoading(true);
+
+      const history = await getInventoryHistory();
+      setHistoryItems(history);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load inventory history."
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadInventory();
-  }, [loadInventory]);
+    void loadHistory();
+  }, [loadInventory, loadHistory]);
 
   const selectedItem = items.find((item) => item.id === Number(selectedId));
 
@@ -91,7 +114,7 @@ export default function InventoryPage() {
         `Stock updated successfully. New quantity: ${updated.quantity}.`
       );
       setReason("");
-      await loadInventory();
+      await Promise.all([loadInventory(), loadHistory()]);
     } catch (err: unknown) {
       const message =
         typeof err === "object" &&
@@ -133,7 +156,7 @@ export default function InventoryPage() {
         </div>
         <button
           type="button"
-          onClick={() => void loadInventory()}
+          onClick={() => void Promise.all([loadInventory(), loadHistory()])}
           disabled={loading}
           className="rounded-lg border border-primary-300 bg-white px-4 py-2 text-sm font-semibold text-primary-800 hover:bg-primary-50 disabled:opacity-50"
         >
@@ -351,6 +374,73 @@ export default function InventoryPage() {
           </div>
         )}
       </section>
+
+            <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
+        <div className="border-b p-5">
+          <h2 className="text-lg font-semibold text-primary-900">
+            Inventory History
+          </h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Recent stock changes, adjustments, and order-related movements.
+          </p>
+        </div>
+
+        {historyLoading ? (
+          <p className="p-6 text-sm text-gray-600">
+            Loading inventory history...
+          </p>
+        ) : historyItems.length === 0 ? (
+          <p className="p-6 text-sm text-gray-600">
+            No inventory history records found.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-primary-50 text-primary-900">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Date</th>
+                  <th className="px-4 py-3 font-semibold">Product ID</th>
+                  <th className="px-4 py-3 font-semibold">Inventory ID</th>
+                  <th className="px-4 py-3 font-semibold">Change</th>
+                  <th className="px-4 py-3 font-semibold">Previous</th>
+                  <th className="px-4 py-3 font-semibold">New</th>
+                  <th className="px-4 py-3 font-semibold">Type</th>
+                  <th className="px-4 py-3 font-semibold">Changed by</th>
+                  <th className="px-4 py-3 font-semibold">Reason</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {historyItems.map((entry) => (
+                  <tr key={entry.id} className="hover:bg-primary-50/50">
+                    <td className="whitespace-nowrap px-4 py-3">
+                      {new Date(entry.timestamp).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3">{entry.product_id}</td>
+                    <td className="px-4 py-3">{entry.inventory_id}</td>
+                    <td className="px-4 py-3 font-semibold">
+                      {entry.change_amount > 0 ? "+" : ""}
+                      {entry.change_amount}
+                    </td>
+                    <td className="px-4 py-3">{entry.previous_quantity}</td>
+                    <td className="px-4 py-3">{entry.new_quantity}</td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      {entry.change_type}
+                    </td>
+                    <td className="px-4 py-3">
+                      {entry.changed_by_name ??
+                        `User #${entry.changed_by}`}
+                    </td>
+                    <td className="min-w-40 px-4 py-3">
+                      {entry.reason ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
     </main>
   );
 }

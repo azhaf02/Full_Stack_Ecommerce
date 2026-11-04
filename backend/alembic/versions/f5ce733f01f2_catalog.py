@@ -1,10 +1,9 @@
-
+﻿
 """catalog
 
 Revision ID: f5ce733f01f2
 Revises: 0001_users_roles_addresses
 Create Date: 2026-10-01 18:08:48.875183
-
 """
 
 from typing import Sequence, Union
@@ -13,15 +12,13 @@ from alembic import op
 import sqlalchemy as sa
 
 
-# revision identifiers, used by Alembic.
-revision: str = 'f5ce733f01f2'
-down_revision: Union[str, Sequence[str], None] = '0001_users_roles_addresses'
+revision: str = "f5ce733f01f2"
+down_revision: Union[str, Sequence[str], None] = "0001_users_roles_addresses"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade schema."""
     op.create_table(
         "categories",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -69,11 +66,15 @@ def upgrade() -> None:
     )
 
     op.create_index("ix_product_images_id", "product_images", ["id"], unique=False)
-    op.create_index("ix_product_images_product_id", "product_images", ["product_id"], unique=False)
+    op.create_index(
+        "ix_product_images_product_id",
+        "product_images",
+        ["product_id"],
+        unique=False,
+    )
 
 
 def downgrade() -> None:
-    """Downgrade schema."""
     op.drop_index("ix_product_images_product_id", table_name="product_images")
     op.drop_index("ix_product_images_id", table_name="product_images")
     op.drop_table("product_images")

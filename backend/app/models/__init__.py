@@ -1,7 +1,5 @@
-from app.models.role import Role
-from app.models.user import User
-from app.models.address import Address
-from app.models.notification import Notification
-from app.models.review import Review, ReviewModerationStatus
-from app.models.cart import Cart, CartItem
-from app.models.coupon import Coupon
+"""SQLAlchemy models package. Model loading is handled by app.main."""
+from .category import Category
+from .product_image import ProductImage
+
+from .product_variant import ProductVariant

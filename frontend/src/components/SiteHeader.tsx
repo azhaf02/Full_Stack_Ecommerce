@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { BagLeafIcon } from './BrandLogo';
 import { useAuth } from '../hooks/useAuth';
+import SearchBar from "../components/SearchBar.tsx";
 
 const navLink = ({ isActive }: { isActive: boolean }) =>
   `text-sm font-medium no-underline transition hover:text-viora-olive ${isActive ? 'text-viora-olive' : 'text-viora-ink'}`;
@@ -12,7 +13,7 @@ const mobileLink =
 function MenuIcon({ open }: { open: boolean }) {
   return (
     <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-      {open ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
+      {open ? <path d="M6 18L18 6M6 6l12 12" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
     </svg>
   );
 }
@@ -26,7 +27,6 @@ function CartIcon() {
   );
 }
 
-// overlay = transparent on top of a hero video, turns solid after scrolling
 export default function SiteHeader({ overlay = false }: { overlay?: boolean }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -44,7 +44,6 @@ export default function SiteHeader({ overlay = false }: { overlay?: boolean }) {
 
   const transparent = overlay && !scrolled && !open;
 
-  // close the mobile menu after navigating
   useEffect(() => setOpen(false), [location.pathname]);
 
   async function handleLogout() {
@@ -56,35 +55,43 @@ export default function SiteHeader({ overlay = false }: { overlay?: boolean }) {
   return (
     <header
       className={`${overlay ? 'fixed inset-x-0' : 'sticky'} top-0 z-30 transition-colors duration-300 ${
-        transparent ? 'border-b border-transparent bg-transparent text-viora-cream [&_a]:text-viora-cream [&_button]:text-viora-cream' : 'border-b border-viora-sage/50 bg-viora-cream/90 text-viora-ink backdrop-blur'
+        transparent ? 'border-b border-transparent bg-transparent text-viora-cream [&_a]:text-viora-cream [&_button]:text-viora-cream' : 'border-b border-viora-sage/40 bg-viora-cream/95 backdrop-blur-md text-viora-ink shadow-sm'
       }`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-5">
-        <Link to="/" className="flex items-center gap-2 text-viora-olive no-underline" aria-label="VIORA home">
+        <Link to="/" className="flex shrink-0 items-center gap-2 text-viora-olive no-underline" aria-label="GRABBY home">
           <BagLeafIcon className="h-8 w-8 [--leaf-vein:#f4f4ee]" />
-          <span className="font-display text-xl font-semibold tracking-[0.14em]">VIORA</span>
+          <span className="font-display text-xl font-semibold tracking-[0.14em]">GRABBY</span>
         </Link>
 
-        {/* desktop nav */}
+        {/* Desktop navigation */}
         <nav className="hidden items-center gap-7 md:flex" aria-label="Main">
           <NavLink to="/" end className={navLink}>Home</NavLink>
           <NavLink to="/products" className={navLink}>Shop</NavLink>
           <a href="/#categories" className="text-sm font-medium text-viora-ink no-underline hover:text-viora-olive">Categories</a>
         </nav>
 
-        <div className="flex items-center gap-1 sm:gap-2">
+        {/* Desktop search */}
+        <div className="hidden min-w-0 max-w-sm flex-1 md:block">
+          <SearchBar />
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           <Link to="/cart" className="flex h-11 w-11 items-center justify-center rounded-xl text-viora-ink no-underline hover:bg-viora-sage-soft" aria-label="Cart">
             <CartIcon />
           </Link>
 
-          {/* desktop account buttons */}
+          {/* Desktop account buttons */}
           <div className="hidden items-center gap-2 md:flex">
             {user ? (
               <>
-                <Link to="/profile" className="rounded-lg px-3 py-2 text-sm font-medium text-viora-ink no-underline hover:bg-viora-sage-soft">
-                  Hi, {user.name.split(' ')[0]}
+                <Link to="/dashboard" className="rounded-lg px-3 py-2 text-sm font-medium text-viora-ink no-underline hover:bg-viora-sage-soft">
+                  Dashboard
                 </Link>
-                <button type="button" onClick={handleLogout} className="rounded-lg border border-viora-olive/40 bg-white px-3 py-2 text-sm font-medium text-viora-olive hover:bg-viora-sage-soft">
+                <Link to="/profile" className="rounded-lg px-3 py-2 text-sm font-medium text-viora-ink no-underline hover:bg-viora-sage-soft">
+                  Hi, {user.name ? user.name.split(' ')[0] : 'User'}
+                </Link>
+                <button type="button" onClick={handleLogout} className="rounded-lg border border-viora-olive/40 bg-white px-3 py-2 text-sm font-medium text-viora-ink hover:bg-viora-sage-soft">
                   Log out
                 </button>
               </>
@@ -96,7 +103,7 @@ export default function SiteHeader({ overlay = false }: { overlay?: boolean }) {
             )}
           </div>
 
-          {/* mobile menu button */}
+          {/* Mobile menu button */}
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
@@ -110,15 +117,19 @@ export default function SiteHeader({ overlay = false }: { overlay?: boolean }) {
         </div>
       </div>
 
-      {/* mobile menu panel */}
+      {/* Mobile menu */}
       {open && (
         <nav id="mobile-menu" aria-label="Mobile" className="viora-rise border-t border-viora-sage/50 bg-viora-cream px-4 pb-5 pt-2 md:hidden">
+          <div className="mb-3">
+            <SearchBar />
+          </div>
           <Link to="/" className={mobileLink}>Home</Link>
           <Link to="/products" className={mobileLink}>Shop</Link>
           <a href="/#categories" onClick={() => setOpen(false)} className={mobileLink}>Categories</a>
           <div className="my-3 h-px bg-viora-sage/50" />
           {user ? (
             <>
+              <Link to="/dashboard" className={mobileLink}>Dashboard</Link>
               <Link to="/profile" className={mobileLink}>My profile</Link>
               <button type="button" onClick={handleLogout} className={`${mobileLink} w-full border-0 bg-transparent text-left`}>
                 Log out

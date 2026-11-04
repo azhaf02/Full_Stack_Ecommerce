@@ -1,17 +1,14 @@
 ﻿from datetime import datetime
 from decimal import Decimal
 from typing import List, Literal, Optional
-
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class _Out(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# ----------------------------------------------------------------
-# RESPONSES
-# ----------------------------------------------------------------
+# ---------------------------------------------------------------- responses
 
 class OrderItemOut(_Out):
     id: int
@@ -43,7 +40,7 @@ class ReturnOut(_Out):
     reviewed_at: Optional[datetime] = None
     refund_amount: Optional[Decimal] = None
     requested_at: datetime
-    items: List[ReturnItemOut] = Field(default_factory=list)
+    items: List[ReturnItemOut] = []
 
 
 class OrderSummaryOut(_Out):
@@ -57,8 +54,7 @@ class OrderSummaryOut(_Out):
 
 
 class OrderActions(BaseModel):
-    """What the customer can do next."""
-
+    """What the customer can do next, so the page can show or hide buttons without repeating the rules."""
     can_cancel: bool
     can_request_return: bool
     return_deadline: Optional[datetime] = None
@@ -77,79 +73,27 @@ class OrderDetailOut(OrderSummaryOut):
     items: List[OrderItemOut]
     status_history: List[StatusHistoryOut]
     returns: List[ReturnOut]
-    actions: Optional[OrderActions] = None
+    actions: Optional[OrderActions] = None  # filled in by the route
 
 
-# ----------------------------------------------------------------
-# REQUESTS
-# ----------------------------------------------------------------
+# ---------------------------------------------------------------- requests
 
 class OrderLineIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     product_id: int
     variant_id: Optional[int] = None
     quantity: int = Field(gt=0, le=100)
 
 
 class OrderCreate(BaseModel):
-    """
-    Customer order creation.
-
-    Two ways to create an order:
-
-    1. checkout_reference_id:
-       Uses the server-side checkout snapshot.
-
-    2. items:
-       Creates a direct order using items, address_id
-       and shipping_method_id.
-
-    Price, total and shipping cost cannot be supplied
-    by the customer.
-    """
-
+    """What a customer sends to place an order. There is deliberately no price, total or shipping cost:
+    extra fields are rejected so nobody can try to supply one."""
     model_config = ConfigDict(extra="forbid")
-
+    address_id: int
+    shipping_method_id: int
     payment_method: Literal["ONLINE", "COD"]
-
-    checkout_reference_id: Optional[str] = Field(
-        default=None,
-        min_length=1,
-        max_length=64
-    )
-
-    address_id: Optional[int] = None
-    shipping_method_id: Optional[int] = None
-
-    items: Optional[List[OrderLineIn]] = Field(
-        default=None,
-        min_length=1,
-        max_length=50
-    )
-
-    coupon_code: Optional[str] = Field(
-        default=None,
-        max_length=50
-    )
-
-    @model_validator(mode="after")
-    def _one_source(self):
-        if (self.checkout_reference_id is None) == (self.items is None):
-            raise ValueError(
-                "Send either checkout_reference_id or items, "
-                "not both and not neither"
-            )
-
-        if self.items is not None and (
-            self.address_id is None or self.shipping_method_id is None
-        ):
-            raise ValueError(
-                "address_id and shipping_method_id are required "
-                "when sending items"
-            )
-
-        return self
+    items: List[OrderLineIn] = Field(min_length=1, max_length=50)
+    coupon_code: Optional[str] = Field(default=None, max_length=50)
 
 
 class CancelRequest(BaseModel):
@@ -172,19 +116,12 @@ class StatusUpdate(BaseModel):
 
 
 class ReturnReview(BaseModel):
-    action: Literal[
-        "approve",
-        "reject",
-        "mark_returned",
-        "complete_refund"
-    ]
-
+    action: Literal["approve", "reject", "mark_returned", "complete_refund"]
     remarks: Optional[str] = Field(default=None, max_length=500)
 
 
-# ----------------------------------------------------------------
-# ADMIN RESPONSES
-# ----------------------------------------------------------------
+
+# ---------------------------------------------------------------- admin responses
 
 class AddressBrief(_Out):
     full_name: str

@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, status
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from pydantic import BaseModel, Field
+from datetime import datetime, timezone
 from typing import List, Optional
-from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.review import Review, ReviewModerationStatus
+from app.models.review import Review
 
 # Schemas
 class ReviewCreate(BaseModel):
@@ -16,6 +16,7 @@ class ReviewCreate(BaseModel):
     rating: int = Field(..., ge=1, le=5)
     title: Optional[str] = ""
     comment: str
+
 
 class ReviewResponse(BaseModel):
     id: int
@@ -31,11 +32,14 @@ class ReviewResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 router = APIRouter(tags=["Reviews"])
+
 
 # 1. Create Review (POST /api/reviews)
 @router.post("/reviews", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
 def create_review(payload: ReviewCreate, db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc)
     new_review = Review(
         product_id=payload.product_id,
         user_id=payload.user_id,
@@ -43,12 +47,15 @@ def create_review(payload: ReviewCreate, db: Session = Depends(get_db)):
         rating=payload.rating,
         title=payload.title or "",
         comment=payload.comment,
-        status=ReviewModerationStatus.APPROVED.value,
+        status="PENDING",          # Standard default status for new moderation
+        created_at=now,            # Fixes: null value in column "created_at"
+        updated_at=now,            # Fixes: null value in column "updated_at"
     )
     db.add(new_review)
     db.commit()
     db.refresh(new_review)
     return new_review
+
 
 # 2. Get User Reviews (GET /api/reviews/user/{user_id})
 @router.get("/reviews/user/{user_id}", response_model=List[ReviewResponse])
@@ -59,6 +66,7 @@ def get_user_reviews(user_id: int, db: Session = Depends(get_db)):
         .order_by(Review.created_at.desc())
         .all()
     )
+
 
 # 3. Get Public Product Reviews (GET /api/products/{product_id}/reviews)
 @router.get("/products/{product_id}/reviews")
@@ -73,13 +81,13 @@ def get_product_reviews(
 
     base_query = db.query(Review).filter(
         Review.product_id == product_id,
-        Review.status == ReviewModerationStatus.APPROVED.value
+        Review.status == "APPROVED"
     )
     total_count = base_query.count()
 
     avg_rating_result = db.query(func.avg(Review.rating)).filter(
         Review.product_id == product_id,
-        Review.status == ReviewModerationStatus.APPROVED.value
+        Review.status == "APPROVED"
     ).scalar()
 
     avg_rating = round(float(avg_rating_result), 1) if avg_rating_result is not None else 0.0

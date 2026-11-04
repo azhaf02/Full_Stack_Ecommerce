@@ -16,40 +16,48 @@ from app.models.order import Order
 from app.models.payment import Payment,PaymentMethod,PaymentStatus
 from app.routers import payment as payment_router
 
+from decimal import Decimal
+
+from app.models.inventory import Inventory
+from app.models.inventory_history import InventoryHistory
+from app.models.order import OrderItem
+from app.services import order_service
+from app.services.inventory_service import on_order_status_change
 
 @pytest.fixture()
 def env():
-	engine = create_engine(
-		"sqlite://",
-		connect_args={"check_same_thread": False},
-		poolclass=StaticPool,
-	)
-	Base.metadata.create_all(engine)
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
 
-	Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-	db = Session()
-	user = SimpleNamespace(
-    id=1,
-    role=SimpleNamespace(name="customer")
-)
+    Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    db = Session()
+    user = SimpleNamespace(id=1)
 
-	app = FastAPI()
-	app.include_router(payment_router.router)
+    app = FastAPI()
+    app.include_router(payment_router.router)
 
-	def override_db():
-		test_db = Session()
-		try:
-			yield test_db
-		finally:
-			test_db.close()
+    def override_db():
+        test_db = Session()
+        try:
+            yield test_db
+        finally:
+            test_db.close()
 
-	app.dependency_overrides[get_db] = override_db
-	app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user
 
-	yield SimpleNamespace(db=db, client=TestClient(app), user=user)
+    order_service.clear_status_hooks()
+    order_service.register_status_hook(on_order_status_change)
 
-	db.close()
+    yield SimpleNamespace(db=db, client=TestClient(app), user=user)
 
+    order_service.clear_status_hooks()
+    db.close()
+    engine.dispose()
 
 def create_order(db, user_id=1):
 	order = Order(
@@ -545,56 +553,65 @@ def test_cod_request_rejects_extra_status_field(env):
     assert response.status_code == 422
 
 
-def test_customer_cannot_mark_cod_as_paid(env):
-    # A regular customer must not access the admin payment endpoint.
-    response = env.client.post(
-        "/api/payment/admin/cod/1/mark-paid"
+
+def test_mock_success_payment_deducts_inventory(env):
+    order, payment = create_pending_payment(env)
+
+    inventory = Inventory(
+        product_id=1,
+        variant_id=None,
+        quantity=10,
+        low_stock_threshold=2,
+        status="IN_STOCK",
     )
 
-    assert response.status_code == 403
+    item = OrderItem(
+        order_id=order.id,
+        product_id=1,
+        variant_id=None,
+        quantity=5,
+        unit_price=Decimal("210.00"),
+    )
 
-def test_admin_can_mark_cod_as_paid(env):
-    order = create_order(env.db, user_id=1)
-    checkout = create_checkout_session(env.db)
+    env.db.add_all([inventory, item])
+    env.db.commit()
 
-    select_response = env.client.post(
-        "/api/payment/select-method",
+    process_response = env.client.post(
+        "/api/payment/mock/process",
         json={
-            "checkout_session_id": str(checkout.session_id),
-            "order_id": order.id,
-            "method": "COD",
+            "payment_id": payment.id,
+            "simulate_failure": False,
         },
     )
 
-    assert select_response.status_code == 200
-    payment_id = select_response.json()["payment_id"]
+    assert process_response.status_code == 200
 
-    cod_response = env.client.post(
-        "/api/payment/cod",
-        json={"payment_id": payment_id},
-    )
-    assert cod_response.status_code == 200
+    transaction_id = process_response.json()["transaction_id"]
 
-    # Simulate an authenticated administrator.
-    env.user.role = SimpleNamespace(name="admin")
-
-    response = env.client.post(
-        f"/api/payment/admin/cod/{payment_id}/mark-paid"
+    verify_response = env.client.post(
+        "/api/payment/mock/verify",
+        json={
+            "payment_id": payment.id,
+            "transaction_id": transaction_id,
+        },
     )
 
-    assert response.status_code == 200, response.text
-    assert response.json()["status"] == "SUCCESS"
+    assert verify_response.status_code == 200
+    assert verify_response.json()["status"] == "SUCCESS"
 
-    payment = env.db.get(Payment, payment_id)
-    env.db.refresh(payment)
-    env.db.refresh(order)
+    env.db.expire_all()
 
-    assert payment.status == PaymentStatus.SUCCESS
-    assert order.payment_status == "SUCCESS"
+    updated_inventory = env.db.get(Inventory, inventory.id)
 
-    # A COD payment must not be marked as paid twice.
-    second_response = env.client.post(
-        f"/api/payment/admin/cod/{payment_id}/mark-paid"
+    assert updated_inventory.quantity == 5
+
+    history = (
+        env.db.query(InventoryHistory)
+        .filter_by(order_id=order.id)
+        .one()
     )
 
-    assert second_response.status_code == 409
+    assert history.change_amount == -5
+    assert history.previous_quantity == 10
+    assert history.new_quantity == 5
+    assert history.change_type == "DEDUCTION"

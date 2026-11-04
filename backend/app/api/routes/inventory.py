@@ -1,3 +1,7 @@
+from datetime import datetime
+from app.models.inventory_history import InventoryHistory
+
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
@@ -41,6 +45,26 @@ class InventoryResponse(BaseModel):
     low_stock_threshold: int
     status: str
     location: str | None
+
+    class Config:
+        from_attributes = True
+
+class InventoryHistoryResponse(BaseModel):
+    id: int
+    inventory_id: int
+    product_id: int
+    order_id: int | None
+    change_amount: int
+    changed_by: int
+    changed_by_name: str | None
+    change_type: str
+    quantity_changed: int
+    previous_quantity: int
+    new_quantity: int
+    reason: str | None
+    location: str | None
+    timestamp: datetime
+    created_at: datetime
 
     class Config:
         from_attributes = True
@@ -181,4 +205,37 @@ def get_low_stock_inventory(
     return [
         _inventory_response(inventory, product_name or f"Product {inventory.product_id}")
         for inventory, product_name in rows
+    ]
+
+@router.get("/history", response_model=list[InventoryHistoryResponse])
+def get_inventory_history(
+    db: Session = Depends(get_db),
+):
+    rows = (
+        db.query(InventoryHistory, User.name)
+        .outerjoin(User, User.id == InventoryHistory.changed_by)
+        .order_by(InventoryHistory.created_at.desc())
+        .limit(100)
+        .all()
+    )
+
+    return [
+        InventoryHistoryResponse(
+            id=history.id,
+            inventory_id=history.inventory_id,
+            product_id=history.product_id,
+            order_id=history.order_id,
+            change_amount=history.change_amount,
+            changed_by=history.changed_by,
+            changed_by_name=user_name,
+            change_type=history.change_type,
+            quantity_changed=history.quantity_changed,
+            previous_quantity=history.previous_quantity,
+            new_quantity=history.new_quantity,
+            reason=history.reason,
+            location=history.location,
+            timestamp=history.timestamp,
+            created_at=history.created_at,
+        )
+        for history, user_name in rows
     ]

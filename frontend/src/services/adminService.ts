@@ -108,6 +108,7 @@ export interface CategoryCreateData {
 export interface CategoryUpdateData {
   name?: string;
   description?: string | null;
+  is_active?: boolean; // true re-activates a deactivated category
 }
 
 export async function getCategories(
@@ -331,6 +332,79 @@ export async function deleteReview(id: number): Promise<void> {
 }
 
 // =========================================================
+// SUPPORT TICKETS + FAQ (APIs from the support module)
+// =========================================================
+
+// One ticket as returned by GET /api/support/admin/tickets
+export interface SupportTicket {
+  id: number;
+  customer_id: number;
+  order_id: number | null;
+  category: string;
+  subject: string;
+  description: string;
+  status: string; // Open, In Progress, Resolved, Closed
+  created_at: string | null;
+}
+
+export interface SupportMessage {
+  id: number;
+  ticket_id: number;
+  sender_type: string; // "Customer" or "Support"
+  message: string;
+  timestamp: string | null;
+}
+
+export const TICKET_STATUSES = ["Open", "In Progress", "Resolved", "Closed"];
+
+export async function getSupportTickets(): Promise<SupportTicket[]> {
+  const response = await api.get("/api/support/admin/tickets");
+  return response.data;
+}
+
+// One ticket with its conversation
+export async function getSupportTicket(id: number): Promise<{ ticket: SupportTicket; messages: SupportMessage[] }> {
+  const response = await api.get(`/api/support/admin/tickets/${id}`);
+  return response.data;
+}
+
+export async function replyToSupportTicket(id: number, message: string): Promise<void> {
+  await api.post(`/api/support/admin/tickets/${id}/reply`, { message: message.trim() });
+}
+
+export async function updateSupportTicketStatus(id: number, status: string): Promise<void> {
+  await api.put(`/api/support/admin/tickets/${id}/status`, { status });
+}
+
+export interface Faq {
+  id: number;
+  question: string;
+  answer: string;
+  sort_order: number;
+}
+
+export type FaqData = Omit<Faq, "id">;
+
+export async function getFaqs(): Promise<Faq[]> {
+  const response = await api.get("/api/support/admin/faq");
+  return response.data;
+}
+
+export async function createFaq(data: FaqData): Promise<Faq> {
+  const response = await api.post("/api/support/admin/faq", data);
+  return response.data;
+}
+
+export async function updateFaq(id: number, data: FaqData): Promise<Faq> {
+  const response = await api.put(`/api/support/admin/faq/${id}`, data);
+  return response.data;
+}
+
+export async function deleteFaq(id: number): Promise<void> {
+  await api.delete(`/api/support/admin/faq/${id}`);
+}
+
+// =========================================================
 // PAYMENTS
 // =========================================================
 
@@ -496,6 +570,8 @@ export interface Product {
   price: string;
   stock_quantity: number;
   status: "ACTIVE" | "INACTIVE";
+  image_url?: string | null;
+  images?: ProductImage[];
 }
 
 export interface ProductCreateData {
@@ -512,7 +588,6 @@ export interface ProductUpdateData {
   name?: string;
   description?: string | null;
   price?: number;
-  stock_quantity?: number;
   status?: "ACTIVE" | "INACTIVE";
 }
 
@@ -584,8 +659,9 @@ export async function uploadProductImage(
 
   return response.data;
 }
+
 // =========================================================
-// INVENTORY MANAGEMENT
+// INVENTORY
 // =========================================================
 
 export interface InventoryItem {
@@ -595,7 +671,7 @@ export interface InventoryItem {
   variant_id: number | null;
   quantity: number;
   low_stock_threshold: number;
-  status: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
+  status: string;
   location: string | null;
 }
 
@@ -604,23 +680,47 @@ export interface InventoryAdjustmentData {
   reason: string;
 }
 
-// Get all inventory records
 export async function getInventory(): Promise<InventoryItem[]> {
   const response = await api.get("/api/admin/inventory");
   return response.data;
 }
 
-// Get inventory records at or below their low-stock threshold
 export async function getLowStockInventory(): Promise<InventoryItem[]> {
   const response = await api.get("/api/admin/inventory/low-stock");
   return response.data;
 }
 
-// Adjust stock and record the reason in inventory history
 export async function adjustInventory(
-  id: number,
+  inventoryId: number,
   data: InventoryAdjustmentData
 ): Promise<InventoryItem> {
-  const response = await api.put(`/api/admin/inventory/${id}`, data);
+  const response = await api.put(
+    `/api/admin/inventory/${inventoryId}`,
+    data
+  );
+  return response.data;
+}
+
+
+export interface InventoryHistoryItem {
+  id: number;
+  inventory_id: number;
+  product_id: number;
+  order_id: number | null;
+  change_amount: number;
+  changed_by: number;
+  changed_by_name: string | null;
+  change_type: string;
+  quantity_changed: number;
+  previous_quantity: number;
+  new_quantity: number;
+  reason: string | null;
+  location: string | null;
+  timestamp: string;
+  created_at: string;
+}
+
+export async function getInventoryHistory(): Promise<InventoryHistoryItem[]> {
+  const response = await api.get("/api/admin/inventory/history");
   return response.data;
 }

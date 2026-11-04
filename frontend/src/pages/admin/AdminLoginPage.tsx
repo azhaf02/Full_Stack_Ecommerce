@@ -88,7 +88,7 @@ export default function AdminLoginPage() {
           <span className="w-8 h-8 rounded-lg bg-primary-700 ring-1 ring-white/10 flex items-center justify-center">
             <ShoppingBag className="text-cream-100" size={16} />
           </span>
-          <span className="font-display text-sm font-semibold tracking-[0.14em] text-white">VIORA</span>
+          <span className="font-display text-sm font-semibold tracking-[0.14em] text-white">GRABBY</span>
           <span className="text-primary-500">/</span>
           <span className="text-sm text-primary-300">Admin Console</span>
           <span className="hidden sm:inline-flex items-center gap-1.5 ml-3 rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium text-primary-200 ring-1 ring-white/10">
@@ -270,7 +270,7 @@ export default function AdminLoginPage() {
       </main>
 
       <footer className="relative px-6 sm:px-10 pb-6 text-center text-[11px] text-primary-400">
-        © {new Date().getFullYear()} VIORA · Admin Console
+        © {new Date().getFullYear()} GRABBY · Admin Console
       </footer>
     </div>
   );

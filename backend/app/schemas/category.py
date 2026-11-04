@@ -15,6 +15,7 @@ class CategoryCreate(CategoryBase):
 class CategoryUpdate(BaseModel):
     name: str | None = Field(None, min_length=2, max_length=100)
     description: str | None = None
+    is_active: bool | None = None
 
 
 class CategoryResponse(CategoryBase):
