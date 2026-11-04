@@ -19,3 +19,11 @@ frontend/tsconfig.tsbuildinfo
 
 # Build output
 dist/
+# Local dependencies
+node_modules/
+
+# Local uploaded files
+uploads/
+
+# Temporary backup files
+*.bak

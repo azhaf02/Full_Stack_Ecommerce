@@ -48,7 +48,7 @@ export default function Sidebar() {
         </span>
         <div className="leading-tight">
           <p className="font-display text-lg font-semibold tracking-[0.14em] text-white">GRABBY</p>
-          <p className="text-[11px] uppercase tracking-widest text-primary-300">Admin panel</p>
+          <p className="text-[11px] tracking-wide text-primary-300">See It. Like It. Grab It.</p>
         </div>
       </div>
 
