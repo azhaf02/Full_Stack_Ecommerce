@@ -1,9 +1,6 @@
-﻿
-from datetime import datetime
+﻿from datetime import datetime
 from decimal import Decimal
 from typing import List, Literal, Optional
-from uuid import UUID
-
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -57,7 +54,7 @@ class OrderSummaryOut(_Out):
 
 
 class OrderActions(BaseModel):
-    """What the customer can do next."""
+    """What the customer can do next, so the page can show or hide buttons without repeating the rules."""
     can_cancel: bool
     can_request_return: bool
     return_deadline: Optional[datetime] = None
@@ -76,46 +73,27 @@ class OrderDetailOut(OrderSummaryOut):
     items: List[OrderItemOut]
     status_history: List[StatusHistoryOut]
     returns: List[ReturnOut]
-    actions: Optional[OrderActions] = None
+    actions: Optional[OrderActions] = None  # filled in by the route
 
 
 # ---------------------------------------------------------------- requests
 
 class OrderLineIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     product_id: int
     variant_id: Optional[int] = None
     quantity: int = Field(gt=0, le=100)
 
 
 class OrderCreate(BaseModel):
-    """
-    Customer order request.
-
-    Orders can use either:
-    1. A checkout session reference.
-    2. The normal cart items flow.
-
-    Prices and totals are always calculated by the backend.
-    """
+    """What a customer sends to place an order. There is deliberately no price, total or shipping cost:
+    extra fields are rejected so nobody can try to supply one."""
     model_config = ConfigDict(extra="forbid")
-
     address_id: int
     shipping_method_id: int
     payment_method: Literal["ONLINE", "COD"]
-
-    checkout_reference_id: Optional[UUID] = None
-
-    items: List[OrderLineIn] = Field(
-        default_factory=list,
-        max_length=50
-    )
-
-    coupon_code: Optional[str] = Field(
-        default=None,
-        max_length=50
-    )
+    items: List[OrderLineIn] = Field(min_length=1, max_length=50)
+    coupon_code: Optional[str] = Field(default=None, max_length=50)
 
 
 class CancelRequest(BaseModel):
@@ -138,13 +116,9 @@ class StatusUpdate(BaseModel):
 
 
 class ReturnReview(BaseModel):
-    action: Literal[
-        "approve",
-        "reject",
-        "mark_returned",
-        "complete_refund"
-    ]
+    action: Literal["approve", "reject", "mark_returned", "complete_refund"]
     remarks: Optional[str] = Field(default=None, max_length=500)
+
 
 
 # ---------------------------------------------------------------- admin responses

@@ -1,18 +1,14 @@
-
+"""Server-side pricing for checkout orders."""
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, List, Optional, Tuple
-from uuid import UUID
 
 from sqlalchemy import Boolean, Integer, Numeric, String, column, select, table
 from sqlalchemy.orm import Session
 
 from app.models.coupon import Coupon
 from app.models.order import Order
-from app.models.checkout_session import CheckoutSession
-from app.models.cart import Cart
 from app.services.order_service import InvalidOrder, OrderInput, OrderItemInput
 from app.services.pricing_engine import calculate_pricing
 from app.services.coupon_service import validate_coupon
@@ -106,7 +102,6 @@ def _coupon_discount(
         )
         .count()
     )
-
     user_usage_count = (
         db.query(Order)
         .filter(
@@ -128,6 +123,7 @@ def _coupon_discount(
         raise InvalidOrder(message)
 
     discount_value = _money(coupon.discount_value)
+
     discount_type = str(coupon.discount_type).strip().lower()
 
     if discount_type == "percentage":
@@ -166,7 +162,9 @@ def price_order(
             "An order needs at least one item"
         )
 
+    # -------------------------
     # ADDRESS VALIDATION
+    # -------------------------
 
     address_owner = db.execute(
         select(_addresses.c.user_id).where(
@@ -174,12 +172,17 @@ def price_order(
         )
     ).scalar()
 
-    if address_owner is None or address_owner != user_id:
+    if (
+        address_owner is None
+        or address_owner != user_id
+    ):
         raise InvalidOrder(
             f"Address {request.address_id} was not found in your account"
         )
 
+    # -------------------------
     # SHIPPING VALIDATION
+    # -------------------------
 
     shipping_cost = db.execute(
         select(_shipping.c.cost).where(
@@ -195,7 +198,9 @@ def price_order(
 
     shipping_cost = _money(shipping_cost)
 
+    # -------------------------
     # QUANTITY VALIDATION
+    # -------------------------
 
     lines = _merge_lines(request.items)
 
@@ -208,7 +213,9 @@ def price_order(
                 f"Quantity must be between 1 and {MAX_QUANTITY_PER_LINE}"
             )
 
+    # -------------------------
     # LOAD PRODUCTS
+    # -------------------------
 
     product_ids = sorted(
         {line.product_id for line in lines}
@@ -246,12 +253,17 @@ def price_order(
         for variant in variants.values()
     }
 
+    # -------------------------
     # BUILD ORDER ITEMS
+    # -------------------------
 
     items: List[OrderItemInput] = []
 
     for line in lines:
-        product = products.get(line.product_id)
+
+        product = products.get(
+            line.product_id
+        )
 
         if (
             product is None
@@ -261,10 +273,15 @@ def price_order(
                 f"Product {line.product_id} is not available"
             )
 
-        unit_price = _money(product.price)
+        unit_price = _money(
+            product.price
+        )
 
         if line.variant_id is not None:
-            variant = variants.get(line.variant_id)
+
+            variant = variants.get(
+                line.variant_id
+            )
 
             if (
                 variant is None
@@ -279,6 +296,7 @@ def price_order(
             )
 
         elif line.product_id in products_with_variants:
+
             raise InvalidOrder(
                 f"Choose a variant for '{product.name}'"
             )
@@ -297,7 +315,9 @@ def price_order(
             )
         )
 
+    # -------------------------
     # CENTRAL PRICING ENGINE
+    # -------------------------
 
     pricing = calculate_pricing(
         items,
@@ -305,14 +325,19 @@ def price_order(
         discount=Decimal("0.00"),
     )
 
-    subtotal = _money(pricing["subtotal"])
+    subtotal = _money(
+        pricing["subtotal"]
+    )
 
+    # -------------------------
     # SERVER-SIDE COUPON
+    # -------------------------
 
     discount = Decimal("0.00")
     coupon_id = None
 
     if request.coupon_code:
+
         code = request.coupon_code.strip().upper()
 
         coupon = (
@@ -322,7 +347,9 @@ def price_order(
         )
 
         if coupon is None:
-            raise InvalidOrder("Invalid coupon code")
+            raise InvalidOrder(
+                "Invalid coupon code"
+            )
 
         discount = _coupon_discount(
             db,
@@ -333,7 +360,9 @@ def price_order(
 
         coupon_id = coupon.id
 
+    # -------------------------
     # FINAL CENTRAL PRICING
+    # -------------------------
 
     pricing = calculate_pricing(
         items,
@@ -341,12 +370,29 @@ def price_order(
         discount=discount,
     )
 
-    subtotal = _money(pricing["subtotal"])
-    discount = _money(pricing["discount"])
-    tax = _money(pricing["tax"])
+    subtotal = _money(
+        pricing["subtotal"]
+    )
 
-    total_before_shipping = _money(pricing["total"])
-    total = _money(total_before_shipping + shipping_cost)
+    discount = _money(
+        pricing["discount"]
+    )
+
+    tax = _money(
+        pricing["tax"]
+    )
+
+    total_before_shipping = _money(
+        pricing["total"]
+    )
+
+    total = _money(
+        total_before_shipping + shipping_cost
+    )
+
+    # -------------------------
+    # ORDER INPUT
+    # -------------------------
 
     return OrderInput(
         user_id=user_id,
@@ -361,156 +407,3 @@ def price_order(
         total_amount=total,
         coupon_id=coupon_id,
     )
-
-
-# ----------------------------------------------------------------
-# CHECKOUT SESSION PRICING
-# ----------------------------------------------------------------
-
-def price_checkout_session(
-    db: Session,
-    user_id: int,
-    checkout_reference_id: UUID,
-    payment_method: str,
-    *,
-    address_id: int,
-    shipping_method_id: int,
-) -> OrderInput:
-    """Validate an active checkout session and calculate its order."""
-
-    session = db.get(
-        CheckoutSession,
-        str(checkout_reference_id),
-    )
-
-    if session is None:
-        raise InvalidOrder("Checkout session was not found.")
-
-    if str(session.customer_id) != str(user_id):
-        raise InvalidOrder(
-            "This checkout session does not belong to your account."
-        )
-
-    if session.status != "active":
-        raise InvalidOrder(
-            "This checkout session is no longer active."
-        )
-
-    now = datetime.now(timezone.utc)
-    expires_at = session.expires_at
-
-    # Handle database timestamps returned without timezone information.
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
-
-    if expires_at <= now:
-        raise InvalidOrder(
-            "Checkout session has expired. Please review checkout again."
-        )
-
-    snapshot = session.checkout_snapshot
-
-    if not isinstance(snapshot, dict):
-        raise InvalidOrder(
-            "Checkout session does not contain valid checkout details."
-        )
-
-    if snapshot.get("ready_for_payment") is not True:
-        raise InvalidOrder(
-            "Checkout is not ready for payment."
-        )
-
-    address = snapshot.get("address") or {}
-    shipping = snapshot.get("shipping") or {}
-    snapshot_items = snapshot.get("items") or []
-    coupon = snapshot.get("coupon")
-
-    if not isinstance(address, dict) or not isinstance(shipping, dict):
-        raise InvalidOrder(
-            "Checkout address or shipping details are invalid."
-        )
-
-    if address.get("id") != address_id:
-        raise InvalidOrder(
-            "The selected address does not match the checkout session."
-        )
-
-    if shipping.get("id") != shipping_method_id:
-        raise InvalidOrder(
-            "The selected shipping method does not match the checkout session."
-        )
-
-    if not isinstance(snapshot_items, list) or not snapshot_items:
-        raise InvalidOrder(
-            "Checkout session has no order items."
-        )
-
-    lines = []
-
-    for item in snapshot_items:
-        if not isinstance(item, dict):
-            raise InvalidOrder(
-                "Checkout session contains an invalid item."
-            )
-
-        try:
-            lines.append(
-                OrderLine(
-                    product_id=int(item["product_id"]),
-                    variant_id=(
-                        int(item["variant_id"])
-                        if item.get("variant_id") is not None
-                        else None
-                    ),
-                    quantity=int(item["quantity"]),
-                )
-            )
-        except (KeyError, TypeError, ValueError):
-            raise InvalidOrder(
-                "Checkout session contains incomplete item details."
-            )
-
-    coupon_code = (
-        coupon.get("code")
-        if isinstance(coupon, dict)
-        else None
-    )
-
-    request = OrderRequest(
-        address_id=address_id,
-        shipping_method_id=shipping_method_id,
-        payment_method=payment_method,
-        items=lines,
-        coupon_code=coupon_code,
-    )
-
-    # Recalculate current prices, coupon and shipping on the server.
-    return price_order(
-        db,
-        user_id,
-        request,
-    )
-
-
-# ----------------------------------------------------------------
-# CART CLEARING
-# ----------------------------------------------------------------
-
-def clear_user_cart(
-    db: Session,
-    user_id: int,
-) -> None:
-    """Delete the customer's cart using ORM relationship cascades."""
-
-    carts = (
-        db.query(Cart)
-        .filter(Cart.user_id == user_id)
-        .all()
-    )
-
-    for cart in carts:
-        db.delete(cart)
-
-    # The caller owns the transaction and commits once.
-    db.flush()
-
