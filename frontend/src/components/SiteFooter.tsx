@@ -4,8 +4,12 @@ import { BagLeafIcon, TAGLINE } from './BrandLogo';
 export default function SiteFooter() {
   return (
     <footer className="bg-viora-ink text-viora-sage-soft">
-      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 md:grid-cols-[2fr_1fr_1fr]">
-        <div>
+      
+
+        
+         <div className="mx-auto grid max-w-6xl grid-cols-2 gap-8 px-5 py-14 md:grid-cols-[2fr_1fr_1fr_1fr]">
+          
+                  <div>
           <div className="flex items-center gap-2 text-viora-cream">
             <BagLeafIcon className="h-9 w-9 [--leaf-vein:#23291c]" />
             <span className="font-display text-2xl font-semibold tracking-[0.14em]">GRABBY</span>
@@ -28,7 +32,21 @@ export default function SiteFooter() {
             <li><Link to="/profile" className="text-viora-sage-soft no-underline hover:text-white">My profile</Link></li>
           </ul>
         </div>
-      </div>
+      
+           <div>
+          <p className="mb-3 text-sm font-semibold text-viora-cream">Help Center</p>
+          <ul className="space-y-2 text-sm">
+            <li>
+             <Link
+                to="/help-center"
+                className="text-viora-sage-soft no-underline hover:text-white"
+              >
+                Help Center
+              </Link>
+            </li>
+          </ul>
+        </div>
+        </div>
       <p className="border-t border-white/10 py-5 text-center text-xs text-viora-sage-soft/70">© {new Date().getFullYear()} GRABBY. All rights reserved.</p>
     </footer>
   );
