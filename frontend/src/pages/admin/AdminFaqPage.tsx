@@ -1,132 +1,92 @@
-
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
-import {
-  createFaq,
-  deleteFaq,
-  getFaqs,
-  updateFaq,
-} from "../../services/adminService";
+import { ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
+import LoadingRows from "../../components/admin/LoadingRows";
+import Modal from "../../components/admin/Modal";
+import { createFaq, deleteFaq, getFaqs, updateFaq } from "../../services/adminService";
 import type { Faq, FaqData } from "../../services/adminService";
 
-const EMPTY: FaqData = {
-  question: "",
-  answer: "",
-  sort_order: 0,
-};
-
-const sortFaqs = (list: Faq[]) =>
-  [...list].sort(
-    (a, b) => a.sort_order - b.sort_order || a.id - b.id
-  );
+const EMPTY: FaqData = { question: "", answer: "", sort_order: 0 };
 
 const errorText = (err: unknown, fallback: string) => {
-  const detail = axios.isAxiosError(err)
-    ? err.response?.data?.detail
-    : null;
-
+  const detail = axios.isAxiosError(err) ? err.response?.data?.detail : null;
   return typeof detail === "string" ? detail : fallback;
 };
+
+const sortFaqs = (list: Faq[]) => [...list].sort((a, b) => a.sort_order - b.sort_order || a.id - b.id);
 
 export default function AdminFaqPage() {
   const [faqs, setFaqs] = useState<Faq[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0); // changing this loads the list again
+  const [openId, setOpenId] = useState<number | null>(null); // answer shown under the question
 
+  // Add / edit popup (editing === null means "add")
+  const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Faq | null>(null);
   const [form, setForm] = useState<FaqData>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
+  // Delete popup
   const [deleting, setDeleting] = useState<Faq | null>(null);
   const [deleteError, setDeleteError] = useState("");
 
+  // Load FAQs from GET /api/support/admin/faq
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setError("");
 
-    const loadFaqs = async () => {
-      setLoading(true);
-      setError("");
-
-      try {
-        const data = await getFaqs();
+    getFaqs()
+      .then((data) => {
         if (!cancelled) setFaqs(sortFaqs(data));
-      } catch {
-        if (!cancelled) {
-          setError("Could not load FAQs. Check that the backend is running.");
-        }
-      } finally {
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load FAQs. Check that the backend is running.");
+      })
+      .finally(() => {
         if (!cancelled) setLoading(false);
-      }
-    };
-
-    loadFaqs();
+      });
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadKey]);
 
-  const resetForm = () => {
+  const openAdd = () => {
     setEditing(null);
-    setForm({
-      ...EMPTY,
-      sort_order: faqs.length
-        ? Math.max(...faqs.map((faq) => faq.sort_order)) + 1
-        : 0,
-    });
+    // New questions go to the end by default
+    setForm({ ...EMPTY, sort_order: faqs.length ? Math.max(...faqs.map((f) => f.sort_order)) + 1 : 0 });
     setFormError("");
+    setFormOpen(true);
   };
 
-  const startEdit = (faq: Faq) => {
+  const openEdit = (faq: Faq) => {
     setEditing(faq);
-    setForm({
-      question: faq.question,
-      answer: faq.answer,
-      sort_order: faq.sort_order,
-    });
+    setForm({ question: faq.question, answer: faq.answer, sort_order: faq.sort_order });
     setFormError("");
+    setFormOpen(true);
   };
 
-  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    const data: FaqData = {
-      question: form.question.trim(),
-      answer: form.answer.trim(),
-      sort_order: Number(form.sort_order) || 0,
-    };
-
+  // POST or PUT /api/support/admin/faq
+  const saveFaq = async () => {
+    const data = { question: form.question.trim(), answer: form.answer.trim(), sort_order: Number(form.sort_order) || 0 };
     if (data.question.length < 5) {
-      setFormError("Please enter a question with at least 5 characters.");
+      setFormError("Please write a question (at least 5 characters).");
       return;
     }
-
     if (!data.answer) {
-      setFormError("Please enter an answer.");
+      setFormError("Please write an answer.");
       return;
     }
-
     setSaving(true);
     setFormError("");
-
     try {
-      const saved = editing
-        ? await updateFaq(editing.id, data)
-        : await createFaq(data);
-
-      setFaqs((current) =>
-        sortFaqs(
-          editing
-            ? current.map((faq) =>
-                faq.id === saved.id ? saved : faq
-              )
-            : [...current, saved]
-        )
-      );
-
-      resetForm();
+      const saved = editing ? await updateFaq(editing.id, data) : await createFaq(data);
+      setFaqs((current) => sortFaqs(editing ? current.map((f) => (f.id === saved.id ? saved : f)) : [...current, saved]));
+      setFormOpen(false);
     } catch (err) {
       setFormError(errorText(err, "Could not save the FAQ. Try again."));
     } finally {
@@ -134,17 +94,14 @@ export default function AdminFaqPage() {
     }
   };
 
-  const handleDelete = async () => {
+  // DELETE /api/support/admin/faq/{id}
+  const confirmDelete = async () => {
     if (!deleting) return;
-
     setSaving(true);
     setDeleteError("");
-
     try {
       await deleteFaq(deleting.id);
-      setFaqs((current) =>
-        current.filter((faq) => faq.id !== deleting.id)
-      );
+      setFaqs((current) => current.filter((f) => f.id !== deleting.id));
       setDeleting(null);
     } catch (err) {
       setDeleteError(errorText(err, "Could not delete the FAQ. Try again."));
@@ -154,233 +111,171 @@ export default function AdminFaqPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F7F2] -m-6 lg:-m-8 p-6 lg:p-8">
-      <div className="mb-6 border-b border-[#E5E2D8] pb-4">
-        <h2 className="text-xl font-bold text-[#263328]">
-          FAQ Management Panel
-        </h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Manage public support questions and answers for your customers.
+    <div className="admin-card p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <p className="text-sm text-slate-500">
+          Questions shown to customers on the help page, in this order.
         </p>
+        <button
+          onClick={openAdd}
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg bg-primary-600 hover:bg-primary-700"
+        >
+          <Plus size={16} /> Add FAQ
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 items-start">
-        {/* LEFT: ADD / EDIT FORM */}
-        <section className="lg:col-span-2 rounded-xl border border-[#E5E2D8] bg-white p-5 shadow-sm">
-          <div className="mb-5 flex items-center gap-2">
-            {editing ? (
-              <Pencil size={18} className="text-[#5F6B3A]" />
-            ) : (
-              <Plus size={19} className="text-[#5F6B3A]" />
-            )}
+      {loading && <LoadingRows />}
 
-            <h3 className="font-bold text-[#394536]">
-              {editing ? "Edit Support Article" : "Compose Fresh Article"}
-            </h3>
-          </div>
+      {!loading && error && (
+        <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-5 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm">{error}</p>
+          <button
+            onClick={() => setReloadKey(reloadKey + 1)}
+            className="text-sm font-medium px-3 py-1 rounded-lg border border-rose-300 hover:bg-rose-100"
+          >
+            Try again
+          </button>
+        </div>
+      )}
 
-          <form onSubmit={handleSave} className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-bold text-slate-600">
-                Question Text
-              </label>
-              <input
-                type="text"
-                value={form.question}
-                onChange={(e) =>
-                  setForm({ ...form, question: e.target.value })
-                }
-                placeholder="Enter the FAQ question"
-                required
-                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#71804B] focus:ring-2 focus:ring-[#71804B]/10"
-              />
-            </div>
+      {!loading && !error && faqs.length === 0 && (
+        <p className="text-sm text-slate-500 py-8 text-center">No FAQs yet. Add the first one.</p>
+      )}
 
-            <div>
-              <label className="mb-1.5 block text-xs font-bold text-slate-600">
-                Answer
-              </label>
-              <textarea
-                rows={5}
-                value={form.answer}
-                onChange={(e) =>
-                  setForm({ ...form, answer: e.target.value })
-                }
-                placeholder="Write the answer for customers"
-                required
-                className="w-full resize-y rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#71804B] focus:ring-2 focus:ring-[#71804B]/10"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-bold text-slate-600">
-                Sorting Order Rank
-              </label>
-              <input
-                type="number"
-                value={form.sort_order}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    sort_order: Number(e.target.value),
-                  })
-                }
-                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#71804B]"
-              />
-            </div>
-
-            {formError && (
-              <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
-                {formError}
-              </p>
-            )}
-
-            <div className="flex gap-2 pt-2">
-              <button
-                type="submit"
-                disabled={saving}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#5F6B3A] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#4D5930] disabled:opacity-50"
-              >
-                <Save size={16} />
-                {saving
-                  ? "Saving..."
-                  : editing
-                    ? "Update Article"
-                    : "Publish Article"}
-              </button>
-
-              {editing && (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  disabled={saving}
-                  className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
-                >
-                  <X size={16} />
-                  Cancel
-                </button>
-              )}
-            </div>
-          </form>
-        </section>
-
-        {/* RIGHT: FAQ LIST */}
-        <section className="lg:col-span-3 rounded-xl border border-[#E5E2D8] bg-white p-5 shadow-sm">
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h3 className="font-bold text-[#394536]">
-                Active Public FAQ Repository
-              </h3>
-              <p className="mt-1 text-xs text-slate-500">
-                Manage the questions displayed to customers.
-              </p>
-            </div>
-
-            <span className="rounded-full bg-[#EDF0E5] px-3 py-1 text-xs font-semibold text-[#52613B]">
-              {faqs.length} FAQs
-            </span>
-          </div>
-
-          {loading ? (
-            <p className="py-10 text-center text-sm text-slate-500">
-              Loading FAQs...
-            </p>
-          ) : error ? (
-            <div className="rounded-lg bg-red-50 p-4 text-sm text-red-600">
-              {error}
-            </div>
-          ) : faqs.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-200 py-12 text-center">
-              <p className="font-medium text-slate-600">
-                No FAQs available yet.
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                Add your first FAQ using the form.
-              </p>
-            </div>
-          ) : (
-            <div className="max-h-[650px] space-y-3 overflow-y-auto pr-1">
-              {faqs.map((faq) => (
-                <article
-                  key={faq.id}
-                  className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-[#FAFAF8] p-4"
-                >
-                  <div className="min-w-0 flex-1">
-                    <span className="mb-2 inline-block rounded bg-slate-200 px-2 py-1 font-mono text-[10px] text-slate-600">
-                      Priority Rank: #{faq.sort_order}
-                    </span>
-
-                    <h4 className="text-sm font-bold leading-5 text-slate-800">
-                      {faq.question}
-                    </h4>
-
-                    <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-500">
-                      {faq.answer}
-                    </p>
-                  </div>
-
-                  <div className="flex shrink-0 gap-1">
+      {!loading && !error && faqs.length > 0 && (
+        <ul className="divide-y rounded-xl border">
+          {faqs.map((faq) => {
+            const open = openId === faq.id;
+            return (
+              <li key={faq.id} className="px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 text-xs font-semibold text-slate-400 w-6 shrink-0">{faq.sort_order}</span>
+                  <button
+                    onClick={() => setOpenId(open ? null : faq.id)}
+                    className="flex-1 text-left flex items-start justify-between gap-2"
+                    aria-expanded={open}
+                  >
+                    <span className="text-sm font-medium text-slate-800">{faq.question}</span>
+                    <ChevronDown
+                      size={16}
+                      className={`mt-0.5 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  <div className="flex gap-1 shrink-0">
                     <button
-                      type="button"
-                      onClick={() => startEdit(faq)}
-                      title="Edit FAQ"
-                      className="rounded-md border border-slate-200 p-2 text-slate-600 hover:bg-white hover:text-[#5F6B3A]"
+                      onClick={() => openEdit(faq)}
+                      aria-label={`Edit "${faq.question}"`}
+                      className="p-1.5 rounded-lg text-slate-500 hover:bg-cream-200 hover:text-slate-800"
                     >
                       <Pencil size={15} />
                     </button>
-
                     <button
-                      type="button"
                       onClick={() => {
-                        setDeleting(faq);
                         setDeleteError("");
+                        setDeleting(faq);
                       }}
-                      title="Delete FAQ"
-                      className="rounded-md border border-red-100 p-2 text-red-500 hover:bg-red-50"
+                      aria-label={`Delete "${faq.question}"`}
+                      className="p-1.5 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600"
                     >
                       <Trash2 size={15} />
                     </button>
                   </div>
-                </article>
-              ))}
+                </div>
+                {open && <p className="mt-2 ml-9 text-sm text-slate-600 whitespace-pre-wrap">{faq.answer}</p>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {/* Add / edit popup */}
+      {formOpen && (
+        <Modal title={editing ? "Edit FAQ" : "Add FAQ"} onClose={() => setFormOpen(false)}>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="faq-question" className="block text-sm font-medium text-slate-700 mb-1">
+                Question
+              </label>
+              <input
+                id="faq-question"
+                value={form.question}
+                onChange={(e) => setForm({ ...form, question: e.target.value })}
+                maxLength={500}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
             </div>
-          )}
-
-          {deleting && (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
-              <p className="text-sm font-semibold text-red-700">
-                Delete this FAQ?
-              </p>
-              <p className="mt-1 text-xs text-red-600">
-                {deleting.question}
-              </p>
-
-              {deleteError && (
-                <p className="mt-2 text-xs text-red-700">{deleteError}</p>
-              )}
-
-              <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={saving}
-                  className="rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-                >
-                  {saving ? "Deleting..." : "Confirm Delete"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleting(null)}
-                  disabled={saving}
-                  className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600"
-                >
-                  Cancel
-                </button>
-              </div>
+            <div>
+              <label htmlFor="faq-answer" className="block text-sm font-medium text-slate-700 mb-1">
+                Answer
+              </label>
+              <textarea
+                id="faq-answer"
+                value={form.answer}
+                onChange={(e) => setForm({ ...form, answer: e.target.value })}
+                rows={5}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
             </div>
+            <div>
+              <label htmlFor="faq-order" className="block text-sm font-medium text-slate-700 mb-1">
+                Position
+              </label>
+              <input
+                id="faq-order"
+                type="number"
+                min={0}
+                value={form.sort_order}
+                onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })}
+                className="w-28 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <p className="text-xs text-slate-500 mt-1">Lower numbers are shown first.</p>
+            </div>
+
+            {formError && (
+              <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {formError}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button onClick={() => setFormOpen(false)} className="px-4 py-2 text-sm border rounded-lg hover:bg-cream-100">
+                Cancel
+              </button>
+              <button
+                onClick={saveFaq}
+                disabled={saving}
+                className="px-4 py-2 text-sm text-white rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-60"
+              >
+                {saving ? "Saving..." : editing ? "Save changes" : "Add FAQ"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Delete popup */}
+      {deleting && (
+        <Modal title="Delete this FAQ?" onClose={() => setDeleting(null)}>
+          <p className="text-sm text-slate-600">"{deleting.question}" will be removed from the help page.</p>
+          {deleteError && (
+            <p role="alert" className="mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {deleteError}
+            </p>
           )}
-        </section>
-      </div>
+          <div className="flex justify-end gap-3 mt-6">
+            <button onClick={() => setDeleting(null)} className="px-4 py-2 text-sm border rounded-lg hover:bg-cream-100">
+              Cancel
+            </button>
+            <button
+              onClick={confirmDelete}
+              disabled={saving}
+              className="px-4 py-2 text-sm text-white rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-60"
+            >
+              {saving ? "Deleting..." : "Delete"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
