@@ -98,20 +98,28 @@ def checkout_review(
             detail="Invalid shipping price configuration",
         )
 
-    # 3. Find this customer's cart.
+    # 3. Find this customer's cart containing their latest cart item.
+    # This avoids selecting a newer empty or older inactive cart
+    # merely because its cart ID is higher.
     cart = db.execute(
         text("""
-            SELECT id
-            FROM carts
-            WHERE user_id = :user_id
-            ORDER BY id DESC
+            SELECT c.id
+            FROM carts AS c
+            INNER JOIN cart_items AS ci
+                ON ci.cart_id = c.id
+            WHERE c.user_id = :user_id
+            GROUP BY c.id
+            ORDER BY MAX(ci.id) DESC
             LIMIT 1
         """),
         {"user_id": user.id},
     ).mappings().first()
 
     if cart is None:
-        raise HTTPException(status_code=400, detail="Cart not found")
+        raise HTTPException(
+            status_code=400,
+            detail="Cart not found or cart is empty",
+        )
 
     # 4. Load cart items. Cart prices are not authoritative.
     cart_items = db.execute(
