@@ -1,5 +1,4 @@
-﻿
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AddressStep from "../components/AddressStep";
 import "../checkout.css";
@@ -50,10 +49,14 @@ async function readResponse(response, fallbackMessage) {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
+    const detail = data?.detail || data?.message;
+
     throw new Error(
-      data?.detail ||
-        data?.message ||
-        fallbackMessage
+      typeof detail === "string"
+        ? detail
+        : detail
+          ? JSON.stringify(detail)
+          : fallbackMessage
     );
   }
 
@@ -73,9 +76,14 @@ function CheckoutPage() {
   const [shipping, setShipping] = useState(null);
   const [shippingLoading, setShippingLoading] = useState(true);
 
+  const [paymentMethod, setPaymentMethod] = useState("ONLINE");
+
   const [message, setMessage] = useState("");
   const [placingOrder, setPlacingOrder] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
+
+  // Keeps an already-created order available if payment needs retrying.
+  const [pendingCheckout, setPendingCheckout] = useState(null);
 
   const [cart, setCart] = useState(null);
   const [cartLoading, setCartLoading] = useState(true);
@@ -88,6 +96,13 @@ function CheckoutPage() {
       cart?.summary?.tax_amount ??
       0
   );
+
+  const token = getAuthToken();
+
+  const authHeaders = {
+    Accept: "application/json",
+    Authorization: `Bearer ${token}`,
+  };
 
   // ==========================================
   // LOAD SHIPPING METHODS
@@ -156,15 +171,15 @@ function CheckoutPage() {
   // ==========================================
 
   const loadCart = async () => {
-    const token = getAuthToken();
+    const currentToken = getAuthToken();
 
-    if (!token) {
+    if (!currentToken) {
       throw new Error("Please login before loading your cart.");
     }
 
     const headers = {
       Accept: "application/json",
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${currentToken}`,
     };
 
     const couponCode = localStorage.getItem("viora_coupon_code");
@@ -279,7 +294,6 @@ function CheckoutPage() {
     setCartError("");
 
     try {
-      // Revalidate cart and pricing before showing order review.
       const latestCart = await loadCart();
 
       if (!latestCart.items.length) {
@@ -316,7 +330,254 @@ function CheckoutPage() {
   };
 
   // ==========================================
-  // PLACE ORDER
+  // CREATE CHECKOUT SESSION
+  // ==========================================
+
+  const createCheckoutSession = async (currentToken) => {
+    const couponCode = localStorage.getItem("viora_coupon_code");
+
+    const response = await fetch(
+      `${API_BASE}/api/checkout/session`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({
+          address_id: Number(shippingAddressId),
+          shipping_method_id: Number(selectedShipping.id),
+          coupon_code: couponCode || null,
+        }),
+      }
+    );
+
+    const data = await readResponse(
+      response,
+      "Unable to create checkout session."
+    );
+
+    const sessionId =
+      data?.session_id ??
+      data?.checkout_session_id;
+
+    if (!sessionId) {
+      throw new Error(
+        "Checkout session response is missing its session ID."
+      );
+    }
+
+    return sessionId;
+  };
+
+  // ==========================================
+  // CREATE ORDER FROM CHECKOUT SESSION
+  // ==========================================
+
+  const createOrderFromSession = async (
+    currentToken,
+    sessionId
+  ) => {
+    const couponCode = localStorage.getItem("viora_coupon_code");
+
+    const response = await fetch(`${API_BASE}/api/orders`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${currentToken}`,
+      },
+      body: JSON.stringify({
+        address_id: Number(shippingAddressId),
+        shipping_method_id: Number(selectedShipping.id),
+        payment_method: paymentMethod,
+        checkout_reference_id: sessionId,
+        coupon_code: couponCode || null,
+        items: [],
+      }),
+    });
+
+    const data = await readResponse(
+      response,
+      "Failed to create order."
+    );
+
+    if (!data?.id || !data?.order_number) {
+      throw new Error(
+        "Order response is missing its confirmation details."
+      );
+    }
+
+    return data;
+  };
+
+  // ==========================================
+  // SELECT PAYMENT METHOD
+  // ==========================================
+
+  const selectPaymentMethod = async (
+    currentToken,
+    sessionId,
+    orderId
+  ) => {
+    const response = await fetch(
+      `${API_BASE}/api/payment/select-method`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({
+          checkout_session_id: sessionId,
+          order_id: Number(orderId),
+          method: paymentMethod,
+        }),
+      }
+    );
+
+    const data = await readResponse(
+      response,
+      "Unable to select payment method."
+    );
+
+    if (!data?.payment_id) {
+      throw new Error(
+        "Payment response is missing its payment ID."
+      );
+    }
+
+    return data;
+  };
+
+  // ==========================================
+  // COD PAYMENT
+  // ==========================================
+
+  const confirmCODPayment = async (
+    currentToken,
+    paymentId
+  ) => {
+    const response = await fetch(
+      `${API_BASE}/api/payment/cod`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({
+          payment_id: Number(paymentId),
+        }),
+      }
+    );
+
+    return readResponse(
+      response,
+      "Unable to confirm Cash on Delivery."
+    );
+  };
+
+  // ==========================================
+  // ONLINE MOCK PAYMENT
+  // ==========================================
+
+  const processOnlinePayment = async (
+    currentToken,
+    paymentId
+  ) => {
+    const processResponse = await fetch(
+      `${API_BASE}/api/payment/mock/process`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({
+          payment_id: Number(paymentId),
+          simulate_failure: false,
+        }),
+      }
+    );
+
+    const processData = await readResponse(
+      processResponse,
+      "Online payment processing failed."
+    );
+
+    const transactionId =
+      processData?.transaction_id ??
+      processData?.payment?.transaction_id;
+
+    const processStatus = String(
+      processData?.payment_status ??
+        processData?.status ??
+        processData?.payment?.status ??
+        ""
+    ).toUpperCase();
+
+    if (
+      processStatus === "FAILED" ||
+      processStatus === "CANCELLED"
+    ) {
+      throw new Error(
+        processData?.message ||
+          "Payment failed. Your order has not been marked as paid."
+      );
+    }
+
+    if (!transactionId) {
+      throw new Error(
+        "Payment processing response is missing its transaction ID."
+      );
+    }
+
+    // Verify the transaction with the backend.
+    const verifyResponse = await fetch(
+      `${API_BASE}/api/payment/mock/verify`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({
+          payment_id: Number(paymentId),
+          transaction_id: transactionId,
+        }),
+      }
+    );
+
+    const verifyData = await readResponse(
+      verifyResponse,
+      "Unable to verify online payment."
+    );
+
+    const verifiedStatus = String(
+      verifyData?.payment_status ??
+        verifyData?.status ??
+        verifyData?.payment?.status ??
+        ""
+    ).toUpperCase();
+
+    if (verifiedStatus !== "SUCCESS") {
+      throw new Error(
+        verifyData?.message ||
+          "Payment verification was not successful. Your order has not been marked as paid."
+      );
+    }
+
+    return verifyData;
+  };
+
+  // ==========================================
+  // PLACE ORDER AND COMPLETE PAYMENT
   // ==========================================
 
   const placeOrder = async () => {
@@ -346,80 +607,102 @@ function CheckoutPage() {
       return;
     }
 
-    if (!cart?.items?.length) {
+    if (!pendingCheckout && !cart?.items?.length) {
       setMessage("Your cart is empty.");
       return;
     }
 
-    const token = getAuthToken();
+    const currentToken = getAuthToken();
 
-    if (!token) {
+    if (!currentToken) {
       setMessage("Please login before placing the order.");
-      return;
-    }
-
-    const invalidItem = cart.items.some(
-      (item) =>
-        !Number.isInteger(Number(item.product_id)) ||
-        Number(item.product_id) <= 0 ||
-        !Number.isInteger(Number(item.quantity)) ||
-        Number(item.quantity) <= 0
-    );
-
-    if (invalidItem) {
-      setMessage("Your cart contains an invalid product or quantity.");
       return;
     }
 
     try {
       setPlacingOrder(true);
 
-      const couponCode = localStorage.getItem("viora_coupon_code");
+      let checkout = pendingCheckout;
 
-      const response = await fetch(`${API_BASE}/api/orders`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          address_id: shippingAddressId,
-          shipping_method_id: Number(selectedShipping.id),
-          payment_method: "COD",
-          coupon_code: couponCode || null,
-          items: cart.items.map((item) => ({
-            product_id: Number(item.product_id),
-            variant_id: item.variant_id ?? null,
-            quantity: Number(item.quantity),
-          })),
-        }),
-      });
+      // Create the session and order only once.
+      // If payment fails, a retry reuses this order.
+      if (!checkout) {
+        const latestCart = await loadCart();
 
-      const data = await readResponse(
-        response,
-        "Failed to create order."
+        if (!latestCart.items?.length) {
+          throw new Error("Your cart is empty.");
+        }
+
+        setCart(latestCart);
+
+        const invalidItem = latestCart.items.some(
+          (item) =>
+            !Number.isInteger(Number(item.product_id)) ||
+            Number(item.product_id) <= 0 ||
+            !Number.isInteger(Number(item.quantity)) ||
+            Number(item.quantity) <= 0
+        );
+
+        if (invalidItem) {
+          throw new Error(
+            "Your cart contains an invalid product or quantity."
+          );
+        }
+
+        const sessionId = await createCheckoutSession(
+          currentToken
+        );
+
+        const order = await createOrderFromSession(
+          currentToken,
+          sessionId
+        );
+
+        checkout = {
+          sessionId,
+          order,
+        };
+
+        setPendingCheckout(checkout);
+      }
+
+      // Save the selected method for this order.
+      const payment = await selectPaymentMethod(
+        currentToken,
+        checkout.sessionId,
+        checkout.order.id
       );
 
-      if (!data?.id || !data?.order_number) {
-        throw new Error(
-          "Order response is missing its confirmation details."
+      if (paymentMethod === "COD") {
+        await confirmCODPayment(
+          currentToken,
+          payment.payment_id
+        );
+      } else {
+        await processOnlinePayment(
+          currentToken,
+          payment.payment_id
         );
       }
 
-      setPlacedOrder(data);
+      // Only navigate after COD confirmation or successful
+      // online payment verification.
+      setPlacedOrder(checkout.order);
+      setPendingCheckout(null);
+
       localStorage.removeItem("viora_coupon_code");
 
-      navigate(`/order-confirmation/${data.id}`, {
-        replace: true,
-      });
+      navigate(
+        `/order-confirmation/${checkout.order.id}`,
+        { replace: true }
+      );
     } catch (error) {
-      console.error("Order creation error:", error);
+      console.error("Checkout/payment error:", error);
 
       setMessage(
         error instanceof Error
           ? error.message
-          : "Unable to place order. Please try again."
+          : "Unable to complete checkout. Please try again."
       );
     } finally {
       setPlacingOrder(false);
@@ -650,7 +933,7 @@ function CheckoutPage() {
                 <h2>Review your order</h2>
 
                 <p className="checkout-hint">
-                  Check your address and selected shipping method
+                  Check your address, shipping method and payment method
                   before placing the order.
                 </p>
 
@@ -791,6 +1074,77 @@ function CheckoutPage() {
                   )}
                 </div>
 
+                {/* PAYMENT METHOD */}
+
+                <div className="review-section">
+                  <h3>Payment method</h3>
+
+                  <div className="shipping-options">
+                    <label
+                      className={`shipping-option ${
+                        paymentMethod === "ONLINE" ? "selected" : ""
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="ONLINE"
+                        checked={paymentMethod === "ONLINE"}
+                        onChange={() => {
+                          setPaymentMethod("ONLINE");
+                          setMessage("");
+                        }}
+                        disabled={placingOrder}
+                      />
+
+                      <span className="shipping-option-content">
+                        <span className="shipping-option-title">
+                          Online Payment
+                        </span>
+
+                        <span className="shipping-option-description">
+                          Pay online using the mock payment gateway.
+                        </span>
+                      </span>
+                    </label>
+
+                    <label
+                      className={`shipping-option ${
+                        paymentMethod === "COD" ? "selected" : ""
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="COD"
+                        checked={paymentMethod === "COD"}
+                        onChange={() => {
+                          setPaymentMethod("COD");
+                          setMessage("");
+                        }}
+                        disabled={placingOrder}
+                      />
+
+                      <span className="shipping-option-content">
+                        <span className="shipping-option-title">
+                          Cash on Delivery
+                        </span>
+
+                        <span className="shipping-option-description">
+                          Pay when your order is delivered.
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+
+                  {paymentMethod === "ONLINE" && (
+                    <p className="checkout-hint">
+                      This project currently uses a mock payment gateway.
+                      It does not process real card payments.
+                    </p>
+                  )}
+                </div>
+
                 {/* REVIEW MESSAGE */}
 
                 {message && (
@@ -827,12 +1181,16 @@ function CheckoutPage() {
                       Boolean(placedOrder) ||
                       cartLoading ||
                       Boolean(cartError) ||
-                      !cart?.items?.length
+                      (!pendingCheckout && !cart?.items?.length)
                     }
                   >
                     {placingOrder
-                      ? "Placing order..."
-                      : "Place order"}
+                      ? paymentMethod === "ONLINE"
+                        ? "Processing payment..."
+                        : "Confirming order..."
+                      : paymentMethod === "ONLINE"
+                        ? "Pay now"
+                        : "Place COD order"}
                   </button>
                 </div>
               </>

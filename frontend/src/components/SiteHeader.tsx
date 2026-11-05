@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { BagLeafIcon } from './BrandLogo';
@@ -68,7 +69,6 @@ export default function SiteHeader({ overlay = false }: { overlay?: boolean }) {
         <nav className="hidden items-center gap-7 md:flex" aria-label="Main">
           <NavLink to="/" end className={navLink}>Home</NavLink>
           <NavLink to="/products" className={navLink}>Shop</NavLink>
-          <a href="/#categories" className="text-sm font-medium text-viora-ink no-underline hover:text-viora-olive">Categories</a>
         </nav>
 
         {/* Desktop search */}
@@ -125,7 +125,6 @@ export default function SiteHeader({ overlay = false }: { overlay?: boolean }) {
           </div>
           <Link to="/" className={mobileLink}>Home</Link>
           <Link to="/products" className={mobileLink}>Shop</Link>
-          <a href="/#categories" onClick={() => setOpen(false)} className={mobileLink}>Categories</a>
           <div className="my-3 h-px bg-viora-sage/50" />
           {user ? (
             <>
