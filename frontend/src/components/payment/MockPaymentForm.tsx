@@ -66,7 +66,7 @@ export default function MockPaymentForm({
 
           <div>
             <h1 className="font-serif text-3xl font-bold tracking-[0.22em] text-[#304431]">
-              VIORA
+              GRABBY
             </h1>
             <p className="mt-1 text-[8px] font-semibold tracking-[0.32em] text-[#87917B]">
               EVERYTHING YOU NEED, ALL IN ONE PLACE
@@ -139,7 +139,7 @@ export default function MockPaymentForm({
               <div className="absolute inset-4 rounded-full border border-[#9BAA8E]/30" />
               <div className="absolute inset-8 rounded-full border border-[#9BAA8E]/20" />
               <span className="font-serif text-8xl italic text-[#C6D2B9]">
-                V
+                G
               </span>
               <span className="absolute bottom-8 text-[9px] tracking-[0.3em] text-[#C6D2B9]">
                 MADE WITH CARE
@@ -155,7 +155,7 @@ export default function MockPaymentForm({
 
         <div className="mb-10">
           <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#89947D]">
-            VIORA / CHECKOUT
+            GRABBY / CHECKOUT
           </p>
           <h3 className="mt-3 font-serif text-3xl text-[#304431] sm:text-4xl">
             Complete your payment
@@ -589,11 +589,11 @@ export default function MockPaymentForm({
             <section className="relative overflow-hidden bg-[#293C2D] p-7 text-[#F7F3E9]">
 
               <span className="absolute -right-3 -top-8 font-serif text-9xl italic text-white/[0.06]">
-                V
+                G
               </span>
 
               <p className="relative text-[9px] font-bold uppercase tracking-[0.25em] text-[#BAC8AD]">
-                A NOTE FROM VIORA
+                A NOTE FROM GRABBY
               </p>
 
               <h4 className="relative mt-4 font-serif text-2xl italic leading-relaxed">
@@ -617,7 +617,7 @@ export default function MockPaymentForm({
 
             <div>
               <p className="font-serif text-xl font-bold tracking-[0.2em] text-[#304431]">
-                VIORA
+                GRABBY
               </p>
               <p className="mt-1 text-[8px] tracking-[0.25em] text-[#929783]">
                 THOUGHTFULLY SELECTED. BEAUTIFULLY DELIVERED.
@@ -625,7 +625,7 @@ export default function MockPaymentForm({
             </div>
 
             <p className="text-[9px] tracking-[0.1em] text-[#929783]">
-              © VIORA · ALL RIGHTS RESERVED
+              © GRABBY · ALL RIGHTS RESERVED
             </p>
 
           </div>

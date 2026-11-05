@@ -1,4 +1,7 @@
+
 import { useEffect, useState } from "react";
+
+type AddressType = "shipping" | "billing" | "both";
 
 type Address = {
   id: number;
@@ -11,28 +14,36 @@ type Address = {
   state: string;
   postal_code: string;
   country: string;
-  address_type: "shipping" | "billing" | "both";
+  address_type: AddressType;
   is_default: boolean;
 };
 
-type AddressStepProps = {
-  onContinue: (shippingAddress: Address, billingAddress: Address) => void;
+type AddressForm = {
+  full_name: string;
+  phone: string;
+  line1: string;
+  line2: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  address_type: AddressType;
 };
 
-// Updated API base URL
-const API_BASE = "http://127.0.0.1:8000";
+type AddressStepProps = {
+  onContinue: (
+    shippingAddress: Address,
+    billingAddress: Address
+  ) => void;
+};
 
-function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem("viora_token") || localStorage.getItem("access_token") || localStorage.getItem("token");
+// Configure VITE_API_BASE_URL in frontend/.env if needed.
+// It should contain the backend origin, e.g. http://127.0.0.1:8000
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000"
+).replace(/\/+$/, "");
 
-  return token
-    ? {
-        Authorization: `Bearer ${token}`,
-      }
-    : {};
-}
-
-const emptyForm = {
+const emptyForm: AddressForm = {
   full_name: "",
   phone: "",
   line1: "",
@@ -44,20 +55,78 @@ const emptyForm = {
   address_type: "both",
 };
 
-export default function AddressStep({ onContinue }: AddressStepProps) {
+function getAuthHeaders(): Record<string, string> {
+  const token =
+    localStorage.getItem("viora_token") ||
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("token");
+
+  return token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
+}
+
+function canShip(address: Address): boolean {
+  return (
+    address.address_type === "shipping" ||
+    address.address_type === "both"
+  );
+}
+
+function canBill(address: Address): boolean {
+  return (
+    address.address_type === "billing" ||
+    address.address_type === "both"
+  );
+}
+
+async function getApiError(
+  response: Response,
+  fallback: string
+): Promise<string> {
+  const responseText = await response.text();
+
+  if (!responseText) return fallback;
+
+  try {
+    const data = JSON.parse(responseText);
+    const detail = data?.detail || data?.message;
+
+    if (typeof detail === "string") return detail;
+
+    if (Array.isArray(detail)) {
+      return detail
+        .map((item) => item.msg || "Invalid input")
+        .join(", ");
+    }
+  } catch {
+    // The server returned non-JSON content.
+  }
+
+  return fallback;
+}
+
+export default function AddressStep({
+  onContinue,
+}: AddressStepProps) {
   const [addresses, setAddresses] = useState<Address[]>([]);
+
   const [shippingId, setShippingId] = useState<number | null>(null);
   const [billingId, setBillingId] = useState<number | null>(null);
+
   const [sameAsShipping, setSameAsShipping] = useState(true);
 
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
   const [error, setError] = useState("");
-  const [showNewAddress, setShowNewAddress] = useState(false);
-  const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState("");
 
+  const [showNewAddress, setShowNewAddress] = useState(false);
+  const [form, setForm] = useState<AddressForm>(emptyForm);
+
   useEffect(() => {
-    loadAddresses();
+    void loadAddresses();
   }, []);
 
   async function loadAddresses() {
@@ -65,35 +134,73 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/api/account/addresses`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          ...getAuthHeaders(),
-        },
-      });
+      const response = await fetch(
+        `${API_BASE}/api/account/addresses`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            ...getAuthHeaders(),
+          },
+        }
+      );
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error("Please login to view your saved addresses.");
+          throw new Error(
+            "Please login to view your saved addresses."
+          );
         }
 
         if (response.status === 403) {
-          throw new Error("Only logged-in customers can view addresses.");
+          throw new Error(
+            "Only logged-in customers can view addresses."
+          );
         }
 
-        throw new Error("Unable to load saved addresses.");
+        throw new Error(
+          await getApiError(
+            response,
+            "Unable to load saved addresses."
+          )
+        );
       }
 
       const data: Address[] = await response.json();
 
+      if (!Array.isArray(data)) {
+        throw new Error(
+          "Invalid address data received from the server."
+        );
+      }
+
       setAddresses(data);
 
-      const defaultAddress = data.find((address) => address.is_default);
+      // Only select addresses that support the relevant purpose.
+      const shippingAddresses = data.filter(canShip);
+      const billingAddresses = data.filter(canBill);
 
-      if (defaultAddress) {
-        setShippingId(defaultAddress.id);
-        setBillingId(defaultAddress.id);
+      const defaultShipping =
+        shippingAddresses.find((address) => address.is_default) ||
+        shippingAddresses[0] ||
+        null;
+
+      const defaultBilling =
+        billingAddresses.find((address) => address.is_default) ||
+        billingAddresses[0] ||
+        null;
+
+      setShippingId(defaultShipping?.id ?? null);
+
+      if (
+        defaultShipping &&
+        canBill(defaultShipping)
+      ) {
+        setSameAsShipping(true);
+        setBillingId(defaultShipping.id);
+      } else {
+        setSameAsShipping(false);
+        setBillingId(defaultBilling?.id ?? null);
       }
     } catch (err) {
       setError(
@@ -106,46 +213,65 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
     }
   }
 
-  function updateField(field: string, value: string) {
+  function updateField<K extends keyof AddressForm>(
+    field: K,
+    value: AddressForm[K]
+  ) {
     setForm((previous) => ({
       ...previous,
       [field]: value,
     }));
   }
 
-  function validateForm() {
-    if (!form.full_name.trim()) {
+  function validateForm(): string {
+    const name = form.full_name.trim();
+
+    if (!name) {
       return "Full name is required.";
     }
 
-    if (!/^[A-Za-z ]{2,100}$/.test(form.full_name.trim())) {
+    if (!/^[\p{L}\p{M}][\p{L}\p{M} .'-]{1,99}$/u.test(name)) {
       return "Enter a valid full name.";
     }
 
     if (!/^[6-9][0-9]{9}$/.test(form.phone)) {
-      return "Enter a valid 10-digit mobile number.";
+      return "Enter a valid 10-digit Indian mobile number.";
     }
 
     if (form.line1.trim().length < 3) {
-      return "Address is required.";
+      return "Enter a valid address.";
+    }
+
+    if (form.line1.trim().length > 200) {
+      return "Address Line 1 must be 200 characters or fewer.";
+    }
+
+    if (form.line2.trim().length > 200) {
+      return "Address Line 2 must be 200 characters or fewer.";
     }
 
     if (form.city.trim().length < 2) {
-      return "City is required.";
+      return "Enter a valid city.";
     }
 
     if (form.state.trim().length < 2) {
-      return "State is required.";
+      return "Enter a valid state.";
     }
 
     if (!/^[0-9]{6}$/.test(form.postal_code)) {
       return "Enter a valid 6-digit PIN code.";
     }
 
+    if (!form.country.trim()) {
+      return "Country is required.";
+    }
+
     return "";
   }
 
   async function createAddress() {
+    if (saving) return;
+
     const validationError = validateForm();
 
     if (validationError) {
@@ -153,86 +279,175 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
       return;
     }
 
+    setSaving(true);
     setFormError("");
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/api/account/addresses`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify(form),
-      });
+      const payload: AddressForm = {
+        ...form,
+        full_name: form.full_name.trim(),
+        phone: form.phone.trim(),
+        line1: form.line1.trim(),
+        line2: form.line2.trim(),
+        city: form.city.trim(),
+        state: form.state.trim(),
+        postal_code: form.postal_code.trim(),
+        country: form.country.trim(),
+      };
+
+      const response = await fetch(
+        `${API_BASE}/api/account/addresses`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error("Please login before adding an address.");
+          throw new Error(
+            "Please login before adding an address."
+          );
         }
 
         if (response.status === 403) {
-          throw new Error("Only logged-in customers can add addresses.");
+          throw new Error(
+            "Only logged-in customers can add addresses."
+          );
         }
 
-        const result = await response.json().catch(() => null);
-
         throw new Error(
-          result?.detail || "Unable to save the new address."
+          await getApiError(
+            response,
+            "Unable to save the new address."
+          )
         );
       }
 
       const newAddress: Address = await response.json();
 
-      setAddresses((previous) => [...previous, newAddress]);
-      setShippingId(newAddress.id);
+      if (
+        !newAddress ||
+        typeof newAddress.id !== "number"
+      ) {
+        throw new Error(
+          "The server returned an invalid address."
+        );
+      }
 
-      if (sameAsShipping) {
+      setAddresses((previous) => [
+        ...previous,
+        newAddress,
+      ]);
+
+      if (canShip(newAddress)) {
+        setShippingId(newAddress.id);
+      }
+
+      if (sameAsShipping && canBill(newAddress)) {
+        setBillingId(newAddress.id);
+      } else if (sameAsShipping && !canBill(newAddress)) {
+        setSameAsShipping(false);
+
+        const existingBilling = addresses.find(canBill);
+        setBillingId(existingBilling?.id ?? null);
+      } else if (!billingId && canBill(newAddress)) {
         setBillingId(newAddress.id);
       }
 
       setShowNewAddress(false);
       setForm(emptyForm);
+      setFormError("");
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
           : "Something went wrong while saving the address."
       );
+    } finally {
+      setSaving(false);
     }
   }
 
-  function getAddress(id: number | null) {
-    if (!id) return null;
+  function getAddress(id: number | null): Address | null {
+    if (id === null) return null;
 
-    return addresses.find((address) => address.id === id) || null;
+    return (
+      addresses.find((address) => address.id === id) || null
+    );
+  }
+
+  function handleShippingChange(address: Address) {
+    if (!canShip(address)) return;
+
+    setShippingId(address.id);
+    setError("");
+
+    if (sameAsShipping) {
+      if (canBill(address)) {
+        setBillingId(address.id);
+      } else {
+        // A shipping-only address cannot also be used for billing.
+        setSameAsShipping(false);
+
+        const existingBilling = addresses.find(
+          (item) => item.id === billingId && canBill(item)
+        );
+
+        const defaultBilling =
+          addresses.find(
+            (item) => item.is_default && canBill(item)
+          ) || addresses.find(canBill);
+
+        setBillingId(
+          existingBilling?.id ??
+          defaultBilling?.id ??
+          null
+        );
+      }
+    }
+  }
+
+  function handleSameAsShippingChange(checked: boolean) {
+    if (checked) {
+      const shippingAddress = getAddress(shippingId);
+
+      if (!shippingAddress || !canBill(shippingAddress)) {
+        setError(
+          "This shipping address cannot be used for billing. Please choose a billing address separately."
+        );
+        return;
+      }
+
+      setBillingId(shippingAddress.id);
+    }
+
+    setSameAsShipping(checked);
+    setError("");
   }
 
   function handleContinue() {
-    if (!shippingId) {
-      setError("Please select a shipping address.");
-      return;
-    }
-
     const shippingAddress = getAddress(shippingId);
 
-    if (!shippingAddress) {
-      setError("Selected shipping address could not be found.");
+    if (!shippingAddress || !canShip(shippingAddress)) {
+      setError("Please select a valid shipping address.");
       return;
     }
 
-    const finalBillingId = sameAsShipping ? shippingId : billingId;
-
-    if (!finalBillingId) {
-      setError("Please select a billing address.");
-      return;
-    }
+    const finalBillingId = sameAsShipping
+      ? shippingId
+      : billingId;
 
     const billingAddress = getAddress(finalBillingId);
 
-    if (!billingAddress) {
-      setError("Selected billing address could not be found.");
+    if (!billingAddress || !canBill(billingAddress)) {
+      setError("Please select a valid billing address.");
       return;
     }
 
@@ -251,49 +466,62 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
     );
   }
 
+  const shippingAddresses = addresses.filter(canShip);
+  const billingAddresses = addresses.filter(canBill);
+
   return (
     <div className="checkout-address-step">
       <div className="checkout-section-header">
         <div>
           <h2>Shipping Address</h2>
-          <p>Select the address where your order should be delivered.</p>
+          <p>
+            Select the address where your order should be delivered.
+          </p>
         </div>
 
         <button
           type="button"
           className="checkout-add-address-btn"
           onClick={() => {
-            setShowNewAddress(!showNewAddress);
+            setShowNewAddress((previous) => !previous);
             setFormError("");
+            setError("");
           }}
         >
           {showNewAddress ? "Cancel" : "+ Add New Address"}
         </button>
       </div>
 
-      {error && <div className="checkout-error">{error}</div>}
-
-      {addresses.length === 0 && !showNewAddress && (
-        <div className="checkout-empty">
-          <h3>No saved addresses</h3>
-          <p>Add your delivery address to continue with checkout.</p>
-
-          <button
-            type="button"
-            className="checkout-primary-btn"
-            onClick={() => setShowNewAddress(true)}
-          >
-            Add Address
-          </button>
+      {error && (
+        <div className="checkout-error" role="alert">
+          {error}
         </div>
       )}
 
-      {addresses.length > 0 && (
+      {shippingAddresses.length === 0 &&
+        !showNewAddress && (
+          <div className="checkout-empty">
+            <h3>No shipping addresses available</h3>
+            <p>
+              Add a shipping address to continue with checkout.
+            </p>
+
+            <button
+              type="button"
+              className="checkout-primary-btn"
+              onClick={() => setShowNewAddress(true)}
+            >
+              Add Address
+            </button>
+          </div>
+        )}
+
+      {shippingAddresses.length > 0 && (
         <>
           <h3>Choose Shipping Address</h3>
 
           <div className="checkout-address-list">
-            {addresses.map((address) => (
+            {shippingAddresses.map((address) => (
               <label
                 key={`shipping-${address.id}`}
                 className={`checkout-address-card ${
@@ -304,13 +532,7 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
                   type="radio"
                   name="shipping-address"
                   checked={shippingId === address.id}
-                  onChange={() => {
-                    setShippingId(address.id);
-
-                    if (sameAsShipping) {
-                      setBillingId(address.id);
-                    }
-                  }}
+                  onChange={() => handleShippingChange(address)}
                 />
 
                 <div className="checkout-address-content">
@@ -343,7 +565,9 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
           <div className="checkout-section-header">
             <div>
               <h2>Billing Address</h2>
-              <p>Choose where billing information should be associated.</p>
+              <p>
+                Choose where billing information should be associated.
+              </p>
             </div>
           </div>
 
@@ -351,23 +575,23 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
             <input
               type="checkbox"
               checked={sameAsShipping}
-              onChange={(e) => {
-                const checked = e.target.checked;
-
-                setSameAsShipping(checked);
-
-                if (checked) {
-                  setBillingId(shippingId);
-                }
-              }}
+              disabled={
+                !getAddress(shippingId) ||
+                !canBill(getAddress(shippingId)!)
+              }
+              onChange={(event) =>
+                handleSameAsShippingChange(event.target.checked)
+              }
             />
 
-            <span>Billing address is same as shipping address</span>
+            <span>
+              Billing address is same as shipping address
+            </span>
           </label>
 
           {!sameAsShipping && (
             <div className="checkout-address-list">
-              {addresses.map((address) => (
+              {billingAddresses.map((address) => (
                 <label
                   key={`billing-${address.id}`}
                   className={`checkout-address-card ${
@@ -378,12 +602,21 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
                     type="radio"
                     name="billing-address"
                     checked={billingId === address.id}
-                    onChange={() => setBillingId(address.id)}
+                    onChange={() => {
+                      setBillingId(address.id);
+                      setError("");
+                    }}
                   />
 
                   <div className="checkout-address-content">
                     <div className="checkout-address-title">
                       <strong>{address.full_name}</strong>
+
+                      {address.is_default && (
+                        <span className="checkout-default-badge">
+                          Default
+                        </span>
+                      )}
                     </div>
 
                     <p>{address.line1}</p>
@@ -400,6 +633,13 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
                   </div>
                 </label>
               ))}
+
+              {billingAddresses.length === 0 && (
+                <p>
+                  No billing addresses available. Please add a
+                  billing address or an address with type "both".
+                </p>
+              )}
             </div>
           )}
         </>
@@ -410,34 +650,46 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
           <h3>Add New Address</h3>
 
           {formError && (
-            <div className="checkout-error">{formError}</div>
+            <div className="checkout-error" role="alert">
+              {formError}
+            </div>
           )}
 
           <div className="checkout-form-grid">
             <div className="checkout-field">
-              <label>Full Name *</label>
+              <label htmlFor="address-full-name">
+                Full Name *
+              </label>
 
               <input
+                id="address-full-name"
                 type="text"
+                autoComplete="name"
+                maxLength={100}
                 value={form.full_name}
-                onChange={(e) =>
-                  updateField("full_name", e.target.value)
+                onChange={(event) =>
+                  updateField("full_name", event.target.value)
                 }
                 placeholder="Enter full name"
               />
             </div>
 
             <div className="checkout-field">
-              <label>Mobile Number *</label>
+              <label htmlFor="address-phone">
+                Mobile Number *
+              </label>
 
               <input
+                id="address-phone"
                 type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
                 maxLength={10}
                 value={form.phone}
-                onChange={(e) =>
+                onChange={(event) =>
                   updateField(
                     "phone",
-                    e.target.value.replace(/\D/g, "")
+                    event.target.value.replace(/\D/g, "").slice(0, 10)
                   )
                 }
                 placeholder="10-digit mobile number"
@@ -445,68 +697,87 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
             </div>
 
             <div className="checkout-field full-width">
-              <label>Address Line 1 *</label>
+              <label htmlFor="address-line1">
+                Address Line 1 *
+              </label>
 
               <input
+                id="address-line1"
                 type="text"
+                autoComplete="address-line1"
+                maxLength={200}
                 value={form.line1}
-                onChange={(e) =>
-                  updateField("line1", e.target.value)
+                onChange={(event) =>
+                  updateField("line1", event.target.value)
                 }
                 placeholder="House no., building, street"
               />
             </div>
 
             <div className="checkout-field full-width">
-              <label>Address Line 2</label>
+              <label htmlFor="address-line2">
+                Address Line 2
+              </label>
 
               <input
+                id="address-line2"
                 type="text"
+                autoComplete="address-line2"
+                maxLength={200}
                 value={form.line2}
-                onChange={(e) =>
-                  updateField("line2", e.target.value)
+                onChange={(event) =>
+                  updateField("line2", event.target.value)
                 }
                 placeholder="Apartment, landmark, etc."
               />
             </div>
 
             <div className="checkout-field">
-              <label>City *</label>
+              <label htmlFor="address-city">City *</label>
 
               <input
+                id="address-city"
                 type="text"
+                autoComplete="address-level2"
                 value={form.city}
-                onChange={(e) =>
-                  updateField("city", e.target.value)
+                onChange={(event) =>
+                  updateField("city", event.target.value)
                 }
                 placeholder="City"
               />
             </div>
 
             <div className="checkout-field">
-              <label>State *</label>
+              <label htmlFor="address-state">State *</label>
 
               <input
+                id="address-state"
                 type="text"
+                autoComplete="address-level1"
                 value={form.state}
-                onChange={(e) =>
-                  updateField("state", e.target.value)
+                onChange={(event) =>
+                  updateField("state", event.target.value)
                 }
                 placeholder="State"
               />
             </div>
 
             <div className="checkout-field">
-              <label>PIN Code *</label>
+              <label htmlFor="address-postal-code">
+                PIN Code *
+              </label>
 
               <input
+                id="address-postal-code"
                 type="text"
+                inputMode="numeric"
+                autoComplete="postal-code"
                 maxLength={6}
                 value={form.postal_code}
-                onChange={(e) =>
+                onChange={(event) =>
                   updateField(
                     "postal_code",
-                    e.target.value.replace(/\D/g, "")
+                    event.target.value.replace(/\D/g, "").slice(0, 6)
                   )
                 }
                 placeholder="6-digit PIN"
@@ -514,13 +785,33 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
             </div>
 
             <div className="checkout-field">
-              <label>Country</label>
+              <label htmlFor="address-country">Country *</label>
 
               <input
+                id="address-country"
                 type="text"
                 value={form.country}
                 disabled
               />
+            </div>
+
+            <div className="checkout-field full-width">
+              <label htmlFor="address-type">Address Type *</label>
+
+              <select
+                id="address-type"
+                value={form.address_type}
+                onChange={(event) =>
+                  updateField(
+                    "address_type",
+                    event.target.value as AddressType
+                  )
+                }
+              >
+                <option value="both">Shipping and Billing</option>
+                <option value="shipping">Shipping Only</option>
+                <option value="billing">Billing Only</option>
+              </select>
             </div>
           </div>
 
@@ -528,8 +819,9 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
             type="button"
             className="checkout-primary-btn"
             onClick={createAddress}
+            disabled={saving}
           >
-            Save Address
+            {saving ? "Saving Address..." : "Save Address"}
           </button>
         </div>
       )}
@@ -541,7 +833,8 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
           onClick={handleContinue}
           disabled={
             !shippingId ||
-            (!sameAsShipping && !billingId)
+            (!sameAsShipping && !billingId) ||
+            saving
           }
         >
           Continue to Shipping
@@ -550,6 +843,3 @@ export default function AddressStep({ onContinue }: AddressStepProps) {
     </div>
   );
 }
-
-
-
