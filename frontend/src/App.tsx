@@ -25,7 +25,6 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const ProductListingPage = lazy(() => import('./pages/ProductListingPage'));
 const CartPage = lazy(() => import('./pages/CartPage'));
 const AdminApp = lazy(() => import('./AdminApp'));
-const FaqPage = lazy(() => import('./pages/support/FaqPage'));
 
 // Storefront layout
 const StorefrontLayout = lazy(() => import('./StorefrontLayout'));
@@ -64,7 +63,7 @@ export default function App() {
               <Route path="/products" element={<ProductListingPage />} />
               <Route path="/product/:id" element={<ProductDetailPage />} />
               <Route path="/search" element={<SearchResultsPage />} />
-              <Route path="/help-center" element={<FaqPage />} />
+
               {/* Cart Page */}
               <Route
                 path="/cart"
