@@ -16,7 +16,7 @@ from app.models.order import (
     ReturnItem,
 )
 
-from app.services import order_service
+from app.services import order_service, inventory_service
 from app.services.inventory_service import on_order_status_change
 
 
@@ -176,6 +176,7 @@ def test_cancelled_confirmed_order_restores_stock(db):
     assert histories[1].change_amount == 5
     assert histories[1].new_quantity == 10
     assert histories[1].reason == "cancel"
+    assert histories[1].order_id == order.id
 
 def test_legacy_confirmed_order_without_deduction_does_not_restock(db):
     inventory = add_inventory(db, 5)
@@ -382,8 +383,10 @@ def test_returned_order_restores_stock_and_creates_history(db):
     assert history.previous_quantity == 0
     assert history.new_quantity == 5
 
+    assert history.order_id == order.id
+
 def test_returned_item_restocks_only_returned_quantity(db):
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
     from app.services import return_service
 
@@ -396,7 +399,7 @@ def test_returned_item_restocks_only_returned_quantity(db):
     db.commit()
     assert inventory.quantity == 5
 
-    delivered_time = datetime.utcnow()
+    delivered_time = datetime.now(timezone.utc).replace(tzinfo=None)
     order_service.update_status(db, order, "PROCESSING", changed_by=1)
     order_service.update_status(db, order, "PACKED", changed_by=1)
     order_service.update_status(db, order, "SHIPPED", changed_by=1)
@@ -427,3 +430,92 @@ def test_returned_item_restocks_only_returned_quantity(db):
     assert histories[1].change_amount == 2
     assert histories[1].change_type == "RESTOCK"
     assert histories[1].reason == "return"
+
+def test_cancelling_confirmed_order_twice_does_not_restock_twice(db):
+    inventory = add_inventory(db, 10)
+    order = make_order(db)
+
+    order_service.update_status(
+        db, order, "CONFIRMED", changed_by=1
+    )
+    db.commit()
+
+    order_service.update_status(
+        db, order, "CANCELLED", changed_by=1
+    )
+    db.commit()
+
+    assert inventory.quantity == 10
+
+    with pytest.raises(order_service.InvalidTransition):
+        order_service.update_status(
+            db, order, "CANCELLED", changed_by=1
+        )
+
+    db.refresh(inventory)
+    db.refresh(order)
+
+    assert inventory.quantity == 10
+    assert order.status == "CANCELLED"
+    assert db.query(InventoryHistory).count() == 2
+    assert (
+        db.query(InventoryHistory)
+        .filter(InventoryHistory.change_type == "RESTOCK")
+        .count()
+    ) == 1
+
+def test_failed_restock_rolls_back_inventory_history_and_order_status(
+    db, monkeypatch
+):
+    inventory = add_inventory(db, 10)
+    order = make_order(db)
+
+    order_service.update_status(
+        db, order, "CONFIRMED", changed_by=1
+    )
+    db.commit()
+
+    original_add_history = inventory_service._add_history
+
+    def fail_after_restock(*args, **kwargs):
+        original_add_history(*args, **kwargs)
+
+        if kwargs.get("change_type") == "RESTOCK":
+            raise RuntimeError("Simulated restock failure")
+
+    monkeypatch.setattr(
+        inventory_service,
+        "_add_history",
+        fail_after_restock,
+    )
+
+    with pytest.raises(RuntimeError, match="Simulated restock failure"):
+        order_service.update_status(
+            db, order, "CANCELLED", changed_by=1
+        )
+
+    db.rollback()
+
+    db.refresh(inventory)
+    db.refresh(order)
+
+    assert inventory.quantity == 5
+    assert order.status == "CONFIRMED"
+
+    histories = (
+        db.query(InventoryHistory)
+        .order_by(InventoryHistory.id)
+        .all()
+    )
+
+    assert len(histories) == 1
+    assert histories[0].change_type == "DEDUCTION"
+    assert histories[0].change_amount == -5
+
+    cancelled_statuses = (
+        db.query(OrderStatusHistory)
+        .filter(OrderStatusHistory.new_status == "CANCELLED")
+        .count()
+    )
+
+    assert cancelled_statuses == 0
