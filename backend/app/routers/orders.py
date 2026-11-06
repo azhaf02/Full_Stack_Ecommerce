@@ -1,11 +1,12 @@
-"""Order endpoints: a customer's orders, cancellation and returns, and the admin status and returns screens.
 
-The routes only check who is asking and translate errors; the rules live in services/order_service.py and
-return_service.py. A route commits once at the end, so a status change and everything hooked onto it
-(stock, notifications) succeed or fail together.
+"""Order endpoints: customer orders, cancellation and returns,
+and admin order status and return management.
 
-POST /api/orders prices the order on the server (services/order_pricing.py); the browser never sends a price.
-When Safiya's checkout session exists, only order_pricing.price_order() needs to change.
+The routes check permissions and translate service errors.
+Business rules live in order_service.py and return_service.py.
+
+POST /api/orders prices orders on the server.
+Prices and totals are never trusted from the browser.
 """
 
 from typing import List, Optional
@@ -15,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import require_role
 from app.database import get_db
-from app.models.order import Order, OrderStatus, Return, ReturnStatus
+from app.models.order import Order, Return, ReturnStatus
 from app.models.address import Address
 from app.models.payment import Payment, PaymentMethod, PaymentStatus
 from app.models.user import User
@@ -66,7 +67,7 @@ def _http_error(exc: OrderServiceError) -> HTTPException:
 
 
 def _run(db: Session, action):
-    """Run action(), commit, and turn a rule violation into an HTTP error."""
+    """Run action, commit once, and roll back if anything fails."""
     try:
         result = action()
         db.commit()
@@ -86,7 +87,6 @@ def _detail(
     for_admin: bool = False,
     db: Session = None,
 ) -> OrderDetailOut:
-
     out = (
         AdminOrderDetailOut if for_admin else OrderDetailOut
     ).model_validate(order)
@@ -95,7 +95,6 @@ def _detail(
         can_cancel=order_service.can_customer_cancel(order),
         can_request_return=return_service.can_request_return(order),
         return_deadline=return_service.return_deadline(order),
-
         allowed_next_statuses=(
             order_service.admin_next_statuses(order)
             if for_admin
@@ -151,15 +150,18 @@ def place_order(
 ):
     """Place an order.
 
-    COD orders are handled by the existing COD status hook.
+    Checkout-session orders are priced using the server-side
+    checkout snapshot.
+
     Online orders receive a pending payment record.
+    Checkout sessions are not consumed here because the payment
+    selection and verification flow still needs the session.
     """
 
     def action():
 
-        # Checkout session order creation
+        # Checkout-session order creation.
         if data.checkout_reference_id is not None:
-
             priced = order_pricing.price_checkout_session(
                 db,
                 user.id,
@@ -169,15 +171,9 @@ def place_order(
                 shipping_method_id=data.shipping_method_id,
             )
 
-            order_pricing.consume_checkout_session(
-                db,
-                user.id,
-                data.checkout_reference_id,
-            )
-
             order = order_service.create_order(db, priced)
 
-            # Create pending payment for online orders
+            # Create a pending payment record for online orders.
             if data.payment_method == "ONLINE":
                 db.add(
                     Payment(
@@ -188,11 +184,15 @@ def place_order(
                     )
                 )
 
-            order_pricing.clear_user_cart(db, user.id)
+            # Do not consume the checkout session here.
+            # The payment flow still needs to access it.
+            #
+            # Do not clear the cart here. Clear it only after
+            # the relevant COD or online payment flow succeeds.
 
             return order
 
-        # Direct order creation
+        # Normal order flow without a checkout session.
         request = order_pricing.OrderRequest(
             address_id=data.address_id,
             shipping_method_id=data.shipping_method_id,
@@ -200,24 +200,23 @@ def place_order(
             coupon_code=data.coupon_code,
             items=[
                 order_pricing.OrderLine(
-                    product_id=i.product_id,
-                    variant_id=i.variant_id,
-                    quantity=i.quantity,
+                    product_id=item.product_id,
+                    variant_id=item.variant_id,
+                    quantity=item.quantity,
                 )
-                for i in data.items
+                for item in data.items
             ],
         )
 
-        order = order_service.create_order(
+        priced = order_pricing.price_order(
             db,
-            order_pricing.price_order(
-                db,
-                user.id,
-                request,
-            ),
+            user.id,
+            request,
         )
 
-        # Create pending payment for online orders
+        order = order_service.create_order(db, priced)
+
+        # Create a pending payment record for online orders.
         if data.payment_method == "ONLINE":
             db.add(
                 Payment(
@@ -284,7 +283,6 @@ def cancel_my_order(
     db: Session = Depends(get_db),
 ):
     def action():
-
         order = order_service.get_order_for_user(
             db,
             order_id,
@@ -315,7 +313,6 @@ def request_my_return(
     db: Session = Depends(get_db),
 ):
     def action():
-
         order = order_service.get_order_for_user(
             db,
             order_id,
@@ -328,8 +325,8 @@ def request_my_return(
             user.id,
             data.reason,
             [
-                (i.order_item_id, i.quantity)
-                for i in data.items
+                (item.order_item_id, item.quantity)
+                for item in data.items
             ],
         )
 
@@ -379,7 +376,6 @@ def admin_update_status(
     db: Session = Depends(get_db),
 ):
     def action():
-
         order = db.get(Order, order_id)
 
         if order is None:
@@ -416,7 +412,10 @@ def admin_update_status(
     response_model=List[ReturnOut],
 )
 def admin_list_returns(
-    status_filter: Optional[str] = Query(None, alias="status"),
+    status_filter: Optional[str] = Query(
+        None,
+        alias="status",
+    ),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     admin: User = Depends(admin_only),
@@ -426,7 +425,7 @@ def admin_list_returns(
 
     if status_filter is not None:
         if status_filter not in {
-            s.value for s in ReturnStatus
+            item.value for item in ReturnStatus
         }:
             raise HTTPException(
                 status_code=422,
@@ -438,7 +437,8 @@ def admin_list_returns(
         )
 
     return (
-        query.order_by(
+        query
+        .order_by(
             Return.requested_at.desc(),
             Return.id.desc(),
         )
@@ -459,7 +459,6 @@ def admin_review_return(
     db: Session = Depends(get_db),
 ):
     def action():
-
         ret = _load_return(db, return_id)
 
         if data.action == "approve":
