@@ -9,6 +9,9 @@ same transaction as the status change, so a failure rolls both back.
   * CANCELLED (COD or online): a payment that is still PENDING (nothing was paid) becomes CANCELLED, on the
     payments row and on orders.payment_status, so it is no longer counted as money still to come. A payment
     that already SUCCEEDED is left alone; cancel_order() moves it on through REFUND_PENDING and REFUNDED.
+  * REFUND_PENDING / REFUNDED (COD or online): update_status() only moves orders.payment_status, so the
+    payments row that took the money follows here. Otherwise the admin Payments page keeps showing it as
+    SUCCESS after the customer was refunded.
 
 Online payments are otherwise confirmed by the payment module (apply_payment_result). The function keeps its
 original name, on_cod_order_change, because app/main.py registers it by that name.
@@ -32,9 +35,28 @@ def _cancel_unpaid(db: Session, order: Order) -> None:
     db.flush()
 
 
+# The payments row that follows the order into a refund, and the status it moves on from.
+_REFUND_FROM = {
+    OrderStatus.REFUND_PENDING.value: (PaymentStatus.SUCCESS, PaymentStatus.REFUND_PENDING),
+    OrderStatus.REFUNDED.value: (PaymentStatus.SUCCESS, PaymentStatus.REFUND_PENDING, PaymentStatus.REFUNDED),
+}
+
+
+def _follow_refund(db: Session, order: Order, new_status: str) -> None:
+    target = PaymentStatus(new_status)
+    for payment in db.query(Payment).filter(Payment.order_id == order.id,
+                                            Payment.status.in_(_REFUND_FROM[new_status])).all():
+        payment.status = target
+    db.flush()
+
+
 def on_cod_order_change(db: Session, order: Order, previous_status: str, new_status: str) -> None:
     if new_status == OrderStatus.CANCELLED.value:
         _cancel_unpaid(db, order)
+        return
+
+    if new_status in _REFUND_FROM:
+        _follow_refund(db, order, new_status)
         return
 
     if _value(order.payment_method) != OrderPaymentMethod.COD.value:
