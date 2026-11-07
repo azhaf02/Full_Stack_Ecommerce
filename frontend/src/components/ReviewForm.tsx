@@ -66,9 +66,9 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
           <p className="text-xs uppercase tracking-wider text-[#232F24]/70 mt-1">{productName}</p>
         </div>
         {onClose && (
-          <button 
-            type="button" 
-            onClick={onClose} 
+          <button
+            type="button"
+            onClick={onClose}
             className="text-gray-400 hover:text-[#232F24] text-lg leading-none"
           >
             ✕

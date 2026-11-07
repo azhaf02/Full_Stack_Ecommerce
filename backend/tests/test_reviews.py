@@ -1,4 +1,4 @@
-﻿import uuid
+import uuid
 import pkgutil
 import importlib
 import pytest
@@ -63,4 +63,3 @@ def test_post_review_invalid_rating():
     }
     response = client.post("/api/reviews", json=payload)
     assert response.status_code == 422
-

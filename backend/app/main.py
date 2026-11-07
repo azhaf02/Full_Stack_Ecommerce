@@ -1,4 +1,5 @@
-﻿from dotenv import load_dotenv
+﻿
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -21,15 +22,10 @@ from app.api.routes.catalog import router as catalog_router, public_router
 from app.api.routes.product import router as product_router
 from app.api.routes.variant import router as variant_router
 from app.api.routes.support import router as support_router
+from app.api.routes.checkout import router as checkout_router
 from app.api.routes import inventory
 
-# Inventory and order integration.
-from app.services import order_service
-from app.services.inventory_service import on_order_status_change
-from app.services.cod_payment_hook import on_cod_order_change
-from app.services.order_notification_hook import on_order_notification
-
-# Other application routers.
+# Application routers.
 from app.routers import (
     notifications,
     cart,
@@ -47,9 +43,17 @@ from app.routers import (
     invoice,
 )
 
+# Order lifecycle hooks.
+from app.services import order_service
+from app.services.cod_payment_hook import on_cod_order_change
+from app.services.order_notification_hook import on_order_notification
+from app.services.inventory_service import on_order_status_change
+
+
 app = FastAPI(title="Customer Dashboard & Reviews API")
 
-# Allow the frontend on ports 5173 and 5174.
+
+# Enable CORS for the frontend.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -63,48 +67,71 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve uploaded product images.
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# Cart and customer-facing routes.
+# Serve uploaded product images.
+app.mount(
+    "/uploads",
+    StaticFiles(directory="uploads"),
+    name="uploads",
+)
+
+
+# Register order status hooks.
+order_service.register_status_hook(on_cod_order_change)
+order_service.register_status_hook(on_order_notification)
+order_service.register_status_hook(on_order_status_change)
+
+
+# Customer cart.
 app.include_router(cart.router)
-app.include_router(notifications.router)
+
+
+# Reviews and notifications.
+app.include_router(notifications.router, prefix="/api")
 app.include_router(reviews.router, prefix="/api")
+
 
 # Admin and category routes.
 app.include_router(admin.router)
 app.include_router(category.router)
 
+
 # Inventory.
 app.include_router(inventory.router)
 
-# Product APIs.
+
+# Product catalog and related APIs.
 app.include_router(product_router)
 app.include_router(public_router)
 app.include_router(catalog_router)
 app.include_router(variant_router)
 app.include_router(wishlist_router)
 
-# Authentication, accounts, and audit logs.
+
+# Checkout.
+app.include_router(checkout_router)
+
+
+# Authentication, accounts and audit logs.
 app.include_router(account.router)
 app.include_router(auth.router)
 app.include_router(audit_logs.router)
+
 
 # Analytics and orders.
 app.include_router(analytics.router)
 app.include_router(orders.router)
 
-# Order-status hooks, all run inside order_service.update_status(): inventory stock, COD/refund payment rows,
-# and customer notifications.
-order_service.register_status_hook(on_order_status_change)
-order_service.register_status_hook(on_cod_order_change)
-order_service.register_status_hook(on_order_notification)
 
-# Payments and checkout.
+# Payments and checkout sessions.
 app.include_router(payment.router)
 app.include_router(checkout_sessions.router)
 app.include_router(checkout_sessions.address_router)
+
+
+# Shipping methods.
 app.include_router(shipping_methods.router)
+
 
 # Support and invoices.
 app.include_router(support_router)
@@ -113,4 +140,6 @@ app.include_router(invoice.router)
 
 @app.get("/")
 def root():
-    return {"message": "VIORA API is running"}
+    return {
+        "message": "VIORA API is running"
+    }

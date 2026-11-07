@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.role import Role
 from app.models.user import User
+import time
 from app.schemas.auth import UserCreate, UserLogin, UserOut
 
 # ---------- failed-login lockout (AUTH-07) ----------

@@ -1,8 +1,10 @@
 
+import { useCallback, useEffect, useState } from "react";
 import MockPaymentForm from "../components/payment/MockPaymentForm";
 import { paymentService } from "../services/paymentService";
-import { useCallback, useEffect, useState } from "react";
 import { getOrderErrorMessage, orderService } from "../services/orderService";
+import { invoiceService } from "../services/invoiceService";
+import { getErrorMessage } from "../services/apiClient";
 import type { Order } from "../types/order";
 import {
   PAYMENT_METHOD_LABEL,
@@ -15,7 +17,6 @@ import {
 } from "../utils/orderOutcome";
 
 interface OrderConfirmationPageProps {
-  /** The order to show. Pass the id returned by POST /api/orders. */
   orderId: number;
   onViewOrders?: () => void;
   onContinueShopping?: () => void;
@@ -65,6 +66,8 @@ export default function OrderConfirmationPage({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [paymentId, setPaymentId] = useState<number | null>(null);
+  const [invoiceDownloading, setInvoiceDownloading] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     let cancelled = false;
@@ -135,7 +138,22 @@ export default function OrderConfirmationPage({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // The Order ID remains visible if copying is unavailable.
+      // The order number remains visible if copying is unavailable.
+    }
+  };
+
+  const handleDownloadInvoice = async () => {
+    setInvoiceDownloading(true);
+    setInvoiceError(null);
+
+    try {
+      await invoiceService.downloadInvoice(orderId);
+    } catch (err) {
+      setInvoiceError(
+        getErrorMessage(err, "Could not download your invoice.")
+      );
+    } finally {
+      setInvoiceDownloading(false);
     }
   };
 
@@ -148,7 +166,7 @@ export default function OrderConfirmationPage({
       >
         <div className="spinner-border text-success" aria-hidden="true" />
         <p style={{ margin: "12px 0 0", color: "#6e776e" }}>
-          Loading your order…
+          Loading your order...
         </p>
       </div>
     );
@@ -191,7 +209,6 @@ export default function OrderConfirmationPage({
         width: "100%",
       }}
     >
-      {/* Order outcome and details */}
       <section
         style={card}
         aria-labelledby="order-outcome-title"
@@ -325,7 +342,39 @@ export default function OrderConfirmationPage({
         </dl>
       </section>
 
-      {/* Online payment form */}
+      <section style={card} aria-labelledby="invoice-title">
+        <h2
+          id="invoice-title"
+          style={{
+            fontSize: "17px",
+            fontWeight: 700,
+            color: "#2f3e30",
+            margin: "0 0 12px",
+          }}
+        >
+          Your invoice
+        </h2>
+
+        <p style={{ color: "#6e776e", fontSize: "14px" }}>
+          Download a PDF copy of your order invoice.
+        </p>
+
+        {invoiceError && (
+          <div className="alert alert-danger" role="alert">
+            {invoiceError}
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="btn btn-success"
+          onClick={handleDownloadInvoice}
+          disabled={invoiceDownloading}
+        >
+          {invoiceDownloading ? "Downloading..." : "Download Invoice PDF"}
+        </button>
+      </section>
+
       {order.payment_method === "ONLINE" && paymentId !== null && (
         <MockPaymentForm
           paymentId={paymentId}
@@ -333,7 +382,6 @@ export default function OrderConfirmationPage({
         />
       )}
 
-      {/* Ordered items and amount summary */}
       <section style={card} aria-labelledby="order-items-title">
         <h2
           id="order-items-title"
@@ -361,15 +409,9 @@ export default function OrderConfirmationPage({
                 }}
               >
                 <th scope="col">Product</th>
-                <th scope="col" className="text-end">
-                  Qty
-                </th>
-                <th scope="col" className="text-end">
-                  Price
-                </th>
-                <th scope="col" className="text-end">
-                  Total
-                </th>
+                <th scope="col" className="text-end">Qty</th>
+                <th scope="col" className="text-end">Price</th>
+                <th scope="col" className="text-end">Total</th>
               </tr>
             </thead>
 
@@ -439,7 +481,6 @@ export default function OrderConfirmationPage({
         </dl>
       </section>
 
-      {/* Order status history */}
       <section style={card} aria-labelledby="order-history-title">
         <h2
           id="order-history-title"
@@ -492,7 +533,6 @@ export default function OrderConfirmationPage({
         </ol>
       </section>
 
-      {/* Navigation buttons */}
       {(onViewOrders || onContinueShopping) && (
         <div
           style={{
