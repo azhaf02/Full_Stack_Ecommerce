@@ -114,6 +114,31 @@ def test_a_delivered_cod_return_is_refunded_because_cash_was_collected(db):
     assert order.payment_status == "REFUND_PENDING"
 
 
+def test_a_refunded_cod_return_moves_the_payments_row_with_the_order(db):
+    order = new_order(db, "COD")
+    for step in PATH:
+        update_status(db, order, step)
+    for step in ["RETURN_REQUESTED", "RETURN_APPROVED", "RETURNED", "REFUND_PENDING"]:
+        update_status(db, order, step)
+    (payment,) = payments(db, order)
+    assert payment.status == PaymentStatus.REFUND_PENDING and order.payment_status == "REFUND_PENDING"
+    update_status(db, order, "REFUNDED")
+    assert payment.status == PaymentStatus.REFUNDED and order.payment_status == "REFUNDED"
+
+
+def test_a_failed_payment_attempt_is_not_touched_by_a_refund(db):
+    order = new_order(db, "ONLINE")
+    failed = Payment(order_id=order.id, method=PaymentMethod.ONLINE, status=PaymentStatus.FAILED,
+                     amount=order.total_amount)
+    paid = Payment(order_id=order.id, method=PaymentMethod.ONLINE, status=PaymentStatus.SUCCESS,
+                   amount=order.total_amount)
+    db.add_all([failed, paid])
+    apply_payment_result(db, order, "SUCCESS")
+    cancel_order(db, order, user_id=1)
+    update_status(db, order, "REFUNDED")
+    assert failed.status == PaymentStatus.FAILED and paid.status == PaymentStatus.REFUNDED
+
+
 def test_online_orders_are_left_to_the_payment_module(db):
     order = new_order(db, "ONLINE")
     assert payments(db, order) == [] and order.status == "PLACED"
@@ -148,8 +173,10 @@ def test_cancelling_a_paid_online_order_keeps_the_payment_for_the_refund_flow(db
     apply_payment_result(db, order, "SUCCESS")
     cancel_order(db, order, user_id=1)
     (payment,) = payments(db, order)
-    assert payment.status == PaymentStatus.SUCCESS       # not cancelled: the money was taken
+    assert payment.status == PaymentStatus.REFUND_PENDING   # not cancelled: the money was taken, and is owed back
     assert order.status == "REFUND_PENDING" and order.payment_status == "REFUND_PENDING"
+    update_status(db, order, "REFUNDED")
+    assert payment.status == PaymentStatus.REFUNDED and order.payment_status == "REFUNDED"
 
 
 def test_the_hook_is_registered_by_the_real_app():
